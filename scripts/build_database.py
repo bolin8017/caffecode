@@ -205,6 +205,7 @@ async def import_list(db, slug: str, args: argparse.Namespace) -> bool:
     # Load problem data for all IDs in the list
     problems: list[dict] = []
     missing_files: list[int] = []
+    skipped_no_content: list[int] = []
     for lid in list_obj["problem_ids"]:
         # Find the problem file — we need the slug to build the filename
         # Since we only have the ID here, glob for it
@@ -213,10 +214,16 @@ async def import_list(db, slug: str, args: argparse.Namespace) -> bool:
             missing_files.append(lid)
             continue
         p = json.loads(matches[0].read_text(encoding="utf-8"))
+        # Skip metadata-only problems (no AI content yet)
+        if not any(p.get(f) for f in CONTENT_FIELDS):
+            skipped_no_content.append(lid)
+            continue
         problems.append(p)
 
     if missing_files:
         log.warning(f"  {len(missing_files)} problem files not found: {missing_files[:10]}...")
+    if skipped_no_content:
+        log.info(f"  Skipped {len(skipped_no_content)} metadata-only problems (no content)")
 
     slug_to_id: dict[str, int] = {}
 

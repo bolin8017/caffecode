@@ -38,7 +38,7 @@ A daily LeetCode problem delivery platform with AI-generated C++ explanations in
 ## Architecture
 
 ```
-                  ┌─────────────────────────┐
+                  ┌──────────────────────────┐
                   │   Supabase (PostgreSQL)  │
                   │   Auth · RLS · RPC       │
                   └──────┬──────────┬────────┘

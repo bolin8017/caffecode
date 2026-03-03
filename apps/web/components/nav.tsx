@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from './ui/button'
 import { UserMenu } from './user-menu'
@@ -24,6 +25,7 @@ export async function Nav({ userProfile }: NavProps) {
     <nav className="border-b bg-background sticky top-0 z-40">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg tracking-tight">
+          <Image src="/logo.png" alt="CaffeCode" width={28} height={28} />
           CaffeCode
         </Link>
 

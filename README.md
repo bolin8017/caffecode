@@ -24,8 +24,9 @@ A daily LeetCode problem delivery platform with AI-generated C++ explanations in
 ## Features
 
 - **32 curated lists** — Blind 75, NeetCode 150, Grind 75, company lists (FAANG, Google, Meta, Amazon, Apple, Bloomberg, Microsoft), topic & algorithm lists
-- **451 problems** with AI-generated content — explanation, C++ solution, complexity analysis, pseudocode, alternative approaches, follow-up questions
-- **Zero runtime LLM calls** — all content pre-generated offline via admin UI
+- **451+ problems** with AI-generated content — explanation, C++ solution, complexity analysis, pseudocode, alternative approaches, follow-up questions
+- **Automated metadata sync** — `sync_leetcode.py` fetches all ~3100 free LeetCode problems via GraphQL API + contest ratings
+- **Zero runtime LLM calls** — all content pre-generated offline via Claude Sonnet
 - **3 notification channels** — Telegram, LINE, Email; connect any combination
 - **2 delivery modes** — follow a list sequentially, or filter by difficulty rating + topic
 - **Per-user push hour** — configurable delivery time in your local timezone
@@ -81,7 +82,7 @@ Two processes share the same Supabase database. `packages/shared` provides chann
 | Monorepo | pnpm workspaces + Turborepo |
 | Observability | Sentry (errors), PostHog (analytics), Pino (structured logging) |
 | Security | CSP headers, Zod validation, webhook HMAC verification |
-| Testing | Vitest — 164 tests across 3 packages |
+| Testing | Vitest (164 TS tests) + pytest (20 Python tests) |
 | CI/CD | GitHub Actions, Vercel (web), Railway (worker) |
 
 ## Project Structure
@@ -99,7 +100,8 @@ docs/
   staging-setup.md      Staging environment guide
   content-spec.md       Content generation specification
 scripts/
-  build_database.py     Data importer for lists and problems
+  sync_leetcode.py      Fetch LeetCode metadata into data/problems/ (GraphQL + ratings)
+  build_database.py     Data importer for lists and problems (skips metadata-only)
   ipv4-only.cjs         Forces IPv4 for local dev on WSL2
 ```
 
@@ -135,9 +137,15 @@ See each `.env.example` for required variables. `SUPABASE_SERVICE_ROLE_KEY` must
 1. Create a [Supabase](https://supabase.com) project.
 2. Run [`docs/supabase-schema.sql`](docs/supabase-schema.sql) in the SQL editor to create all tables, indexes, RLS policies, and RPC functions.
 3. Apply migrations from `supabase/migrations/` if needed.
-4. Import content data (problem JSON files stored locally, not in git):
+4. Sync LeetCode problem metadata and import content:
 
 ```bash
+# Fetch all problem metadata (titles, difficulty, ratings, topics)
+python3 scripts/sync_leetcode.py                   # full sync (~3100 free problems)
+python3 scripts/sync_leetcode.py --dry-run         # preview without writing
+python3 scripts/sync_leetcode.py --ids 1,42,200    # sync specific problems only
+
+# Import problems WITH content into Supabase (metadata-only files are skipped)
 python3 scripts/build_database.py --list blind75   # single list
 python3 scripts/build_database.py --list all       # all lists
 ```
@@ -154,13 +162,16 @@ pnpm dev            # start web dev server on localhost:3000
 ### Running Tests
 
 ```bash
-# All tests via Turborepo
+# All TypeScript tests via Turborepo
 pnpm test
 
 # Individually
 cd packages/shared && pnpm exec vitest run   # 68 tests
 cd apps/worker && pnpm exec vitest run       # 45 tests
 cd apps/web && pnpm exec vitest run          # 51 tests
+
+# Python tests (sync script)
+cd scripts && python3 -m pytest tests/ -v    # 20 tests
 ```
 
 ## Deployment

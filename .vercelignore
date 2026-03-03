@@ -1,0 +1,9 @@
+node_modules
+.git
+data
+apps/worker
+packages/shared/node_modules
+packages/shared/dist
+apps/web/node_modules
+apps/web/.next
+*.log

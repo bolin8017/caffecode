@@ -1,0 +1,29 @@
+name: Bug Report
+description: Report a bug in CaffeCode
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Web (dashboard/settings)
+        - Push notifications (Telegram/LINE/Email)
+        - Admin panel
+        - Other
+    validations:
+      required: true

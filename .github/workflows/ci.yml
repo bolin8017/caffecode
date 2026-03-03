@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          TELEGRAM_BOT_TOKEN: placeholder
+          TELEGRAM_BOT_USERNAME: placeholder
+          TELEGRAM_WEBHOOK_SECRET: placeholder
+          LINE_CHANNEL_ACCESS_TOKEN: placeholder
+          LINE_CHANNEL_SECRET: placeholder
+          LINE_BOT_BASIC_ID: placeholder
+
+      - name: Type check
+        run: pnpm --filter @caffecode/shared --filter @caffecode/worker --filter @caffecode/web exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm --filter @caffecode/web lint
+
+      - name: Test shared
+        run: pnpm --filter @caffecode/shared test
+
+      - name: Test worker
+        run: pnpm --filter @caffecode/worker test
+
+      - name: Test web
+        run: pnpm --filter @caffecode/web test

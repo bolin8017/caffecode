@@ -1,0 +1,11 @@
+# Default owner for all files
+* @bolin8017
+
+# App-specific ownership
+/apps/web/       @bolin8017
+/apps/worker/    @bolin8017
+/packages/shared/ @bolin8017
+
+# Infrastructure
+/.github/        @bolin8017
+/supabase/       @bolin8017

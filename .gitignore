@@ -1,0 +1,58 @@
+# Environment variables
+.env
+.env.local
+.env*.local
+
+# Local Claude Code instructions (private)
+CLAUDE.local.md
+
+# Problem data (imported via scripts/build_database.py)
+data/
+
+# Claude Code implementation plans (session artifacts)
+docs/plans/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node.js
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Vercel
+.vercel
+
+# Git worktrees
+.worktrees
+
+# MCP config (contains access tokens)
+.mcp.json
+
+# Playwright MCP
+.playwright-mcp/
+
+# Supabase local
+supabase/.temp/
+supabase/.branches/
+
+# Firebase debug
+firebase-debug.log

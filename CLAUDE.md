@@ -131,6 +131,25 @@ docs: update README with badges and contribution guide
 3. Open PR → CI must pass → reviewer approves → **squash merge** into `main`
 4. Branch auto-deleted after merge
 
+### PR Description Format
+
+Squash merge produces one commit on `main` — the PR title becomes the commit subject, the PR body becomes the commit body. Both must follow the same Conventional Commits format defined above.
+
+| Element | Rule |
+|---------|------|
+| **Title** | `<type>(<scope>): <subject>` — same format as commit header |
+| **Body** | `## Summary` (concise bullet points of what changed and why) + `## Test plan` (verified items as plain text statements) |
+| **Test plan** | Only list items that have been verified. Never use unchecked checkboxes (`- [ ]`) or TODO items |
+
+### Documentation Maintenance
+
+Every feature branch must update documentation before opening a PR:
+
+- **`CLAUDE.md`** — update Key Files, Key Patterns, Database, or Development Notes if the change adds/removes files, tables, patterns, or conventions
+- **`README.md`** — update Features, test counts, or any user-facing description that changed
+
+Include these doc updates as a `docs:` commit in the same feature branch — do NOT create a separate branch for docs.
+
 ### Hard Rules
 
 - **Never** push directly to `main` — always use PRs
@@ -197,7 +216,7 @@ docs: update README with badges and contribution guide
 **Routes**:
 - `app/(public)/` — Landing, /problems, /problems/[slug], /lists, /lists/[slug] (all use `revalidate = 3600` ISR)
 - `app/robots.ts` — Dynamic robots.txt generation
-- `app/(auth)/` — /dashboard, /settings, /settings/learning, /settings/account, /settings/notifications, /onboarding
+- `app/(auth)/` — /dashboard, /settings, /settings/learning, /settings/account, /settings/notifications, /onboarding, /garden
 - `app/(admin)/admin/` — Health dashboard, problems, content, lists, users, push monitor, channels
 - `app/api/telegram/webhook/route.ts` — Telegram webhook handler
 - `app/api/line/webhook/route.ts` — LINE webhook handler
@@ -216,7 +235,7 @@ docs: update README with badges and contribution guide
 - `lib/errors/app-error.ts` + `lib/errors/action-error-handler.ts` — typed errors
 
 **Data layer**:
-- `lib/repositories/` — `user.repository.ts`, `channel.repository.ts`, `history.repository.ts`, `list.repository.ts`
+- `lib/repositories/` — `user.repository.ts`, `channel.repository.ts`, `history.repository.ts`, `list.repository.ts`, `garden.repository.ts`
 - `lib/services/streak.service.ts` — `calculateStreak()` with timezone-aware dates
 - `lib/utils/timezone.ts` — `toUtcHour()` pure function
 - `lib/utils/rating-calibration.ts` — `computeSuggestedRange()` from feedback history
@@ -226,6 +245,7 @@ docs: update README with badges and contribution guide
 - `settings.ts` — Push settings, timezone, difficulty range, account deletion
 - `onboarding.ts`, `notifications.ts`, `feedback.ts`
 - `telegram.ts`, `line.ts`, `email.ts` — Channel connection flows
+- `history.ts` — `markSolved()` with feedback prerequisite guard
 - `admin.ts` — Admin CRUD, forceNotifyAll (returns per-user results), resetChannelFailures, testNotifyChannel, deleteUser
 
 **Admin pages**:
@@ -298,6 +318,7 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 - `get_unsent_problem_ids_for_user(UUID, diff_min, diff_max, topic[])` — Filter mode selection
 - `advance_list_positions(jsonb)` — Batch UPDATE of current_position via `jsonb_to_recordset()`
 - `stamp_last_push_date(UUID[])` — Mark batch of users as delivered today
+- `get_topic_proficiency(UUID)` — Per-topic solve stats for coffee garden (unnest topics aggregation)
 
 **Rating range**: Data spans 1074–2452; DB defaults 0/3000 = "no filter"; slider UI 1000–2600.
 
@@ -355,7 +376,7 @@ All deployments follow this sequence. No exceptions.
 
 ## Development Notes
 
-**Tests**: 164 TypeScript (shared 68, worker 45, web 51) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
+**Tests**: 173 TypeScript (shared 68, worker 45, web 60) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
 
 **vitest config**: `apps/web` tests outside `src/` (e.g. `lib/__tests__/`) need explicit include in `vitest.config.ts`.
 

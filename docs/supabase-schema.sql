@@ -143,10 +143,13 @@ CREATE TABLE history (
     user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     problem_id INT NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
     sent_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    solved_at  TIMESTAMPTZ,          -- NULL = not yet marked solved; set by user action
     UNIQUE (user_id, problem_id)
 );
 CREATE INDEX idx_history_user ON history(user_id);
 CREATE INDEX idx_history_user_sent_at ON history(user_id, sent_at DESC);
+CREATE INDEX idx_history_user_solved ON history(user_id, solved_at)
+  WHERE solved_at IS NOT NULL;
 
 -- ----------------------------------------------------------------
 -- 9. push_runs — per-worker-run aggregates for admin monitoring

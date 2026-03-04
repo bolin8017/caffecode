@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getTopicProficiency } from '@/lib/repositories/garden.repository'
 import { redirect } from 'next/navigation'
 import { CoffeeTree } from './coffee-tree'
+import { GardenTracker } from './garden-tracker'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: '咖啡莊園 — CaffeCode' }
@@ -21,6 +22,7 @@ export default async function GardenPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10 space-y-8">
+      <GardenTracker topicCount={topics.length} maxSolvedTopic={topics[0]?.topic ?? null} />
 
       {/* Header */}
       <div>

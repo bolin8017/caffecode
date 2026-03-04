@@ -14,6 +14,15 @@ vi.mock('@/lib/logger', () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
 }))
 
+vi.mock('@caffecode/shared', () => ({
+  answerCallbackQuery: vi.fn().mockResolvedValue(undefined),
+  removeInlineKeyboard: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@/lib/actions/history', () => ({
+  parseSolvedCallbackData: vi.fn().mockReturnValue(null),
+}))
+
 // Stub env vars before the module reads them
 vi.stubEnv('TELEGRAM_BOT_TOKEN', 'test-bot-token')
 vi.stubEnv('TELEGRAM_WEBHOOK_SECRET', 'test-webhook-secret')

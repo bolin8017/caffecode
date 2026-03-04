@@ -143,10 +143,13 @@ CREATE TABLE history (
     user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     problem_id INT NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
     sent_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    solved_at  TIMESTAMPTZ,          -- NULL = not yet marked solved; set by user action
     UNIQUE (user_id, problem_id)
 );
 CREATE INDEX idx_history_user ON history(user_id);
 CREATE INDEX idx_history_user_sent_at ON history(user_id, sent_at DESC);
+CREATE INDEX idx_history_user_solved ON history(user_id, solved_at)
+  WHERE solved_at IS NOT NULL;
 
 -- ----------------------------------------------------------------
 -- 9. push_runs — per-worker-run aggregates for admin monitoring
@@ -320,6 +323,23 @@ BEGIN
   WHERE ulp.user_id = u.user_id
     AND ulp.list_id = u.list_id;
 END;
+$$;
+
+-- get_topic_proficiency: per-topic solve stats for the coffee garden.
+-- Uses unnest(topics) to fan out multi-topic problems, then aggregates.
+CREATE OR REPLACE FUNCTION get_topic_proficiency(p_user_id UUID)
+RETURNS TABLE (topic TEXT, solved_count BIGINT, total_received BIGINT)
+LANGUAGE sql STABLE AS $$
+  SELECT
+    t.topic,
+    COUNT(*) FILTER (WHERE h.solved_at IS NOT NULL) AS solved_count,
+    COUNT(*)                                          AS total_received
+  FROM history h
+  JOIN problems p ON p.id = h.problem_id
+  CROSS JOIN unnest(p.topics) AS t(topic)
+  WHERE h.user_id = p_user_id
+  GROUP BY t.topic
+  ORDER BY solved_count DESC, total_received DESC
 $$;
 
 -- get_unsent_problem_ids_for_user: filter-mode problem selection.

@@ -3,6 +3,8 @@ import { timingSafeEqual } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { verifyChannelByToken } from '@/lib/repositories/channel.repository'
 import { logger } from '@/lib/logger'
+import { answerCallbackQuery, removeInlineKeyboard } from '@caffecode/shared'
+import { parseSolvedCallbackData } from '@/lib/utils/telegram-callback'
 
 function getEnv(name: string): string {
   const val = process.env[name]
@@ -16,9 +18,17 @@ interface TelegramMessage {
   text?: string
 }
 
+interface TelegramCallbackQuery {
+  id: string
+  from: { id: number }
+  message?: { message_id: number; chat: { id: number } }
+  data?: string
+}
+
 interface TelegramUpdate {
   update_id: number
   message?: TelegramMessage
+  callback_query?: TelegramCallbackQuery
 }
 
 async function sendTelegramMessage(chatId: number, text: string) {
@@ -61,6 +71,69 @@ export async function POST(req: NextRequest) {
   } catch {
     logger.warn('Telegram webhook: invalid JSON payload')
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  // Handle callback_query (inline button press — e.g. "✅ 我解出來了")
+  if (update.callback_query) {
+    const cq = update.callback_query
+    const chatId = String(cq.message?.chat?.id ?? cq.from.id)
+    const messageId = cq.message?.message_id
+    const token = getEnv('TELEGRAM_BOT_TOKEN')
+
+    const parsed = parseSolvedCallbackData(cq.data ?? '')
+    if (!parsed) {
+      // Unknown callback — silently ack to prevent Telegram retry
+      await answerCallbackQuery(token, cq.id, '')
+      return NextResponse.json({ ok: true })
+    }
+
+    const supabase = createServiceClient()
+
+    // Security check: verify channel owner matches history owner
+    const [{ data: channel }, { data: histRow }] = await Promise.all([
+      supabase
+        .from('notification_channels')
+        .select('user_id')
+        .eq('channel_identifier', chatId)
+        .eq('is_verified', true)
+        .maybeSingle(),
+      supabase
+        .from('history')
+        .select('id, user_id, solved_at')
+        .eq('problem_id', parsed.problemId)
+        .maybeSingle(),
+    ])
+
+    if (!channel || !histRow || histRow.user_id !== channel.user_id) {
+      await answerCallbackQuery(token, cq.id, '驗證失敗，請至 CaffeCode 設定頁操作。')
+      return NextResponse.json({ ok: true })
+    }
+
+    if (histRow.solved_at) {
+      await answerCallbackQuery(token, cq.id, '已記錄過了！繼續加油 ☕')
+      return NextResponse.json({ ok: true })
+    }
+
+    const { error } = await supabase
+      .from('history')
+      .update({ solved_at: new Date().toISOString() })
+      .eq('id', histRow.id)
+
+    if (error) {
+      logger.error({ historyId: histRow.id, error: error.message }, 'Failed to mark solved via Telegram')
+      await answerCallbackQuery(token, cq.id, '記錄失敗，請稍後重試。')
+      return NextResponse.json({ ok: true })
+    }
+
+    await Promise.all([
+      answerCallbackQuery(token, cq.id, '✅ 記錄成功！你的咖啡莊園澆水了 ☕'),
+      messageId
+        ? removeInlineKeyboard(token, chatId, messageId)
+        : Promise.resolve(),
+    ])
+
+    logger.info({ historyId: histRow.id, userId: histRow.user_id }, 'Problem marked solved via Telegram')
+    return NextResponse.json({ ok: true })
   }
 
   const message = update.message

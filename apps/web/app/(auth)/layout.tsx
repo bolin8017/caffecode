@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { PostHogIdentify } from '@/components/posthog-identify'
 
 // Belt-and-suspenders auth guard — middleware handles the primary redirect,
 // but this catches any edge cases where middleware is bypassed.
@@ -15,5 +16,10 @@ export default async function AuthLayout({
     redirect('/login')
   }
 
-  return <>{children}</>
+  return (
+    <>
+      <PostHogIdentify userId={user.id} email={user.email ?? null} />
+      {children}
+    </>
+  )
 }

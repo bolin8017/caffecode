@@ -43,6 +43,15 @@ export async function Nav({ userProfile }: NavProps) {
             學習清單
           </Link>
 
+          {user && userProfile && (
+            <Link
+              href="/garden"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              咖啡園
+            </Link>
+          )}
+
           {user && userProfile ? (
             <UserMenu
               displayName={displayName}

@@ -363,6 +363,8 @@ All deployments follow this sequence. No exceptions.
 
 **Admin pages**: Event handlers cannot be in Server Components — use Client Component wrappers.
 
+**Branching workflow**: Do NOT use git worktrees. This project relies on `.env.local` (untracked) which worktrees don't share, causing dev server failures. Always use `git checkout <branch>` to switch branches in the main repo. When running feature work, create a feature branch and work directly in it — never use `--isolation worktree` or `EnterWorktree`.
+
 **WSL2 IPv4 workaround**: `scripts/ipv4-only.cjs` is preloaded in dev scripts via `NODE_OPTIONS='--require=...'`. WSL2 has no IPv6 connectivity, and Node.js fetch (undici) uses Happy Eyeballs which tries IPv6 first → fails on Telegram API. The preload sets `dns.setDefaultResultOrder('ipv4first')` + `net.setDefaultAutoSelectFamily(false)`. Only affects `pnpm dev`; production builds are unaffected.
 
 ## Notification Channels

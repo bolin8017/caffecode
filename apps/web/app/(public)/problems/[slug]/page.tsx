@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { SolutionReveal } from './solution-reveal'
 import { createClient } from '@/lib/supabase/server'
 import { FeedbackWidget } from './feedback-widget'
+import { SolveButton } from './solve-button'
 
 export const revalidate = 3600
 export const dynamicParams = true
@@ -76,14 +77,25 @@ export default async function ProblemPage({ params }: PageProps) {
   const { data: { user } } = await userSupabase.auth.getUser()
 
   let existingFeedback: { content_score: number | null; difficulty: string | null } | null = null
+  let historyEntry: { solved_at: string | null; sent_at: string } | null = null
+
   if (user) {
-    const { data } = await userSupabase
-      .from('feedback')
-      .select('content_score, difficulty')
-      .eq('user_id', user.id)
-      .eq('problem_id', problem.id)
-      .maybeSingle()
-    existingFeedback = data
+    const [{ data: feedbackData }, { data: histData }] = await Promise.all([
+      userSupabase
+        .from('feedback')
+        .select('content_score, difficulty')
+        .eq('user_id', user.id)
+        .eq('problem_id', problem.id)
+        .maybeSingle(),
+      userSupabase
+        .from('history')
+        .select('solved_at, sent_at')
+        .eq('user_id', user.id)
+        .eq('problem_id', problem.id)
+        .maybeSingle(),
+    ])
+    existingFeedback = feedbackData
+    historyEntry = histData ?? null
   }
 
   const topics = problem.topics as string[]
@@ -198,6 +210,18 @@ export default async function ProblemPage({ params }: PageProps) {
             problemId={problem.id}
             initialScore={existingFeedback?.content_score ?? undefined}
             initialDifficulty={safeDifficulty}
+          />
+        </section>
+      )}
+
+      {/* Solve button — only shown when this problem was pushed to the user */}
+      {user && historyEntry && (
+        <section className="mb-8">
+          <SolveButton
+            problemId={problem.id}
+            initialSolvedAt={historyEntry.solved_at}
+            sentAt={historyEntry.sent_at}
+            hasFeedback={!!existingFeedback}
           />
         </section>
       )}

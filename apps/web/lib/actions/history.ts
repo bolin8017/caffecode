@@ -45,8 +45,8 @@ export async function markSolved(problemId: number): Promise<void> {
   revalidatePath(`/problems/[slug]`, 'page')
 }
 
-export function parseSolvedCallbackData(data: string): { historyId: number } | null {
+export function parseSolvedCallbackData(data: string): { problemId: number } | null {
   const match = data.match(/^solved:(\d+)$/)
   if (!match) return null
-  return { historyId: parseInt(match[1], 10) }
+  return { problemId: parseInt(match[1], 10) }
 }

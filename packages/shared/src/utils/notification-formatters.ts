@@ -16,10 +16,12 @@ export function formatTelegramMessage(msg: PushMessage): string {
   ].join('\n')
 }
 
-export function buildTelegramReplyMarkup(url: string): object {
-  return {
-    inline_keyboard: [[{ text: '查看解題 →', url }]],
+export function buildTelegramReplyMarkup(url: string, problemId?: number): object {
+  const row = [{ text: '查看解題 →', url }]
+  if (problemId !== undefined) {
+    row.push({ text: '✅ 我解出來了', callback_data: `solved:${problemId}` } as any)
   }
+  return { inline_keyboard: [row] }
 }
 
 export function buildFlexBubble(msg: PushMessage): object {

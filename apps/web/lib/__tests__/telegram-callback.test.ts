@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseSolvedCallbackData } from '@/lib/actions/history'
+import { parseSolvedCallbackData } from '@/lib/utils/telegram-callback'
 
 describe('parseSolvedCallbackData', () => {
   it('parses valid callback_data', () => {

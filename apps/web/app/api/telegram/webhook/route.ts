@@ -4,7 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { verifyChannelByToken } from '@/lib/repositories/channel.repository'
 import { logger } from '@/lib/logger'
 import { answerCallbackQuery, removeInlineKeyboard } from '@caffecode/shared'
-import { parseSolvedCallbackData } from '@/lib/actions/history'
+import { parseSolvedCallbackData } from '@/lib/utils/telegram-callback'
 
 function getEnv(name: string): string {
   const val = process.env[name]

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 function makeChain(data: unknown, error: unknown = null) {
   const rpcMock = vi.fn().mockResolvedValue({ data, error })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { db: { rpc: rpcMock } as any, rpcMock }
 }
 

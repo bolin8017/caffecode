@@ -33,9 +33,10 @@ import { getAuthUser } from '@/lib/auth'
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(getAuthUser).mockResolvedValue({
-    supabase: mockSupabase as any,
-    user: { id: 'user-123' } as any,
-  })
+    supabase: mockSupabase as unknown,
+    user: { id: 'user-123' } as unknown,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any)
 })
 
 describe('markSolved', () => {

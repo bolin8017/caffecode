@@ -31,6 +31,8 @@ A daily LeetCode problem delivery platform with AI-generated C++ explanations in
 - **2 delivery modes** — follow a list sequentially, or filter by difficulty rating + topic
 - **Per-user push hour** — configurable delivery time in your local timezone
 - **Feedback & calibration** — rate difficulty & content quality; system suggests optimal difficulty range
+- **Solve tracking** — mark problems as solved from web or Telegram inline button; requires feedback first (anti-abuse)
+- **Coffee Garden** — `/garden` gamification page: each LeetCode topic maps to a coffee variety with 5 growth stages based on solve count
 - **Streak tracking** — timezone-aware daily streak on dashboard
 - **Admin monitoring** — health dashboard, worker run history, per-channel test/reset
 - **SEO-optimized** — server-rendered public pages with dynamic sitemap
@@ -82,7 +84,7 @@ Two processes share the same Supabase database. `packages/shared` provides chann
 | Monorepo | pnpm workspaces + Turborepo |
 | Observability | Sentry (errors), PostHog (analytics), Pino (structured logging) |
 | Security | CSP headers, Zod validation, webhook HMAC verification |
-| Testing | Vitest (164 TS tests) + pytest (20 Python tests) |
+| Testing | Vitest (173 TS tests) + pytest (20 Python tests) |
 | CI/CD | GitHub Actions, Vercel (web), Railway (worker) |
 
 ## Project Structure
@@ -168,7 +170,7 @@ pnpm test
 # Individually
 cd packages/shared && pnpm exec vitest run   # 68 tests
 cd apps/worker && pnpm exec vitest run       # 45 tests
-cd apps/web && pnpm exec vitest run          # 51 tests
+cd apps/web && pnpm exec vitest run          # 60 tests
 
 # Python tests (sync script)
 cd scripts && python3 -m pytest tests/ -v    # 20 tests

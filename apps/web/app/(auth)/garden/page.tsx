@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getTopicProficiency } from '@/lib/repositories/garden.repository'
+import { getTopicProficiency, getGardenSummary } from '@/lib/repositories/garden.repository'
 import { redirect } from 'next/navigation'
 import { CoffeeTree } from './coffee-tree'
 import { GardenTracker } from './garden-tracker'
@@ -12,10 +12,12 @@ export default async function GardenPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const topics = await getTopicProficiency(supabase, user.id)
+  const [topics, summary] = await Promise.all([
+    getTopicProficiency(supabase, user.id),
+    getGardenSummary(supabase, user.id),
+  ])
 
-  const totalSolved = topics.reduce((sum, t) => sum + t.solvedCount, 0)
-  const totalReceived = topics.reduce((sum, t) => sum + t.totalReceived, 0)
+  const { totalSolved, totalReceived } = summary
   const solveRate = totalReceived > 0
     ? Math.round((totalSolved / totalReceived) * 100)
     : 0

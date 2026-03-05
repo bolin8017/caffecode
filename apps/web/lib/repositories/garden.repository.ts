@@ -35,3 +35,21 @@ export async function getTopicProficiency(
     stage: toStage(row.solved_count),
   }))
 }
+
+export async function getGardenSummary(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ totalSolved: number; totalReceived: number }> {
+  const { data, error } = await supabase
+    .from('history')
+    .select('solved_at')
+    .eq('user_id', userId)
+
+  if (error) throw new Error(`Failed to fetch garden summary: ${error.message}`)
+
+  const rows = data ?? []
+  return {
+    totalReceived: rows.length,
+    totalSolved: rows.filter(r => r.solved_at !== null).length,
+  }
+}

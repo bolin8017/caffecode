@@ -9,6 +9,20 @@ const STAGE_CONFIG: Record<GrowthStage, { emoji: string; label: string }> = {
   4: { emoji: '\u2615', label: 'Harvest' },
 }
 
+function progressPercent(solvedCount: number): number {
+  const thresholds = [0, 1, 3, 6, 11]
+  if (solvedCount >= 11) return 100
+  let stage = 0
+  for (let i = thresholds.length - 1; i >= 0; i--) {
+    if (solvedCount >= thresholds[i]) { stage = i; break }
+  }
+  const lo = thresholds[stage]
+  const hi = thresholds[stage + 1]
+  const base = (stage / 4) * 100
+  const fraction = ((solvedCount - lo) / (hi - lo)) * 25
+  return Math.round(base + fraction)
+}
+
 interface Props {
   topic: string
   stage: GrowthStage
@@ -38,7 +52,7 @@ export function CoffeeTree({ topic, stage, solvedCount, totalReceived }: Props) 
         <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-green-500 transition-all"
-            style={{ width: `${(stage / 4) * 100}%` }}
+            style={{ width: `${progressPercent(solvedCount)}%` }}
           />
         </div>
       </div>

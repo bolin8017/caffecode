@@ -32,7 +32,7 @@ A daily LeetCode problem delivery platform with AI-generated C++ explanations in
 - **Per-user push hour** — configurable delivery time in your local timezone
 - **Feedback & calibration** — rate difficulty & content quality; system suggests optimal difficulty range
 - **Solve tracking** — mark problems as solved from web or Telegram inline button
-- **Coffee Garden** — `/garden` gamification page: each LeetCode topic maps to a coffee variety with uncapped leveling system (Lv. 0–4 stages, then +1 per 5 solves)
+- **Coffee Garden** — `/garden` gamification page: each LeetCode topic maps to a coffee variety with uncapped leveling system (Lv. 0–4 stages, then +1 per 5 solves). Auto-awarded badges for milestones, streaks, skill mastery, and variety
 - **Streak tracking** — timezone-aware daily solve streak on dashboard
 - **Admin monitoring** — health dashboard, worker run history, per-channel test/reset
 - **SEO-optimized** — server-rendered public pages with dynamic sitemap
@@ -84,7 +84,7 @@ Two processes share the same Supabase database. `packages/shared` provides chann
 | Monorepo | pnpm workspaces + Turborepo |
 | Observability | Sentry (errors), PostHog (analytics), Pino (structured logging) |
 | Security | CSP headers, Zod validation, webhook HMAC verification |
-| Testing | Vitest (179 TS tests) + pytest (20 Python tests) |
+| Testing | Vitest (185 TS tests) + pytest (20 Python tests) |
 | CI/CD | GitHub Actions, Vercel (web), Railway (worker) |
 
 ## Project Structure
@@ -168,7 +168,7 @@ pnpm dev            # start web dev server on localhost:3000
 pnpm test
 
 # Individually
-cd packages/shared && pnpm exec vitest run   # 73 tests
+cd packages/shared && pnpm exec vitest run   # 79 tests
 cd apps/worker && pnpm exec vitest run       # 45 tests
 cd apps/web && pnpm exec vitest run          # 61 tests
 

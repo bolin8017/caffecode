@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { timingSafeEqual } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { verifyChannelByToken } from '@/lib/repositories/channel.repository'
@@ -157,6 +158,10 @@ export async function POST(req: NextRequest) {
         ? removeInlineKeyboard(token, chatId, messageId)
         : Promise.resolve(),
     ])
+
+    revalidatePath('/problems/[slug]', 'page')
+    revalidatePath('/garden')
+    revalidatePath('/dashboard')
 
     logger.info({ historyId: histRow.id, userId: channel.user_id }, 'Problem marked solved via Telegram')
     return NextResponse.json({ ok: true })

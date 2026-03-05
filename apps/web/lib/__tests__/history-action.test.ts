@@ -10,15 +10,21 @@ vi.mock('@/lib/auth', () => ({
   getAuthUser: vi.fn(),
 }))
 
+// Mock logger
+vi.mock('@/lib/logger', () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
+}))
+
 // Mock supabase client
 const mockSingle = vi.fn()
+const mockUpdateSelect = {
+  then: (resolve: (v: unknown) => unknown) => Promise.resolve({ data: [{ id: 1 }], error: null }).then(resolve),
+}
 const mockUpdateChain = {
   eq: vi.fn().mockReturnThis(),
+  is: vi.fn().mockReturnThis(),
+  select: vi.fn().mockReturnValue(mockUpdateSelect),
 }
-// Make the update chain awaitable (resolves to { error: null })
-Object.assign(mockUpdateChain, {
-  then: (resolve: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(resolve),
-})
 const mockChain = {
   select: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),

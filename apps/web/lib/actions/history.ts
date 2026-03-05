@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { getAuthUser } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 
 const problemIdSchema = z.number().int().positive()
 
@@ -18,17 +19,30 @@ export async function markSolved(problemId: number): Promise<void> {
     .eq('problem_id', problemId)
     .single()
 
-  if (historyErr || !historyRow) throw new Error('No push record found')
+  if (historyErr || !historyRow) {
+    logger.error({ error: historyErr?.message, problemId }, 'markSolved history lookup failed')
+    throw new Error('No push record found')
+  }
 
   if (historyRow.solved_at) return
 
-  const { error: updateErr } = await supabase
+  const { data: updated, error: updateErr } = await supabase
     .from('history')
     .update({ solved_at: new Date().toISOString() })
     .eq('user_id', user.id)
     .eq('problem_id', problemId)
+    .is('solved_at', null)
+    .select('id')
 
-  if (updateErr) throw new Error(`Mark failed: ${updateErr.message}`)
+  if (updateErr) {
+    logger.error({ error: updateErr.message, problemId }, 'markSolved update failed')
+    throw new Error('Failed to mark problem as solved')
+  }
+
+  // If no rows matched, another concurrent call already solved it — return silently
+  if (!updated || updated.length === 0) return
 
   revalidatePath(`/problems/[slug]`, 'page')
+  revalidatePath('/garden')
+  revalidatePath('/dashboard')
 }

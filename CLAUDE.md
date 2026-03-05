@@ -184,7 +184,10 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 
 - `packages/shared/src/channels/` — `sendTelegramMessage`, `sendLineMessage`, `sendEmailMessage` return `SendResult` with `shouldRetry`. Worker channel classes delegate here; admin `forceNotifyAll` calls directly.
 - `packages/shared/src/services/problem-selector.ts` — `selectProblemForUser()` single source of truth for both worker and admin.
+- `packages/shared/src/services/badge-checker.ts` — `evaluateBadgeCondition()` pure function for auto badge awards. Supports total_solves, streak, topic_level, topic_count.
 - `packages/shared/src/utils/notification-formatters.ts` — `formatTelegramMessage`, `buildFlexBubble`, `formatEmailSubject`, `buildTelegramReplyMarkup`.
+- `packages/shared/src/utils/topic-utils.ts` — `topicLabel()`, `topicToVariety()`, `normalizeTopics()`, `TOPIC_ALIASES`. Kebab-case topic slug utilities.
+- `packages/shared/src/utils/level-calculator.ts` — `computeTopicLevel()` uncapped level system (stages 0-4, then +1 level per 5 solves).
 - **Build requirement**: `main: "dist/index.js"` in package.json — Railway runtime needs compiled output.
 
 ### Observability
@@ -235,7 +238,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `lib/errors/app-error.ts` + `lib/errors/action-error-handler.ts` — typed errors
 
 **Data layer**:
-- `lib/repositories/` — `user.repository.ts`, `channel.repository.ts`, `history.repository.ts`, `list.repository.ts`, `garden.repository.ts`
+- `lib/repositories/` — `user.repository.ts`, `channel.repository.ts`, `history.repository.ts`, `list.repository.ts`, `garden.repository.ts`, `badge.repository.ts`
 - `lib/services/streak.service.ts` — `calculateStreak()` with timezone-aware dates
 - `lib/utils/timezone.ts` — `toUtcHour()` pure function
 - `lib/utils/rating-calibration.ts` — `computeSuggestedRange()` from feedback history
@@ -312,6 +315,8 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 | `history` | user_id × problem_id delivery record; UNIQUE constraint |
 | `push_runs` | Per-worker-run stats: candidates, succeeded, failed, duration_ms, error_msg |
 | `feedback` | Difficulty feeling + content_score (1-5) per user per problem |
+| `badges` | Badge definitions: slug, name, icon, category, requirement JSONB |
+| `user_badges` | User x badge junction (earned_at); auto-awarded on solve |
 
 **DB functions**:
 - `get_push_candidates()` — Users eligible for push in current UTC hour (no-param only)
@@ -376,7 +381,7 @@ All deployments follow this sequence. No exceptions.
 
 ## Development Notes
 
-**Tests**: 173 TypeScript (shared 68, worker 45, web 60) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
+**Tests**: 191 TypeScript (shared 87, worker 45, web 59) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
 
 **vitest config**: `apps/web` tests outside `src/` (e.g. `lib/__tests__/`) need explicit include in `vitest.config.ts`.
 

@@ -64,8 +64,10 @@ export default async function GardenPage() {
               key={t.topic}
               topic={t.topic}
               stage={t.stage}
+              level={t.level}
               solvedCount={t.solvedCount}
               totalReceived={t.totalReceived}
+              progressInStage={t.progressInStage}
             />
           ))}
         </div>
@@ -73,14 +75,14 @@ export default async function GardenPage() {
 
       {/* Growth guide */}
       <div className="rounded-xl border bg-muted/30 p-5">
-        <h2 className="text-sm font-semibold mb-3">成長階段</h2>
+        <h2 className="text-sm font-semibold mb-3">Growth Stages</h2>
         <div className="grid grid-cols-5 gap-2 text-center">
           {[
-            { emoji: '🌱', label: '種子', range: '0 題' },
-            { emoji: '🌿', label: '幼苗', range: '1-2 題' },
-            { emoji: '🌳', label: '小樹', range: '3-5 題' },
-            { emoji: '🌲', label: '大樹', range: '6-10 題' },
-            { emoji: '☕', label: '結果', range: '11+ 題' },
+            { emoji: '\u{1F331}', label: 'Seed', range: '0' },
+            { emoji: '\u{1F33F}', label: 'Sprout', range: '1-2' },
+            { emoji: '\u{1F333}', label: 'Small', range: '3-5' },
+            { emoji: '\u{1F332}', label: 'Big', range: '6-10' },
+            { emoji: '\u2615', label: 'Harvest', range: '11+' },
           ].map((s) => (
             <div key={s.label} className="space-y-1">
               <p className="text-2xl">{s.emoji}</p>
@@ -89,6 +91,9 @@ export default async function GardenPage() {
             </div>
           ))}
         </div>
+        <p className="text-[10px] text-muted-foreground mt-3 text-center">
+          After harvest, every 5 solves = +1 Level (uncapped)
+        </p>
       </div>
     </main>
   )

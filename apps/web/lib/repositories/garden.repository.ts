@@ -1,21 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { normalizeTopics } from '@caffecode/shared'
+import { computeTopicLevel, normalizeTopics } from '@caffecode/shared'
+import type { TopicLevel } from '@caffecode/shared'
 
-export type GrowthStage = 0 | 1 | 2 | 3 | 4
-
-export interface TopicProficiency {
+export interface TopicProficiency extends TopicLevel {
   topic: string
-  solvedCount: number
   totalReceived: number
-  stage: GrowthStage
-}
-
-function toStage(solvedCount: number): GrowthStage {
-  if (solvedCount === 0) return 0
-  if (solvedCount <= 2) return 1
-  if (solvedCount <= 5) return 2
-  if (solvedCount <= 10) return 3
-  return 4
 }
 
 export async function getTopicProficiency(
@@ -28,12 +17,13 @@ export async function getTopicProficiency(
   const rawRows = data as { topic: string; solved_count: number; total_received: number }[]
   const normalized = normalizeTopics(rawRows)
 
-  return normalized.map(row => ({
-    topic: row.topic,
-    solvedCount: row.solved_count,
-    totalReceived: row.total_received,
-    stage: toStage(row.solved_count),
-  }))
+  return normalized
+    .map(row => ({
+      topic: row.topic,
+      totalReceived: row.total_received,
+      ...computeTopicLevel(row.solved_count),
+    }))
+    .sort((a, b) => b.solvedCount - a.solvedCount || b.totalReceived - a.totalReceived)
 }
 
 export async function getGardenSummary(

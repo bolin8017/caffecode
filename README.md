@@ -84,7 +84,7 @@ Two processes share the same Supabase database. `packages/shared` provides chann
 | Monorepo | pnpm workspaces + Turborepo |
 | Observability | Sentry (errors), PostHog (analytics), Pino (structured logging) |
 | Security | CSP headers, Zod validation, webhook HMAC verification |
-| Testing | Vitest (185 TS tests) + pytest (20 Python tests) |
+| Testing | Vitest (189 TS tests) + pytest (20 Python tests) |
 | CI/CD | GitHub Actions, Vercel (web), Railway (worker) |
 
 ## Project Structure

@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
     const { data: channel, error: channelErr } = await supabase
       .from('notification_channels')
       .select('user_id')
+      .eq('channel_type', 'telegram')
       .eq('channel_identifier', chatId)
       .eq('is_verified', true)
       .maybeSingle()
@@ -132,10 +133,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const { error: updateErr } = await supabase
+    const { data: updated, error: updateErr } = await supabase
       .from('history')
       .update({ solved_at: new Date().toISOString() })
       .eq('id', histRow.id)
+      .select('id')
 
     if (updateErr) {
       logger.error({ historyId: histRow.id, error: updateErr.message }, 'Failed to mark solved via Telegram')
@@ -143,7 +145,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    await Promise.all([
+    if (!updated || updated.length === 0) {
+      logger.error({ historyId: histRow.id }, 'Telegram callback: update returned no rows')
+      await answerCallbackQuery(token, cq.id, 'Update failed, try again later.')
+      return NextResponse.json({ ok: true })
+    }
+
+    await Promise.allSettled([
       answerCallbackQuery(token, cq.id, 'Recorded! Your coffee garden just got watered.'),
       messageId
         ? removeInlineKeyboard(token, chatId, messageId)

@@ -28,11 +28,13 @@ const mockUpdateChain = {
 const mockChain = {
   select: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
+  order: vi.fn().mockResolvedValue({ data: [], error: null }),
   single: mockSingle,
   update: vi.fn().mockReturnValue(mockUpdateChain),
 }
 const mockFrom = vi.fn().mockReturnValue(mockChain)
-const mockSupabase = { from: mockFrom }
+const mockRpc = vi.fn().mockResolvedValue({ data: [], error: null })
+const mockSupabase = { from: mockFrom, rpc: mockRpc }
 
 import { getAuthUser } from '@/lib/auth'
 

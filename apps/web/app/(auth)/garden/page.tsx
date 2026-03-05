@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTopicProficiency, getGardenSummary } from '@/lib/repositories/garden.repository'
+import { getUserBadges } from '@/lib/repositories/badge.repository'
 import { redirect } from 'next/navigation'
 import { CoffeeTree } from './coffee-tree'
 import { GardenTracker } from './garden-tracker'
+import { BadgeShowcase } from './badge-showcase'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: '咖啡莊園 — CaffeCode' }
@@ -12,9 +14,10 @@ export default async function GardenPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [topics, summary] = await Promise.all([
+  const [topics, summary, badges] = await Promise.all([
     getTopicProficiency(supabase, user.id),
     getGardenSummary(supabase, user.id),
+    getUserBadges(supabase, user.id),
   ])
 
   const { totalSolved, totalReceived } = summary
@@ -49,6 +52,8 @@ export default async function GardenPage() {
           <p className="text-xs text-muted-foreground mt-1">解題率</p>
         </div>
       </div>
+
+      <BadgeShowcase badges={badges} />
 
       {/* Garden grid */}
       {topics.length === 0 ? (

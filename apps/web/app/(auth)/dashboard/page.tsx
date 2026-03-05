@@ -54,7 +54,7 @@ export default async function DashboardPage() {
     ])
 
   const streak = calculateStreak(streakHistory, profile?.timezone ?? 'Asia/Taipei')
-  const totalDone = streakHistory.length
+  const totalSolved = streakHistory.length
 
   const activeList = activeProgress?.curated_lists ?? null
 
@@ -113,10 +113,10 @@ export default async function DashboardPage() {
         {/* Completed */}
         <div className="rounded-xl border bg-card p-5">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-            近期完成
+            近期解題
           </p>
           <div className="flex items-end gap-1.5">
-            <span className="text-4xl font-bold tabular-nums leading-none">{totalDone}</span>
+            <span className="text-4xl font-bold tabular-nums leading-none">{totalSolved}</span>
             <span className="text-muted-foreground text-sm mb-0.5">題 / 60天</span>
           </div>
         </div>

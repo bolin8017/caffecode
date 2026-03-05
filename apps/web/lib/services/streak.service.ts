@@ -1,12 +1,12 @@
 /**
- * Calculate streak (consecutive days with at least one problem sent).
+ * Calculate streak (consecutive days with at least one problem solved).
  * Uses the user's timezone for date grouping.
  */
 export function calculateStreak(
-  sentAts: { sent_at: string }[],
+  solvedRows: { solved_at: string }[],
   timezone: string = 'Asia/Taipei'
 ): number {
-  if (!sentAts.length) return 0
+  if (!solvedRows.length) return 0
 
   // Group dates using user's timezone
   const dateFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -17,7 +17,7 @@ export function calculateStreak(
   })
 
   const dates = [
-    ...new Set(sentAts.map((s) => dateFormatter.format(new Date(s.sent_at)))),
+    ...new Set(solvedRows.map((s) => dateFormatter.format(new Date(s.solved_at)))),
   ]
     .sort()
     .reverse()
@@ -31,10 +31,10 @@ export function calculateStreak(
   for (const date of dates) {
     if (date === expected) {
       streak++
-      // Calculate previous day
-      const d = new Date(date + 'T12:00:00Z') // noon to avoid DST edge cases
-      d.setUTCDate(d.getUTCDate() - 1)
-      expected = dateFormatter.format(d)
+      // Calculate previous calendar date arithmetically (no UTC/timezone pitfalls)
+      const [y, m, d] = date.split('-').map(Number)
+      const prev = new Date(y, m - 1, d - 1) // JS Date handles month/year rollover
+      expected = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`
     } else {
       break
     }

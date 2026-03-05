@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { getAuthUser } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 
 const problemIdSchema = z.number().int().positive()
 
@@ -11,7 +12,6 @@ export async function markSolved(problemId: number): Promise<void> {
 
   const { supabase, user } = await getAuthUser()
 
-  // 驗證 history row 存在（用戶必須收過這道題）
   const { data: historyRow, error: historyErr } = await supabase
     .from('history')
     .select('id, sent_at, solved_at')
@@ -19,28 +19,30 @@ export async function markSolved(problemId: number): Promise<void> {
     .eq('problem_id', problemId)
     .single()
 
-  if (historyErr || !historyRow) throw new Error('未找到推送記錄')
+  if (historyErr || !historyRow) {
+    logger.error({ error: historyErr?.message, problemId }, 'markSolved history lookup failed')
+    throw new Error('No push record found')
+  }
 
-  // 驗證 feedback 存在（防濫用：需先評分才能標記）
-  const { data: feedbackRow, error: feedbackErr } = await supabase
-    .from('feedback')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('problem_id', problemId)
-    .single()
+  if (historyRow.solved_at) return
 
-  if (feedbackErr || !feedbackRow) throw new Error('請先送出題目評分（難度感受或星星評分）')
-
-  // 冪等更新：solved_at 只寫一次
-  if (historyRow.solved_at) return  // 已經標記過，直接返回
-
-  const { error: updateErr } = await supabase
+  const { data: updated, error: updateErr } = await supabase
     .from('history')
     .update({ solved_at: new Date().toISOString() })
     .eq('user_id', user.id)
     .eq('problem_id', problemId)
+    .is('solved_at', null)
+    .select('id')
 
-  if (updateErr) throw new Error(`標記失敗：${updateErr.message}`)
+  if (updateErr) {
+    logger.error({ error: updateErr.message, problemId }, 'markSolved update failed')
+    throw new Error('Failed to mark problem as solved')
+  }
+
+  // If no rows matched, another concurrent call already solved it — return silently
+  if (!updated || updated.length === 0) return
 
   revalidatePath(`/problems/[slug]`, 'page')
+  revalidatePath('/garden')
+  revalidatePath('/dashboard')
 }

@@ -8,10 +8,9 @@ interface Props {
   problemId: number
   initialSolvedAt: string | null
   sentAt: string | null
-  hasFeedback: boolean
 }
 
-export function SolveButton({ problemId, initialSolvedAt, sentAt, hasFeedback }: Props) {
+export function SolveButton({ problemId, initialSolvedAt, sentAt }: Props) {
   const [solvedAt, setSolvedAt] = useState(initialSolvedAt)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -19,8 +18,8 @@ export function SolveButton({ problemId, initialSolvedAt, sentAt, hasFeedback }:
   if (solvedAt) {
     return (
       <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
-        <span>✅</span>
-        <span>已標記解題</span>
+        <span>Done</span>
+        <span>Marked as solved</span>
       </div>
     )
   }
@@ -36,7 +35,7 @@ export function SolveButton({ problemId, initialSolvedAt, sentAt, hasFeedback }:
           : null
         trackSolveMarked({ problemId, source: 'web', timeSinceSentSec })
       } catch (err) {
-        setError(err instanceof Error ? err.message : '標記失敗，請稍後再試')
+        setError(err instanceof Error ? err.message : 'Failed, please try again')
       }
     })
   }
@@ -45,15 +44,11 @@ export function SolveButton({ problemId, initialSolvedAt, sentAt, hasFeedback }:
     <div className="space-y-1">
       <button
         onClick={handleClick}
-        disabled={isPending || !hasFeedback}
-        title={!hasFeedback ? '請先送出上方的題目評分' : undefined}
+        disabled={isPending}
         className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
       >
-        {isPending ? '記錄中…' : '✅ 我解出來了'}
+        {isPending ? 'Recording...' : 'I solved it!'}
       </button>
-      {!hasFeedback && (
-        <p className="text-xs text-muted-foreground">請先送出上方評分，即可標記解題</p>
-      )}
       {error && <p className="text-xs text-rose-600">{error}</p>}
     </div>
   )

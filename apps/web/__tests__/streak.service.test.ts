@@ -3,7 +3,7 @@ import { calculateStreak } from '../lib/services/streak.service'
 
 function entry(dateStr: string) {
   // dateStr like '2026-02-28'; use noon UTC to avoid timezone edge cases
-  return { sent_at: `${dateStr}T12:00:00Z` }
+  return { solved_at: `${dateStr}T04:00:00Z` }
 }
 
 describe('calculateStreak', () => {
@@ -56,6 +56,43 @@ describe('calculateStreak', () => {
     expect(calculateStreak(entries)).toBe(1)
   })
 
+  it('counts consecutive days for Pacific/Auckland (UTC+13)', () => {
+    const tz = 'Pacific/Auckland'
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    })
+    // Use actual Date objects so solved_at timestamps land on correct local dates
+    const now = new Date()
+    const yesterday = new Date(now.getTime() - 86400000)
+    const twoDaysAgo = new Date(now.getTime() - 2 * 86400000)
+
+    const entries = [
+      { solved_at: now.toISOString() },
+      { solved_at: yesterday.toISOString() },
+      { solved_at: twoDaysAgo.toISOString() },
+    ]
+    expect(calculateStreak(entries, tz)).toBe(3)
+  })
+
+  it('counts consecutive days for Pacific/Honolulu (UTC-10)', () => {
+    const tz = 'Pacific/Honolulu'
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    })
+    const now = new Date()
+    const yesterday = new Date(now.getTime() - 86400000)
+    const twoDaysAgo = new Date(now.getTime() - 2 * 86400000)
+
+    const entries = [
+      { solved_at: now.toISOString() },
+      { solved_at: yesterday.toISOString() },
+      { solved_at: twoDaysAgo.toISOString() },
+    ]
+    expect(calculateStreak(entries, tz)).toBe(3)
+  })
+
   it('deduplicates multiple entries on the same day', () => {
     const fmt = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Taipei',
@@ -64,8 +101,8 @@ describe('calculateStreak', () => {
     const today = fmt.format(new Date())
     // T04:00Z = 12:00 Taipei, T08:00Z = 16:00 Taipei — both on the same Taipei day
     const entries = [
-      { sent_at: `${today}T04:00:00Z` },
-      { sent_at: `${today}T08:00:00Z` },
+      { solved_at: `${today}T04:00:00Z` },
+      { solved_at: `${today}T08:00:00Z` },
     ]
     expect(calculateStreak(entries, 'Asia/Taipei')).toBe(1)
   })

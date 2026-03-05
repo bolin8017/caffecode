@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { timingSafeEqual } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { verifyChannelByToken } from '@/lib/repositories/channel.repository'
@@ -89,50 +90,80 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServiceClient()
 
-    // Security check: verify channel owner matches history owner
-    const [{ data: channel }, { data: histRow }] = await Promise.all([
-      supabase
-        .from('notification_channels')
-        .select('user_id')
-        .eq('channel_identifier', chatId)
-        .eq('is_verified', true)
-        .maybeSingle(),
-      supabase
-        .from('history')
-        .select('id, user_id, solved_at')
-        .eq('problem_id', parsed.problemId)
-        .maybeSingle(),
-    ])
+    // Step 1: Find the verified channel for this chat
+    const { data: channel, error: channelErr } = await supabase
+      .from('notification_channels')
+      .select('user_id')
+      .eq('channel_type', 'telegram')
+      .eq('channel_identifier', chatId)
+      .eq('is_verified', true)
+      .maybeSingle()
 
-    if (!channel || !histRow || histRow.user_id !== channel.user_id) {
-      await answerCallbackQuery(token, cq.id, '驗證失敗，請至 CaffeCode 設定頁操作。')
+    if (channelErr) {
+      logger.error({ chatId, error: channelErr.message }, 'Telegram callback: channel lookup failed')
+      await answerCallbackQuery(token, cq.id, 'System error.')
+      return NextResponse.json({ ok: true })
+    }
+
+    if (!channel) {
+      await answerCallbackQuery(token, cq.id, 'Channel not found.')
+      return NextResponse.json({ ok: true })
+    }
+
+    // Step 2: Find history row for THIS user + problem (not just problem)
+    const { data: histRow, error: histErr } = await supabase
+      .from('history')
+      .select('id, user_id, solved_at')
+      .eq('problem_id', parsed.problemId)
+      .eq('user_id', channel.user_id)
+      .maybeSingle()
+
+    if (histErr) {
+      logger.error({ userId: channel.user_id, problemId: parsed.problemId, error: histErr.message }, 'Telegram callback: history lookup failed')
+      await answerCallbackQuery(token, cq.id, 'System error.')
+      return NextResponse.json({ ok: true })
+    }
+
+    if (!histRow) {
+      await answerCallbackQuery(token, cq.id, 'Record not found.')
       return NextResponse.json({ ok: true })
     }
 
     if (histRow.solved_at) {
-      await answerCallbackQuery(token, cq.id, '已記錄過了！繼續加油 ☕')
+      await answerCallbackQuery(token, cq.id, 'Already recorded! Keep going.')
       return NextResponse.json({ ok: true })
     }
 
-    const { error } = await supabase
+    const { data: updated, error: updateErr } = await supabase
       .from('history')
       .update({ solved_at: new Date().toISOString() })
       .eq('id', histRow.id)
+      .select('id')
 
-    if (error) {
-      logger.error({ historyId: histRow.id, error: error.message }, 'Failed to mark solved via Telegram')
-      await answerCallbackQuery(token, cq.id, '記錄失敗，請稍後重試。')
+    if (updateErr) {
+      logger.error({ historyId: histRow.id, error: updateErr.message }, 'Failed to mark solved via Telegram')
+      await answerCallbackQuery(token, cq.id, 'Update failed, try again later.')
       return NextResponse.json({ ok: true })
     }
 
-    await Promise.all([
-      answerCallbackQuery(token, cq.id, '✅ 記錄成功！你的咖啡莊園澆水了 ☕'),
+    if (!updated || updated.length === 0) {
+      logger.error({ historyId: histRow.id }, 'Telegram callback: update returned no rows')
+      await answerCallbackQuery(token, cq.id, 'Update failed, try again later.')
+      return NextResponse.json({ ok: true })
+    }
+
+    await Promise.allSettled([
+      answerCallbackQuery(token, cq.id, 'Recorded! Your coffee garden just got watered.'),
       messageId
         ? removeInlineKeyboard(token, chatId, messageId)
         : Promise.resolve(),
     ])
 
-    logger.info({ historyId: histRow.id, userId: histRow.user_id }, 'Problem marked solved via Telegram')
+    revalidatePath('/problems/[slug]', 'page')
+    revalidatePath('/garden')
+    revalidatePath('/dashboard')
+
+    logger.info({ historyId: histRow.id, userId: channel.user_id }, 'Problem marked solved via Telegram')
     return NextResponse.json({ ok: true })
   }
 

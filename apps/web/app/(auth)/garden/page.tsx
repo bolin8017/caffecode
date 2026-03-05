@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getTopicProficiency } from '@/lib/repositories/garden.repository'
+import { getTopicProficiency, getGardenSummary } from '@/lib/repositories/garden.repository'
 import { redirect } from 'next/navigation'
 import { CoffeeTree } from './coffee-tree'
 import { GardenTracker } from './garden-tracker'
@@ -12,10 +12,12 @@ export default async function GardenPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const topics = await getTopicProficiency(supabase, user.id)
+  const [topics, summary] = await Promise.all([
+    getTopicProficiency(supabase, user.id),
+    getGardenSummary(supabase, user.id),
+  ])
 
-  const totalSolved = topics.reduce((sum, t) => sum + t.solvedCount, 0)
-  const totalReceived = topics.reduce((sum, t) => sum + t.totalReceived, 0)
+  const { totalSolved, totalReceived } = summary
   const solveRate = totalReceived > 0
     ? Math.round((totalSolved / totalReceived) * 100)
     : 0
@@ -64,6 +66,7 @@ export default async function GardenPage() {
               stage={t.stage}
               solvedCount={t.solvedCount}
               totalReceived={t.totalReceived}
+              level={t.level}
             />
           ))}
         </div>
@@ -74,11 +77,11 @@ export default async function GardenPage() {
         <h2 className="text-sm font-semibold mb-3">成長階段</h2>
         <div className="grid grid-cols-5 gap-2 text-center">
           {[
-            { emoji: '🌱', label: '種子', range: '0 題' },
-            { emoji: '🌿', label: '幼苗', range: '1-2 題' },
-            { emoji: '🌳', label: '小樹', range: '3-5 題' },
-            { emoji: '🌲', label: '大樹', range: '6-10 題' },
-            { emoji: '☕', label: '結果', range: '11+ 題' },
+            { emoji: '🌱', label: 'Lv. 0', range: '0 題' },
+            { emoji: '🌿', label: 'Lv. 1', range: '1-2 題' },
+            { emoji: '🌳', label: 'Lv. 2', range: '3-5 題' },
+            { emoji: '🌲', label: 'Lv. 3', range: '6-10 題' },
+            { emoji: '☕', label: 'Lv. 4+', range: '11+ 題' },
           ].map((s) => (
             <div key={s.label} className="space-y-1">
               <p className="text-2xl">{s.emoji}</p>
@@ -87,6 +90,9 @@ export default async function GardenPage() {
             </div>
           ))}
         </div>
+        <p className="text-[10px] text-muted-foreground mt-3 text-center">
+          Lv. 4 之後每解 5 題升一級，等級無上限
+        </p>
       </div>
     </main>
   )

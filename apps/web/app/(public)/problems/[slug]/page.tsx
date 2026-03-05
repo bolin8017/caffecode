@@ -221,7 +221,6 @@ export default async function ProblemPage({ params }: PageProps) {
             problemId={problem.id}
             initialSolvedAt={historyEntry.solved_at}
             sentAt={historyEntry.sent_at}
-            hasFeedback={!!existingFeedback}
           />
         </section>
       )}

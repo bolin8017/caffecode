@@ -42,23 +42,14 @@ beforeEach(() => {
 describe('markSolved', () => {
   it('throws if history row does not exist for this user+problem', async () => {
     mockSingle
-      .mockResolvedValueOnce({ data: null, error: null }) // history: not found
+      .mockResolvedValueOnce({ data: null, error: null })
     const { markSolved } = await import('@/lib/actions/history')
-    await expect(markSolved(42)).rejects.toThrow('未找到推送記錄')
+    await expect(markSolved(42)).rejects.toThrow('No push record found')
   })
 
-  it('throws if feedback does not exist for this user+problem', async () => {
-    mockSingle
-      .mockResolvedValueOnce({ data: { id: 1, sent_at: new Date().toISOString() }, error: null }) // history found
-      .mockResolvedValueOnce({ data: null, error: null }) // feedback: not found
-    const { markSolved } = await import('@/lib/actions/history')
-    await expect(markSolved(42)).rejects.toThrow('請先送出題目評分')
-  })
-
-  it('succeeds when both history and feedback exist', async () => {
+  it('succeeds when history exists', async () => {
     mockSingle
       .mockResolvedValueOnce({ data: { id: 1, sent_at: new Date().toISOString(), solved_at: null }, error: null })
-      .mockResolvedValueOnce({ data: { id: 5 }, error: null })
     const { markSolved } = await import('@/lib/actions/history')
     await expect(markSolved(42)).resolves.toBeUndefined()
   })

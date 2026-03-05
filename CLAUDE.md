@@ -185,6 +185,8 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `packages/shared/src/channels/` — `sendTelegramMessage`, `sendLineMessage`, `sendEmailMessage` return `SendResult` with `shouldRetry`. Worker channel classes delegate here; admin `forceNotifyAll` calls directly.
 - `packages/shared/src/services/problem-selector.ts` — `selectProblemForUser()` single source of truth for both worker and admin.
 - `packages/shared/src/utils/notification-formatters.ts` — `formatTelegramMessage`, `buildFlexBubble`, `formatEmailSubject`, `buildTelegramReplyMarkup`.
+- `packages/shared/src/utils/topic-utils.ts` — `topicLabel()`, `topicToVariety()`, `normalizeTopics()`, `TOPIC_ALIASES`. Kebab-case topic slug utilities. `normalizeTopics` merges aliases and re-sorts by `solved_count DESC`.
+- `packages/shared/src/utils/level-calculator.ts` — `computeTopicLevel()` uncapped level system (stages 0-4, then +1 level per 5 solves).
 - **Build requirement**: `main: "dist/index.js"` in package.json — Railway runtime needs compiled output.
 
 ### Observability
@@ -201,6 +203,8 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - **Link token expiration**: `link_token_expires_at` column on `notification_channels` — tokens expire 30 minutes after creation. Verification checks expiry and clears token on success.
 - **Link token validation**: Strict RFC 4122 UUID regex (`[0-9a-f]{8}-[0-9a-f]{4}-...-[0-9a-f]{12}`) in both Telegram and LINE webhook handlers, preventing injection of arbitrary strings.
 - **Timezone IANA validation**: `Intl.supportedValuesOf('timeZone')` whitelist via shared Zod schema in `lib/schemas/timezone.ts`, used by `settings.ts` and `onboarding.ts`.
+- **DB column triggers**: `trg_restrict_user_update` silently locks `is_admin`, `line_push_allowed`, `last_push_date` on `users` table. `trg_restrict_history_update` raises exception if anything other than `solved_at` is modified on `history`.
+- **RPC access control**: `advance_list_positions` EXECUTE revoked from PUBLIC/anon/authenticated — only callable by service_role (worker).
 - **Admin double guard**: Middleware route protection + per-action `is_admin` re-verification with proper `{ data, error }` destructuring
 - **service_role key**: Required for all server-side DB access — anon is denied by RLS
 - **Account deletion**: GDPR/PDPA compliant — deletes auth user first (safe: if it fails, DB data intact), then DB row (cascades via FK). Both `deleteAccount()` and admin `deleteUser()` follow this order.
@@ -235,8 +239,8 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `lib/errors/app-error.ts` + `lib/errors/action-error-handler.ts` — typed errors
 
 **Data layer**:
-- `lib/repositories/` — `user.repository.ts`, `channel.repository.ts`, `history.repository.ts`, `list.repository.ts`, `garden.repository.ts`
-- `lib/services/streak.service.ts` — `calculateStreak()` with timezone-aware dates
+- `lib/repositories/` — `user.repository.ts`, `channel.repository.ts`, `history.repository.ts`, `list.repository.ts`, `garden.repository.ts`, `badge.repository.ts`
+- `lib/services/streak.service.ts` — `calculateStreak()` counts consecutive solved days (not push days), timezone-aware with pure calendar arithmetic
 - `lib/utils/timezone.ts` — `toUtcHour()` pure function
 - `lib/utils/rating-calibration.ts` — `computeSuggestedRange()` from feedback history
 - `lib/utils/filter-url.ts` — `buildFilterUrl()` URL utility + `PAGE_SIZE` constant (50)
@@ -245,7 +249,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `settings.ts` — Push settings, timezone, difficulty range, account deletion
 - `onboarding.ts`, `notifications.ts`, `feedback.ts`
 - `telegram.ts`, `line.ts`, `email.ts` — Channel connection flows
-- `history.ts` — `markSolved()` with feedback prerequisite guard
+- `history.ts` — `markSolved()` with TOCTOU guard (`.is('solved_at', null)`), error masking, revalidates `/garden` and `/dashboard`
 - `admin.ts` — Admin CRUD, forceNotifyAll (returns per-user results), resetChannelFailures, testNotifyChannel, deleteUser
 
 **Admin pages**:
@@ -312,13 +316,15 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 | `history` | user_id × problem_id delivery record; UNIQUE constraint |
 | `push_runs` | Per-worker-run stats: candidates, succeeded, failed, duration_ms, error_msg |
 | `feedback` | Difficulty feeling + content_score (1-5) per user per problem |
+| `badges` | Badge definitions: slug, name, icon, category, requirement JSONB |
+| `user_badges` | User x badge junction (earned_at); auto-awarded on solve |
 
 **DB functions**:
 - `get_push_candidates()` — Users eligible for push in current UTC hour (no-param only)
 - `get_unsent_problem_ids_for_user(UUID, diff_min, diff_max, topic[])` — Filter mode selection
 - `advance_list_positions(jsonb)` — Batch UPDATE of current_position via `jsonb_to_recordset()`
 - `stamp_last_push_date(UUID[])` — Mark batch of users as delivered today
-- `get_topic_proficiency(UUID)` — Per-topic solve stats for coffee garden (unnest topics aggregation)
+- `get_topic_proficiency(UUID)` — Per-topic solve stats for coffee garden (unnest topics aggregation); includes `auth.uid()` defense-in-depth check
 
 **Rating range**: Data spans 1074–2452; DB defaults 0/3000 = "no filter"; slider UI 1000–2600.
 
@@ -376,7 +382,7 @@ All deployments follow this sequence. No exceptions.
 
 ## Development Notes
 
-**Tests**: 173 TypeScript (shared 68, worker 45, web 60) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
+**Tests**: 179 TypeScript (shared 73, worker 45, web 61) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
 
 **vitest config**: `apps/web` tests outside `src/` (e.g. `lib/__tests__/`) need explicit include in `vitest.config.ts`.
 

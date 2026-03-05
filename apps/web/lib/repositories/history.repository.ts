@@ -28,13 +28,14 @@ export async function getStreakHistory(
   supabase: SupabaseClient,
   userId: string,
   limit: number
-): Promise<{ sent_at: string }[]> {
+): Promise<{ solved_at: string }[]> {
   const { data, error } = await supabase
     .from('history')
-    .select('sent_at')
+    .select('solved_at')
     .eq('user_id', userId)
-    .order('sent_at', { ascending: false })
+    .not('solved_at', 'is', null)
+    .order('solved_at', { ascending: false })
     .limit(limit)
   if (error) throw new Error(`Failed to fetch streak history: ${error.message}`)
-  return data ?? []
+  return (data ?? []) as { solved_at: string }[]
 }

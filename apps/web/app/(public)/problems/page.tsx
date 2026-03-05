@@ -1,4 +1,5 @@
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, createClient } from '@/lib/supabase/server'
+import { getSolvedProblemIds } from '@/lib/repositories/history.repository'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import type { Metadata } from 'next'
@@ -51,6 +52,17 @@ export default async function ProblemsPage({
   if (params.q) query = query.ilike('title', `%${params.q}%`)
 
   const { data: problems, count } = await query.range(offset, offset + PAGE_SIZE - 1)
+
+  // Conditionally fetch solved status for logged-in users
+  let solvedIds: Set<number> = new Set()
+  const userClient = await createClient()
+  const { data: { user } } = await userClient.auth.getUser()
+  if (user && problems?.length) {
+    solvedIds = await getSolvedProblemIds(
+      userClient, user.id, problems.map(p => p.id)
+    )
+  }
+
   const totalCount = count ?? 0
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
@@ -78,6 +90,9 @@ export default async function ProblemsPage({
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
+              {user && (
+                <th className="px-2 py-3 w-8" />
+              )}
               <th className="px-4 py-3 text-left font-medium text-muted-foreground w-16">#</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">題目</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground w-24">難度</th>
@@ -88,6 +103,13 @@ export default async function ProblemsPage({
           <tbody className="divide-y">
             {problems?.map((p) => (
               <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                {user && (
+                  <td className="px-2 py-3 text-center">
+                    {solvedIds.has(p.id) && (
+                      <span className="text-emerald-500" title="已解題">✓</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-4 py-3 text-muted-foreground">{p.leetcode_id}</td>
                 <td className="px-4 py-3">
                   <Link href={`/problems/${p.slug}`} className="font-medium hover:text-primary transition-colors">

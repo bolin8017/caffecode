@@ -1,4 +1,5 @@
 import { createServiceClient, createClient } from '@/lib/supabase/server'
+import { getSolvedProblemIds } from '@/lib/repositories/history.repository'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
@@ -73,6 +74,14 @@ export default async function ListDetailPage({ params }: PageProps) {
     userProgress = data
   }
 
+  let solvedIds: Set<number> = new Set()
+  if (user && listProblems?.length) {
+    const problemIds = listProblems
+      .map(lp => (lp.problems as any)?.id)
+      .filter((id): id is number => id != null)
+    solvedIds = await getSolvedProblemIds(supabase, user.id, problemIds)
+  }
+
   const progressPct = userProgress
     ? Math.round((userProgress.current_position / list.problem_count) * 100)
     : null
@@ -115,6 +124,9 @@ export default async function ListDetailPage({ params }: PageProps) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
+              {user && (
+                <th className="px-2 py-3 w-8" />
+              )}
               <th className="px-4 py-3 text-left font-medium text-muted-foreground w-12">#</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">題目</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground w-24">難度</th>
@@ -136,6 +148,13 @@ export default async function ListDetailPage({ params }: PageProps) {
                   key={lp.sequence_number}
                   className={`hover:bg-muted/30 transition-colors ${isCurrent ? 'bg-primary/5' : ''}`}
                 >
+                  {user && (
+                    <td className="px-2 py-3 text-center">
+                      {solvedIds.has(p.id) && (
+                        <span className="text-emerald-500" title="已解題">✓</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-muted-foreground">{lp.sequence_number}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">

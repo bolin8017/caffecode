@@ -39,3 +39,21 @@ export async function getStreakHistory(
   if (error) throw new Error(`Failed to fetch streak history: ${error.message}`)
   return (data ?? []) as { solved_at: string }[]
 }
+
+export async function getSolvedProblemIds(
+  supabase: SupabaseClient,
+  userId: string,
+  problemIds: number[]
+): Promise<Set<number>> {
+  if (problemIds.length === 0) return new Set()
+
+  const { data, error } = await supabase
+    .from('history')
+    .select('problem_id')
+    .eq('user_id', userId)
+    .not('solved_at', 'is', null)
+    .in('problem_id', problemIds)
+
+  if (error) throw new Error(`Failed to fetch solved problem IDs: ${error.message}`)
+  return new Set((data ?? []).map((r: { problem_id: number }) => r.problem_id))
+}

@@ -46,6 +46,6 @@ describe('getTopicProficiency', () => {
     const { db } = makeChain(mockData)
     const { getTopicProficiency } = await import('../repositories/garden.repository')
     const result = await getTopicProficiency(db, 'user-123')
-    expect(result.map(r => r.stage)).toEqual([0, 1, 2, 3, 4])
+    expect(result.map(r => r.stage)).toEqual([4, 3, 2, 1, 0])
   })
 })

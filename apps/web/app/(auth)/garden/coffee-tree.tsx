@@ -9,18 +9,22 @@ const STAGE_CONFIG: Record<GrowthStage, { emoji: string; label: string }> = {
   4: { emoji: '\u2615', label: 'Harvest' },
 }
 
-function progressPercent(solvedCount: number): number {
-  const thresholds = [0, 1, 3, 6, 11]
-  if (solvedCount >= 11) return 100
-  let stage = 0
-  for (let i = thresholds.length - 1; i >= 0; i--) {
-    if (solvedCount >= thresholds[i]) { stage = i; break }
+function progressPercent(solvedCount: number, level: number): number {
+  if (level <= 3) {
+    const thresholds = [0, 1, 3, 6, 11]
+    let stage = 0
+    for (let i = thresholds.length - 1; i >= 0; i--) {
+      if (solvedCount >= thresholds[i]) { stage = i; break }
+    }
+    const lo = thresholds[stage]
+    const hi = thresholds[stage + 1]
+    const base = (stage / 4) * 100
+    const fraction = ((solvedCount - lo) / (hi - lo)) * 25
+    return Math.round(base + fraction)
   }
-  const lo = thresholds[stage]
-  const hi = thresholds[stage + 1]
-  const base = (stage / 4) * 100
-  const fraction = ((solvedCount - lo) / (hi - lo)) * 25
-  return Math.round(base + fraction)
+  // Level 4+: progress within the current 5-solve bracket
+  const levelStart = 11 + (level - 4) * 5
+  return Math.round(((solvedCount - levelStart) / 5) * 100)
 }
 
 interface Props {
@@ -28,9 +32,10 @@ interface Props {
   stage: GrowthStage
   solvedCount: number
   totalReceived: number
+  level: number
 }
 
-export function CoffeeTree({ topic, stage, solvedCount, totalReceived }: Props) {
+export function CoffeeTree({ topic, stage, solvedCount, totalReceived, level }: Props) {
   const config = STAGE_CONFIG[stage]
   const variety = topicToVariety(topic)
   const label = topicLabel(topic)
@@ -46,13 +51,18 @@ export function CoffeeTree({ topic, stage, solvedCount, totalReceived }: Props) 
       </div>
       <div className="w-full">
         <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
-          <span>{config.label}</span>
+          <span>Lv. {level}</span>
           <span>{solvedCount} / {totalReceived}</span>
         </div>
-        <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-1 w-full overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuenow={progressPercent(solvedCount, level)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
           <div
             className="h-full rounded-full bg-green-500 transition-all"
-            style={{ width: `${progressPercent(solvedCount)}%` }}
+            style={{ width: `${progressPercent(solvedCount, level)}%` }}
           />
         </div>
       </div>

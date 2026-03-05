@@ -101,5 +101,5 @@ export function normalizeTopics(rows: TopicRow[]): TopicRow[] {
     }
   }
 
-  return [...merged.values()]
+  return [...merged.values()].sort((a, b) => b.solved_count - a.solved_count || b.total_received - a.total_received)
 }

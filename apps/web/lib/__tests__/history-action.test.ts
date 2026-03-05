@@ -28,6 +28,7 @@ const mockUpdateChain = {
 const mockChain = {
   select: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
+  not: vi.fn().mockReturnThis(),
   order: vi.fn().mockResolvedValue({ data: [], error: null }),
   single: mockSingle,
   update: vi.fn().mockReturnValue(mockUpdateChain),

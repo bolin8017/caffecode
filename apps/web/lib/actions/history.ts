@@ -51,7 +51,7 @@ export async function markSolved(problemId: number): Promise<void> {
     const [topics, summary, streakHistory] = await Promise.all([
       getTopicProficiency(supabase, user.id),
       getGardenSummary(supabase, user.id),
-      supabase.from('history').select('sent_at').eq('user_id', user.id).order('sent_at', { ascending: false }),
+      supabase.from('history').select('solved_at').eq('user_id', user.id).not('solved_at', 'is', null).order('solved_at', { ascending: false }),
     ])
 
     const streak = calculateStreak(streakHistory.data ?? [])

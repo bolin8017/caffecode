@@ -144,7 +144,7 @@ describe('buildTelegramReplyMarkup', () => {
     expect(Array.isArray(markup.inline_keyboard)).toBe(true)
   })
 
-  it('contains a single row with one button', () => {
+  it('contains a single row with one button only', () => {
     const markup = buildTelegramReplyMarkup('https://example.com') as {
       inline_keyboard: { text: string; url: string }[][]
     }

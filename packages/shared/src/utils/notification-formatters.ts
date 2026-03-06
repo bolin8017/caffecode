@@ -6,13 +6,17 @@ const DIFF_EMOJI: Record<string, string> = {
   Hard: '🔴',
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 export function formatTelegramMessage(msg: PushMessage): string {
   const emoji = DIFF_EMOJI[msg.difficulty] ?? '⚪'
   return [
     '☕ <b>今日 CaffeCode 題目</b>',
     '',
-    `${emoji} ${msg.difficulty} · #${msg.leetcodeId}`,
-    `<b>${msg.title}</b>`,
+    `${emoji} ${escapeHtml(msg.difficulty)} · #${msg.leetcodeId}`,
+    `<b>${escapeHtml(msg.title)}</b>`,
   ].join('\n')
 }
 

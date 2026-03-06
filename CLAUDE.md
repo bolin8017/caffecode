@@ -194,16 +194,21 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - **Sentry**: `@sentry/nextjs` (web) + `@sentry/node` (worker). No-op without `SENTRY_DSN`. Web uses `instrumentation.ts` hook; worker inits at top of `src/index.ts`.
 - **PostHog**: `posthog-js` client-side analytics. No-op without `NEXT_PUBLIC_POSTHOG_KEY`. `PostHogProvider` wraps app in `layout.tsx`.
 - **Pino structured logging**: `lib/logger.ts` (web) + `src/lib/logger.ts` (worker); JSON in production, pino-pretty in dev.
-- **Zod env validation**: Worker `src/lib/config.ts` parses at startup (fail-fast). Web `lib/env.ts` exports schema only (not parsed at module scope due to Next.js build).
+- **Zod env validation**: Worker `src/lib/config.ts` parses at startup (fail-fast). Web `lib/env.ts` schema validated at runtime via `instrumentation.ts` `register()` hook (safeParse — warns without crashing).
 
 ### Security
 
-- **CSP + security headers**: Configured in `next.config.ts` `headers()` — Content-Security-Policy (no `unsafe-eval`), X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy (strict-origin-when-cross-origin), Strict-Transport-Security (HSTS), Permissions-Policy, X-Permitted-Cross-Domain-Policies
+- **CSP + security headers**: Configured in `next.config.ts` `headers()` — Content-Security-Policy (no `unsafe-eval`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`), X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy (strict-origin-when-cross-origin), Strict-Transport-Security (HSTS preload), Permissions-Policy, X-Permitted-Cross-Domain-Policies
 - **Webhook verification**: Telegram uses `x-telegram-bot-api-secret-token` with `crypto.timingSafeEqual()`; LINE uses `X-Line-Signature` HMAC-SHA256 with `crypto.timingSafeEqual()`. Both webhooks validate JSON payloads with try-catch and per-event error isolation.
 - **Link token expiration**: `link_token_expires_at` column on `notification_channels` — tokens expire 30 minutes after creation. Verification checks expiry and clears token on success.
 - **Link token validation**: Strict RFC 4122 UUID regex (`[0-9a-f]{8}-[0-9a-f]{4}-...-[0-9a-f]{12}`) in both Telegram and LINE webhook handlers, preventing injection of arbitrary strings.
 - **Timezone IANA validation**: `Intl.supportedValuesOf('timeZone')` whitelist via shared Zod schema in `lib/schemas/timezone.ts`, used by `settings.ts` and `onboarding.ts`.
-- **DB column triggers**: `trg_restrict_user_update` silently locks `is_admin`, `line_push_allowed`, `last_push_date` on `users` table. `trg_restrict_history_update` raises exception if anything other than `solved_at` is modified on `history`.
+- **DB column triggers**: `trg_restrict_user_update` locks `is_admin`, `line_push_allowed`, `last_push_date` on `users` table (service_role bypassed for worker/admin writes). `trg_restrict_history_update` raises exception if anything other than `solved_at` is modified on `history`.
+- **Open redirect prevention**: `sanitizeRedirect()` in OAuth callback validates redirect parameter (must start with `/[a-z0-9]`, no backslashes)
+- **PostgREST filter sanitization**: `sanitizeSearch()` strips commas, dots, parens, quotes from admin search input to prevent `.or()` injection
+- **Input validation**: All admin Server Actions validate parameters with Zod (int/uuid); difficulty range capped at 3000 with min<=max cross-validation; topic_filter limited to 50 elements
+- **Error masking**: Server Actions log full Supabase errors server-side, return generic messages to clients
+- **HTML escaping**: Telegram formatter escapes `&<>"` in problem titles (defense-in-depth)
 - **RPC access control**: `advance_list_positions` EXECUTE revoked from PUBLIC/anon/authenticated — only callable by service_role (worker).
 - **Admin double guard**: Middleware route protection + per-action `is_admin` re-verification with proper `{ data, error }` destructuring
 - **service_role key**: Required for all server-side DB access — anon is denied by RLS
@@ -228,7 +233,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 
 **Core**:
 - `proxy.ts` — Supabase auth token refresh (Next.js 16: renamed from `middleware.ts`, exports `proxy` function)
-- `instrumentation.ts` — Sentry initialization hook
+- `instrumentation.ts` — Sentry initialization + env validation hook
 - `next.config.ts` — Wrapped with `withSentryConfig`; image remote patterns, CSP + security headers
 - `lib/auth.ts` — `getAuthUser()` returns `{ supabase, user }` or throws
 - `lib/env.ts` — Zod schema for server env validation
@@ -244,6 +249,8 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `lib/utils/timezone.ts` — `toUtcHour()` pure function
 - `lib/utils/rating-calibration.ts` — `computeSuggestedRange()` from feedback history
 - `lib/utils/filter-url.ts` — `buildFilterUrl()` URL utility + `PAGE_SIZE` constant (50)
+- `lib/utils/safe-redirect.ts` — `sanitizeRedirect()` blocks open redirect via `//`, `\`, non-path values
+- `lib/utils/sanitize-search.ts` — `sanitizeSearch()` strips PostgREST filter syntax from admin search input
 
 **Server Actions** (`lib/actions/`):
 - `settings.ts` — Push settings, timezone, difficulty range, account deletion
@@ -382,7 +389,7 @@ All deployments follow this sequence. No exceptions.
 
 ## Development Notes
 
-**Tests**: 189 TypeScript (shared 79, worker 45, web 65) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
+**Tests**: 192 TypeScript (shared 79, worker 45, web 68) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
 
 **vitest config**: `apps/web` tests outside `src/` (e.g. `lib/__tests__/`) need explicit include in `vitest.config.ts`.
 

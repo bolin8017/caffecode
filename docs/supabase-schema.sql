@@ -208,7 +208,7 @@ BEGIN
     );
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
@@ -237,6 +237,7 @@ ALTER TABLE notification_channels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_list_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE history            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_runs          ENABLE ROW LEVEL SECURITY;
 
 -- Public read on content tables (for public problem/list pages)
 CREATE POLICY "problems: anyone read"      ON problems        FOR SELECT USING (true);
@@ -263,6 +264,34 @@ CREATE POLICY "history: read own" ON history
 -- feedback
 CREATE POLICY "feedback: self only" ON feedback
     FOR ALL USING (auth.uid() = user_id);
+
+-- badges
+CREATE POLICY "badges_read" ON badges FOR SELECT USING (true);
+CREATE POLICY "user_badges_read_own" ON user_badges FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_badges_insert_own" ON user_badges FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- ================================================================
+-- Security Triggers
+-- ================================================================
+
+-- Prevent users from modifying protected columns (service_role bypassed)
+CREATE OR REPLACE FUNCTION restrict_user_update()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF current_setting('role', true) = 'service_role' THEN
+    RETURN NEW;
+  END IF;
+  NEW.is_admin          := OLD.is_admin;
+  NEW.line_push_allowed := OLD.line_push_allowed;
+  NEW.last_push_date    := OLD.last_push_date;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_restrict_user_update
+  BEFORE UPDATE ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION restrict_user_update();
 
 -- ================================================================
 -- DB Functions: daily push
@@ -314,6 +343,7 @@ CREATE OR REPLACE FUNCTION advance_list_positions(p_updates jsonb)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   UPDATE user_list_progress ulp

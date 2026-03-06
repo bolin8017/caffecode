@@ -9,7 +9,7 @@ export async function getChannelsForUser(
 ): Promise<NotificationChannelRow[]> {
   const { data, error } = await supabase
     .from('notification_channels')
-    .select('*')
+    .select('id, user_id, channel_type, display_label, is_verified, consecutive_send_failures, connected_at')
     .eq('user_id', userId)
     .order('connected_at')
   if (error) throw new Error(`Failed to fetch channels: ${error.message}`)

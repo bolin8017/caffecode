@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { LineToggle } from './line-toggle'
 import { DeleteButton } from './delete-button'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 import { SearchInput, Pagination } from '@/components/data-table'
 
 interface SearchParams {
@@ -45,7 +46,8 @@ export default async function AdminUsersPage({
     .range(offset, offset + PAGE_SIZE - 1)
 
   if (params.q) {
-    query = query.or(`email.ilike.%${params.q}%,display_name.ilike.%${params.q}%`)
+    const q = sanitizeSearch(params.q)
+    query = query.or(`email.ilike.%${q}%,display_name.ilike.%${q}%`)
   }
 
   const { data, count } = await query

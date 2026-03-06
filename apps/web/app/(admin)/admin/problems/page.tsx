@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { DeleteProblemButton } from './delete-button'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 import { SearchInput, Pagination } from '@/components/data-table'
 
 interface SearchParams {
@@ -26,7 +27,8 @@ export default async function AdminProblemsPage({
     .range(offset, offset + PAGE_SIZE - 1)
 
   if (params.q) {
-    query = query.or(`title.ilike.%${params.q}%,slug.ilike.%${params.q}%`)
+    const q = sanitizeSearch(params.q)
+    query = query.or(`title.ilike.%${q}%,slug.ilike.%${q}%`)
   }
 
   const { data: problems, count } = await query

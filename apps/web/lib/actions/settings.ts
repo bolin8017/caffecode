@@ -56,9 +56,11 @@ const modeSchema = z.discriminatedUnion('mode', [
   }),
   z.object({
     mode: z.literal('filter'),
-    difficulty_min: z.number().int().min(0),
-    difficulty_max: z.number().int().min(0),
-    topic_filter: z.array(z.string()).nullable(),
+    difficulty_min: z.number().int().min(0).max(3000),
+    difficulty_max: z.number().int().min(0).max(3000),
+    topic_filter: z.array(z.string().max(100)).max(50).nullable(),
+  }).refine(d => d.difficulty_min <= d.difficulty_max, {
+    message: 'difficulty_min must be <= difficulty_max',
   }),
 ])
 

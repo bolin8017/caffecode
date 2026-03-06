@@ -49,13 +49,16 @@ export async function createProblem(data: z.infer<typeof problemSchema>) {
 }
 
 export async function updateProblem(id: number, data: Partial<z.infer<typeof problemSchema>>) {
+  z.number().int().positive().parse(id)
+  const parsed = problemSchema.partial().parse(data)
   const db = await requireAdmin()
-  const { error } = await db.from('problems').update(data).eq('id', id)
+  const { error } = await db.from('problems').update(parsed).eq('id', id)
   if (error) throw new Error(`Failed to update problem: ${error.message}`)
   revalidatePath('/admin/problems')
 }
 
 export async function deleteProblem(id: number) {
+  z.number().int().positive().parse(id)
   const db = await requireAdmin()
   const { error } = await db.from('problems').delete().eq('id', id)
   if (error) throw new Error(`Failed to delete problem: ${error.message}`)
@@ -124,6 +127,7 @@ const contentSchema = z.object({
 })
 
 export async function updateContent(problemId: number, data: z.infer<typeof contentSchema>) {
+  z.number().int().positive().parse(problemId)
   const db = await requireAdmin()
   const parsed = contentSchema.parse(data)
   const { error } = await db
@@ -135,6 +139,7 @@ export async function updateContent(problemId: number, data: z.infer<typeof cont
 }
 
 export async function flagForRegeneration(problemId: number) {
+  z.number().int().positive().parse(problemId)
   const db = await requireAdmin()
   const { error } = await db
     .from('problem_content')
@@ -145,6 +150,7 @@ export async function flagForRegeneration(problemId: number) {
 }
 
 export async function unflagRegeneration(problemId: number) {
+  z.number().int().positive().parse(problemId)
   const db = await requireAdmin()
   const { error } = await db
     .from('problem_content')
@@ -155,6 +161,8 @@ export async function unflagRegeneration(problemId: number) {
 }
 
 export async function setLinePushAllowed(userId: string, allowed: boolean) {
+  z.string().uuid().parse(userId)
+  z.boolean().parse(allowed)
   const db = await requireAdmin()
   const { error } = await db.from('users').update({ line_push_allowed: allowed }).eq('id', userId)
   if (error) throw new Error(`Failed to update LINE push allowed: ${error.message}`)
@@ -162,6 +170,7 @@ export async function setLinePushAllowed(userId: string, allowed: boolean) {
 }
 
 export async function deleteUser(userId: string) {
+  z.string().uuid().parse(userId)
   const db = await requireAdmin()
   // Delete auth user first — if this fails, DB data is still intact
   const { error: authError } = await db.auth.admin.deleteUser(userId)

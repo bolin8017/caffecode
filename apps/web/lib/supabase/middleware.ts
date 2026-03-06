@@ -30,7 +30,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Auth-required routes
-  const authRoutes = ['/dashboard', '/settings', '/onboarding']
+  const authRoutes = ['/dashboard', '/settings', '/onboarding', '/garden']
   const isAuthRoute = authRoutes.some(r => pathname.startsWith(r))
 
   // Admin routes

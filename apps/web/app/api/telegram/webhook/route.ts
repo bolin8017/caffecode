@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     try {
       const supabase = createServiceClient()
-      const result = await verifyChannelByToken(supabase, linkToken, String(chatId))
+      const result = await verifyChannelByToken(supabase, linkToken, String(chatId), 'telegram')
 
       if (!result) {
         await sendTelegramMessage(chatId, '連結失敗：連結已過期或不存在。請返回設定頁重新操作。\nhttps://caffecode.net/settings')

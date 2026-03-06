@@ -98,7 +98,7 @@ describe('POST /api/telegram/webhook', () => {
     )
     await POST(req)
 
-    expect(verifyChannelByToken).toHaveBeenCalledWith(expect.anything(), 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '111')
+    expect(verifyChannelByToken).toHaveBeenCalledWith(expect.anything(), 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', '111', 'telegram')
   })
 
   it('sends failure message when link token is invalid', async () => {

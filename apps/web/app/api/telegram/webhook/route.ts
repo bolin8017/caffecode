@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
 import { timingSafeEqual } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { verifyChannelByToken } from '@/lib/repositories/channel.repository'
 import { logger } from '@/lib/logger'
-import { answerCallbackQuery, removeInlineKeyboard } from '@caffecode/shared'
-import { parseSolvedCallbackData } from '@/lib/utils/telegram-callback'
 
 function getEnv(name: string): string {
   const val = process.env[name]
@@ -19,17 +16,9 @@ interface TelegramMessage {
   text?: string
 }
 
-interface TelegramCallbackQuery {
-  id: string
-  from: { id: number }
-  message?: { message_id: number; chat: { id: number } }
-  data?: string
-}
-
 interface TelegramUpdate {
   update_id: number
   message?: TelegramMessage
-  callback_query?: TelegramCallbackQuery
 }
 
 async function sendTelegramMessage(chatId: number, text: string) {
@@ -72,99 +61,6 @@ export async function POST(req: NextRequest) {
   } catch {
     logger.warn('Telegram webhook: invalid JSON payload')
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
-  }
-
-  // Handle callback_query (inline button press — e.g. "✅ 我解出來了")
-  if (update.callback_query) {
-    const cq = update.callback_query
-    const chatId = String(cq.message?.chat?.id ?? cq.from.id)
-    const messageId = cq.message?.message_id
-    const token = getEnv('TELEGRAM_BOT_TOKEN')
-
-    const parsed = parseSolvedCallbackData(cq.data ?? '')
-    if (!parsed) {
-      // Unknown callback — silently ack to prevent Telegram retry
-      await answerCallbackQuery(token, cq.id, '')
-      return NextResponse.json({ ok: true })
-    }
-
-    const supabase = createServiceClient()
-
-    // Step 1: Find the verified channel for this chat
-    const { data: channel, error: channelErr } = await supabase
-      .from('notification_channels')
-      .select('user_id')
-      .eq('channel_type', 'telegram')
-      .eq('channel_identifier', chatId)
-      .eq('is_verified', true)
-      .maybeSingle()
-
-    if (channelErr) {
-      logger.error({ chatId, error: channelErr.message }, 'Telegram callback: channel lookup failed')
-      await answerCallbackQuery(token, cq.id, 'System error.')
-      return NextResponse.json({ ok: true })
-    }
-
-    if (!channel) {
-      await answerCallbackQuery(token, cq.id, 'Channel not found.')
-      return NextResponse.json({ ok: true })
-    }
-
-    // Step 2: Find history row for THIS user + problem (not just problem)
-    const { data: histRow, error: histErr } = await supabase
-      .from('history')
-      .select('id, user_id, solved_at')
-      .eq('problem_id', parsed.problemId)
-      .eq('user_id', channel.user_id)
-      .maybeSingle()
-
-    if (histErr) {
-      logger.error({ userId: channel.user_id, problemId: parsed.problemId, error: histErr.message }, 'Telegram callback: history lookup failed')
-      await answerCallbackQuery(token, cq.id, 'System error.')
-      return NextResponse.json({ ok: true })
-    }
-
-    if (!histRow) {
-      await answerCallbackQuery(token, cq.id, 'Record not found.')
-      return NextResponse.json({ ok: true })
-    }
-
-    if (histRow.solved_at) {
-      await answerCallbackQuery(token, cq.id, 'Already recorded! Keep going.')
-      return NextResponse.json({ ok: true })
-    }
-
-    const { data: updated, error: updateErr } = await supabase
-      .from('history')
-      .update({ solved_at: new Date().toISOString() })
-      .eq('id', histRow.id)
-      .select('id')
-
-    if (updateErr) {
-      logger.error({ historyId: histRow.id, error: updateErr.message }, 'Failed to mark solved via Telegram')
-      await answerCallbackQuery(token, cq.id, 'Update failed, try again later.')
-      return NextResponse.json({ ok: true })
-    }
-
-    if (!updated || updated.length === 0) {
-      logger.error({ historyId: histRow.id }, 'Telegram callback: update returned no rows')
-      await answerCallbackQuery(token, cq.id, 'Update failed, try again later.')
-      return NextResponse.json({ ok: true })
-    }
-
-    await Promise.allSettled([
-      answerCallbackQuery(token, cq.id, 'Recorded! Your coffee garden just got watered.'),
-      messageId
-        ? removeInlineKeyboard(token, chatId, messageId)
-        : Promise.resolve(),
-    ])
-
-    revalidatePath('/problems/[slug]', 'page')
-    revalidatePath('/garden')
-    revalidatePath('/dashboard')
-
-    logger.info({ historyId: histRow.id, userId: channel.user_id }, 'Problem marked solved via Telegram')
-    return NextResponse.json({ ok: true })
   }
 
   const message = update.message

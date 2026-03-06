@@ -140,9 +140,21 @@ export async function exportData() {
     supabase.from('user_list_progress').select('current_position, is_active, curated_lists(name, slug)').eq('user_id', user.id),
   ])
 
-  if (historyRes.error) throw new Error(`Failed to export history: ${historyRes.error.message}`)
-  if (feedbackRes.error) throw new Error(`Failed to export feedback: ${feedbackRes.error.message}`)
-  if (progressRes.error) throw new Error(`Failed to export progress: ${progressRes.error.message}`)
+  if (historyRes.error) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: historyRes.error }, 'exportData: failed to fetch history')
+    throw new Error('Failed to export data')
+  }
+  if (feedbackRes.error) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: feedbackRes.error }, 'exportData: failed to fetch feedback')
+    throw new Error('Failed to export data')
+  }
+  if (progressRes.error) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: progressRes.error }, 'exportData: failed to fetch progress')
+    throw new Error('Failed to export data')
+  }
 
   return {
     exported_at: new Date().toISOString(),

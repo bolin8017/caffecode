@@ -36,7 +36,11 @@ export async function submitFeedback(
     },
     { onConflict: 'user_id,problem_id' }
   )
-  if (error) throw new Error(`Failed to submit feedback: ${error.message}`)
+  if (error) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error }, 'submitFeedback: failed')
+    throw new Error('Failed to submit feedback')
+  }
 
   // avg_score/score_count updated automatically by trg_feedback_update_scores
   if (contentScore !== undefined) {

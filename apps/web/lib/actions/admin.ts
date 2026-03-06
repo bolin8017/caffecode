@@ -174,10 +174,16 @@ export async function deleteUser(userId: string) {
   const db = await requireAdmin()
   // Delete auth user first — if this fails, DB data is still intact
   const { error: authError } = await db.auth.admin.deleteUser(userId)
-  if (authError) throw new Error(authError.message)
+  if (authError) {
+    logger.error({ userId, error: authError }, 'deleteUser: auth deletion failed')
+    throw new Error('Failed to delete user')
+  }
   // Then delete DB row (cascades to all dependent records)
   const { error: dbError } = await db.from('users').delete().eq('id', userId)
-  if (dbError) throw new Error(dbError.message)
+  if (dbError) {
+    logger.error({ userId, error: dbError }, 'deleteUser: DB deletion failed')
+    throw new Error('Failed to delete user')
+  }
   revalidatePath('/admin/users')
 }
 

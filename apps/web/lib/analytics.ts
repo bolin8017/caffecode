@@ -21,7 +21,7 @@ export function trackNotificationClicked(props: {
 
 export function trackSolveMarked(props: {
   problemId: number
-  source: 'web' | 'telegram'
+  source: 'problem' | 'dashboard' | 'telegram'
   timeSinceSentSec: number | null
 }) {
   posthog.capture('problem_solve_marked', {

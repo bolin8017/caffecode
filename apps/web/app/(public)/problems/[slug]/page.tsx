@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { SolutionReveal } from './solution-reveal'
 import { createClient } from '@/lib/supabase/server'
 import { FeedbackWidget } from './feedback-widget'
-import { SolveButton } from './solve-button'
+import { ProblemActions } from './problem-actions'
+import { cn } from '@/lib/utils'
 
 export const revalidate = 3600
 export const dynamicParams = true
@@ -107,7 +108,10 @@ export default async function ProblemPage({ params }: PageProps) {
     : undefined
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className={cn(
+      "mx-auto max-w-3xl px-6 py-10",
+      user && historyEntry && !historyEntry.solved_at && "pb-28"
+    )}>
       {/* Header */}
       <div className="mb-6">
         <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -130,17 +134,29 @@ export default async function ProblemPage({ params }: PageProps) {
             </Badge>
           ))}
         </div>
-        <div className="mt-4">
-          <Button asChild variant="outline" size="sm">
-            <Link
-              href={`https://leetcode.com/problems/${slug}/`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              在 LeetCode 上作答 ↗
-            </Link>
-          </Button>
-        </div>
+        {user && historyEntry ? (
+          <ProblemActions
+            problemId={problem.id}
+            initialSolvedAt={historyEntry.solved_at}
+            sentAt={historyEntry.sent_at}
+            slug={problem.slug}
+            leetcodeId={problem.leetcode_id}
+            title={problem.title}
+            difficulty={problem.difficulty}
+          />
+        ) : (
+          <div className="mt-4">
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`https://leetcode.com/problems/${slug}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                在 LeetCode 上作答 ↗
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
 
       <hr className="my-6" />
@@ -214,16 +230,6 @@ export default async function ProblemPage({ params }: PageProps) {
         </section>
       )}
 
-      {/* Solve button — only shown when this problem was pushed to the user */}
-      {user && historyEntry && (
-        <section className="mb-8">
-          <SolveButton
-            problemId={problem.id}
-            initialSolvedAt={historyEntry.solved_at}
-            sentAt={historyEntry.sent_at}
-          />
-        </section>
-      )}
     </main>
   )
 }

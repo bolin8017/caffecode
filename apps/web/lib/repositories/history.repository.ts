@@ -1,7 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface RecentHistoryEntry {
+  problem_id: number
   sent_at: string
+  solved_at: string | null
   problems: {
     title: string
     slug: string
@@ -16,7 +18,7 @@ export async function getRecentHistory(
 ): Promise<RecentHistoryEntry[]> {
   const { data, error } = await supabase
     .from('history')
-    .select('sent_at, problems(title, slug, difficulty)')
+    .select('problem_id, sent_at, solved_at, problems(title, slug, difficulty)')
     .eq('user_id', userId)
     .order('sent_at', { ascending: false })
     .limit(limit)

@@ -5,7 +5,9 @@ import { getRecentHistory, getStreakHistory } from '@/lib/repositories/history.r
 import { calculateStreak } from '@/lib/services/streak.service'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { CircleCheck } from 'lucide-react'
 import type { Metadata } from 'next'
+import { UnsolvedQueue } from './unsolved-queue'
 
 export const metadata: Metadata = { title: '主頁 — CaffeCode' }
 
@@ -49,9 +51,26 @@ export default async function DashboardPage() {
     await Promise.all([
       getUserDashboard(supabase, user.id),
       getActiveListProgress(supabase, user.id),
-      getRecentHistory(supabase, user.id, 7),
+      getRecentHistory(supabase, user.id, 20),
       getStreakHistory(supabase, user.id, 60),
     ])
+
+  const fourteenDaysAgo = new Date()
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
+
+  const unsolvedItems = recentHistory
+    .filter((e) => !e.solved_at && new Date(e.sent_at) >= fourteenDaysAgo && e.problems)
+    .map((e) => ({
+      problemId: e.problem_id,
+      title: e.problems!.title,
+      slug: e.problems!.slug,
+      difficulty: e.problems!.difficulty,
+      sentAt: e.sent_at,
+    }))
+
+  const solvedRecent = recentHistory
+    .filter((e) => !!e.solved_at)
+    .slice(0, 7)
 
   const streak = calculateStreak(streakHistory, profile?.timezone ?? 'Asia/Taipei')
   const totalSolved = streakHistory.length
@@ -205,25 +224,36 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* ── Recent history ── */}
+      {/* ── Unsolved queue ── */}
+      {unsolvedItems.length > 0 && (
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-semibold mb-4">待完成的題目</h2>
+          <UnsolvedQueue items={unsolvedItems} />
+        </div>
+      )}
+
+      {/* ── Recently solved ── */}
       <div className="rounded-xl border bg-card p-5">
         <h2 className="font-semibold mb-4">最近完成的題目</h2>
-        {recentHistory.length === 0 ? (
-          <p className="text-sm text-muted-foreground">還沒有刷題記錄</p>
+        {solvedRecent.length === 0 ? (
+          <p className="text-sm text-muted-foreground">完成第一題後這裡就會出現記錄</p>
         ) : (
           <ul className="divide-y">
-            {recentHistory.map((entry, i) => {
+            {solvedRecent.map((entry) => {
               const p = entry.problems
               if (!p) return null
               const style = DIFFICULTY_STYLE[p.difficulty]
               return (
-                <li key={i} className="flex items-center justify-between py-3 gap-4 text-sm">
-                  <Link
-                    href={`/problems/${p.slug}`}
-                    className="font-medium hover:text-primary transition-colors truncate"
-                  >
-                    {p.title}
-                  </Link>
+                <li key={entry.problem_id} className="flex items-center justify-between py-3 gap-4 text-sm">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <CircleCheck className="size-5 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                    <Link
+                      href={`/problems/${p.slug}`}
+                      className="font-medium hover:text-primary transition-colors truncate"
+                    >
+                      {p.title}
+                    </Link>
+                  </div>
                   <div className="flex items-center gap-2.5 shrink-0">
                     {style && (
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${style.text} ${style.bg}`}>

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Noto_Sans_TC, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Nav } from '@/components/nav'
@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
   variable: '--font-mono',
   subsets: ['latin'],
 })
+
+export function generateViewport(): Viewport {
+  return { viewportFit: 'cover' }
+}
 
 export const metadata: Metadata = {
   title: 'CaffeCode',

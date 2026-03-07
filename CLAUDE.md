@@ -179,6 +179,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - **Supabase RPC table functions**: `get_unsent_problem_ids_for_user` returns `TABLE(problem_id integer)` → client gives `[{problem_id: N}]`, NOT `[N]`. Always map: `(data as {problem_id: number}[]).map(r => r.problem_id)`.
 - **Supabase COUNT-only**: Use `.select('id', { count: 'exact', head: true })` with chained filters for admin dashboard stats. Always select a single column (not `'*'`) with `head: true` to avoid fetching unnecessary data.
 - **revalidatePath caution**: Do NOT call from Server Actions that return data the caller displays (e.g. link tokens) — it wipes `useState` immediately.
+- **Sticky bottom bar pattern**: `ProblemActions` uses `IntersectionObserver` on a sentinel div; when header action bar scrolls out, `fixed bottom-0` bar slides in via CSS `transition-all duration-200`. iOS safe area handled via `@utility pb-safe` in globals.css + `generateViewport({ viewportFit: 'cover' })` in layout.tsx.
 
 ### Shared Package
 
@@ -272,7 +273,10 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `components/nav.tsx` — Server Component, reads `userProfile` prop (no DB query)
 - `components/user-menu.tsx` — Avatar dropdown
 - `components/settings-nav.tsx` — Settings navigation
+- `components/solve-button.tsx` — Shared SolveButton with `variant` prop (default=full button, compact=icon-only); controlled component (parent owns solve state)
 - `components/data-table/` — Shared filter/pagination: `SearchInput`, `FilterChips`, `SortableHeader`, `Pagination`
+- `app/(public)/problems/[slug]/problem-actions.tsx` — Client Component: header action bar + sticky bottom bar + IntersectionObserver + shared solve state
+- `app/(auth)/dashboard/unsolved-queue.tsx` — Client Component: inline solve buttons with optimistic removal
 
 ### Worker (`apps/worker/`)
 
@@ -389,7 +393,7 @@ All deployments follow this sequence. No exceptions.
 
 ## Development Notes
 
-**Tests**: 192 TypeScript (shared 79, worker 45, web 68) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
+**Tests**: 194 TypeScript (shared 79, worker 45, web 70) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
 
 **vitest config**: `apps/web` tests outside `src/` (e.g. `lib/__tests__/`) need explicit include in `vitest.config.ts`.
 

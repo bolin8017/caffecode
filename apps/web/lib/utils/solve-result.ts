@@ -1,4 +1,4 @@
-import { computeLevel } from '@/lib/repositories/garden.repository'
+import { computeLevel, toStage } from '@/lib/repositories/garden.repository'
 import type { TopicProficiency } from '@/lib/repositories/garden.repository'
 import { topicToVariety } from '@caffecode/shared'
 import type { Badge } from '@/lib/repositories/badge.repository'
@@ -37,14 +37,6 @@ export function nextLevelThreshold(currentCount: number): number {
     if (currentCount < t) return t
   }
   return 11 + Math.ceil((currentCount - 10) / 5) * 5
-}
-
-function toStage(count: number): 0 | 1 | 2 | 3 | 4 {
-  if (count === 0) return 0
-  if (count <= 2) return 1
-  if (count <= 5) return 2
-  if (count <= 10) return 3
-  return 4
 }
 
 /**

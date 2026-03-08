@@ -9,7 +9,7 @@ export const revalidate = 3600
 
 export const metadata: Metadata = {
   title: '學習清單 — CaffeCode',
-  description: '27 份精選刷題清單，涵蓋演算法、資料結構與各大廠面試高頻題型',
+  description: '33 份精選刷題清單，涵蓋演算法、資料結構與各大廠面試高頻題型',
 }
 
 const CATEGORY_OPTIONS = [

@@ -8,7 +8,7 @@ export const revalidate = 3600
 const features = [
   {
     title: '精選題目清單',
-    description: 'Blind 75、NeetCode 150 等 32 份精選清單，涵蓋演算法、資料結構與各大廠面試高頻題型。',
+    description: 'Blind 75、NeetCode 150 等 33 份精選清單，涵蓋演算法、資料結構與各大廠面試高頻題型。',
     icon: '📋',
   },
   {

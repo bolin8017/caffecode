@@ -23,8 +23,8 @@ A daily LeetCode problem delivery platform with AI-generated C++ explanations in
 
 ## Features
 
-- **32 curated lists** — Blind 75, NeetCode 150, Grind 75, company lists (FAANG, Google, Meta, Amazon, Apple, Bloomberg, Microsoft), topic & algorithm lists
-- **451+ problems** with AI-generated content — explanation, C++ solution, complexity analysis, pseudocode, alternative approaches, follow-up questions
+- **33 curated lists** — Blind 75, NeetCode 150, NeetCode All, Grind 75, company lists (FAANG, Google, Meta, Amazon, Apple, Bloomberg, Microsoft), topic & algorithm lists
+- **810+ problems** with AI-generated content — explanation, C++ solution, complexity analysis, pseudocode, alternative approaches, follow-up questions
 - **Automated metadata sync** — `sync_leetcode.py` fetches all ~3100 free LeetCode problems via GraphQL API + contest ratings
 - **Zero runtime LLM calls** — all content pre-generated offline via Claude Sonnet
 - **3 notification channels** — Telegram, LINE, Email; connect any combination
@@ -84,7 +84,7 @@ Two processes share the same Supabase database. `packages/shared` provides chann
 | Monorepo | pnpm workspaces + Turborepo |
 | Observability | Sentry (errors), PostHog (analytics), Pino (structured logging) |
 | Security | CSP headers, Zod validation, webhook HMAC verification |
-| Testing | Vitest (192 TS tests) + pytest (20 Python tests) |
+| Testing | Vitest (194 TS tests) + pytest (20 Python tests) |
 | CI/CD | GitHub Actions, Vercel (web), Railway (worker) |
 
 ## Project Structure
@@ -170,7 +170,7 @@ pnpm test
 # Individually
 cd packages/shared && pnpm exec vitest run   # 79 tests
 cd apps/worker && pnpm exec vitest run       # 45 tests
-cd apps/web && pnpm exec vitest run          # 68 tests
+cd apps/web && pnpm exec vitest run          # 70 tests
 
 # Python tests (sync script)
 cd scripts && python3 -m pytest tests/ -v    # 20 tests

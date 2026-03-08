@@ -21,7 +21,7 @@ pnpm monorepo + Turborepo. Two processes share a single Supabase database:
 
 **Pre-curated content model**: All problem content (explanation, C++ solution, complexity analysis, pseudocode, alternatives, follow-up) is generated offline via admin UI. Zero runtime LLM calls.
 
-**Content**: 32 curated lists, 451 problems with AI-generated content. Data files stored locally (not in git). New problems discovered via `scripts/sync_leetcode.py` (metadata), content generated offline via Claude Sonnet, imported to Supabase via `scripts/build_database.py` (skips metadata-only files).
+**Content**: 33 curated lists, 810 problems with AI-generated content. Data files stored locally (not in git). New problems discovered via `scripts/sync_leetcode.py` (metadata), content generated offline via Claude Sonnet, imported to Supabase via `scripts/build_database.py` (skips metadata-only files).
 
 ## Git Conventions (Google / Angular Style)
 

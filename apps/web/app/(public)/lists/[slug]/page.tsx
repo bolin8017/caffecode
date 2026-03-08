@@ -3,6 +3,7 @@ import { getSolvedProblemIds } from '@/lib/repositories/history.repository'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { ListSubscribeBar, StartFromHereButton } from './list-subscribe-bar'
 
 export const revalidate = 3600
 export const dynamicParams = true
@@ -99,22 +100,25 @@ export default async function ListDetailPage({ params }: PageProps) {
         )}
         <p className="mt-1 text-sm text-muted-foreground">{list.problem_count} 道題目</p>
 
-        {/* Progress bar for logged-in users */}
-        {userProgress && (
-          <div className="mt-4 p-4 rounded-lg border bg-muted/30">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="font-medium">你的進度</span>
-              <span className="text-muted-foreground">
-                {userProgress.current_position} / {list.problem_count} 題
-                {userProgress.is_active && ' · 目前學習中'}
-              </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
+        {/* Subscribe bar + Progress for logged-in users */}
+        {user && (
+          <div className="mt-4 p-4 rounded-lg border bg-muted/30 space-y-3">
+            <ListSubscribeBar
+              listId={list.id}
+              listName={list.name}
+              problemCount={list.problem_count}
+              userProgress={userProgress}
+            />
+            {userProgress && (
+              <div>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -127,6 +131,7 @@ export default async function ListDetailPage({ params }: PageProps) {
               {user && (
                 <th className="px-2 py-3 w-8" />
               )}
+              {user && <th className="px-1 py-3 w-8" />}
               <th className="px-4 py-3 text-left font-medium text-muted-foreground w-12">#</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">題目</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground w-24">難度</th>
@@ -153,6 +158,11 @@ export default async function ListDetailPage({ params }: PageProps) {
                       {solvedIds.has(p.id) && (
                         <span className="text-emerald-500" title="已解題">✓</span>
                       )}
+                    </td>
+                  )}
+                  {user && (
+                    <td className="px-1 py-3 text-center">
+                      <StartFromHereButton listId={list.id} sequenceNumber={lp.sequence_number} />
                     </td>
                   )}
                   <td className="px-4 py-3 text-muted-foreground">{lp.sequence_number}</td>

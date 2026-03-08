@@ -50,6 +50,7 @@ export default async function ListDetailPage({ params }: PageProps) {
   if (!list) notFound()
 
   // Fetch problems in sequence order
+  const serviceClient = createServiceClient()
   const { data: listProblems } = await serviceClient
     .from('list_problems')
     .select(`

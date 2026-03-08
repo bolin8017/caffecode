@@ -4,17 +4,19 @@ import { z } from 'zod'
 import { getAuthUser } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/logger'
+import { type SolveResult, EMPTY_SOLVE_RESULT, buildSolveResult } from '@/lib/utils/solve-result'
 
 const problemIdSchema = z.number().int().positive()
 
-export async function markSolved(problemId: number): Promise<void> {
+export async function markSolved(problemId: number): Promise<SolveResult> {
   problemIdSchema.parse(problemId)
 
   const { supabase, user } = await getAuthUser()
 
+  // Fetch history row WITH problem topics (needed for feedback)
   const { data: historyRow, error: historyErr } = await supabase
     .from('history')
-    .select('id, sent_at, solved_at')
+    .select('id, sent_at, solved_at, problems(topics)')
     .eq('user_id', user.id)
     .eq('problem_id', problemId)
     .single()
@@ -24,8 +26,18 @@ export async function markSolved(problemId: number): Promise<void> {
     throw new Error('No push record found')
   }
 
-  if (historyRow.solved_at) return
+  if (historyRow.solved_at) return EMPTY_SOLVE_RESULT
 
+  // Fetch topic proficiency BEFORE marking solved (baseline for level-up detection)
+  let beforeTopics: Awaited<ReturnType<typeof import('@/lib/repositories/garden.repository').getTopicProficiency>> = []
+  try {
+    const { getTopicProficiency } = await import('@/lib/repositories/garden.repository')
+    beforeTopics = await getTopicProficiency(supabase, user.id)
+  } catch {
+    // Non-blocking: feedback will just show empty if this fails
+  }
+
+  // Atomic update with TOCTOU guard
   const { data: updated, error: updateErr } = await supabase
     .from('history')
     .update({ solved_at: new Date().toISOString() })
@@ -39,34 +51,48 @@ export async function markSolved(problemId: number): Promise<void> {
     throw new Error('Failed to mark problem as solved')
   }
 
-  // If no rows matched, another concurrent call already solved it — return silently
-  if (!updated || updated.length === 0) return
+  if (!updated || updated.length === 0) return EMPTY_SOLVE_RESULT
 
-  // Best-effort badge check (don't block solve on failure)
+  // Best-effort badge check + build feedback
+  let solveResult: SolveResult = EMPTY_SOLVE_RESULT
   try {
-    const { getTopicProficiency, getGardenSummary } = await import('@/lib/repositories/garden.repository')
     const { checkAndAwardBadges } = await import('@/lib/repositories/badge.repository')
+    const { getGardenSummary, computeLevel } = await import('@/lib/repositories/garden.repository')
     const { calculateStreak } = await import('@/lib/services/streak.service')
 
-    const [topics, summary, streakHistory] = await Promise.all([
-      getTopicProficiency(supabase, user.id),
+    const problemTopics = (historyRow.problems as unknown as { topics: string[] })?.topics ?? []
+
+    const [summary, streakHistory] = await Promise.all([
       getGardenSummary(supabase, user.id),
       supabase.from('history').select('solved_at').eq('user_id', user.id).not('solved_at', 'is', null).order('solved_at', { ascending: false }),
     ])
 
     const streak = calculateStreak(streakHistory.data ?? [])
 
-    await checkAndAwardBadges(supabase, user.id, {
+    // Post-solve proficiency for badge check (beforeTopics + 1 for this problem's topics)
+    const postTopics = beforeTopics.map(t => ({
+      ...t,
+      solvedCount: problemTopics.includes(t.topic) ? t.solvedCount + 1 : t.solvedCount,
+      level: problemTopics.includes(t.topic)
+        ? computeLevel(t.solvedCount + 1)
+        : t.level,
+    }))
+
+    const newBadges = await checkAndAwardBadges(supabase, user.id, {
       totalSolves: summary.totalSolved,
       currentStreak: streak,
-      topicLevels: topics.map(t => ({ topic: t.topic, level: t.level })),
-      topicCount: topics.filter(t => t.solvedCount > 0).length,
+      topicLevels: postTopics.map(t => ({ topic: t.topic, level: t.level })),
+      topicCount: postTopics.filter(t => t.solvedCount > 0).length,
     })
+
+    solveResult = buildSolveResult(beforeTopics, problemTopics, newBadges)
   } catch {
-    // Badge check failure should never block the solve action
+    // Badge/feedback failure should never block the solve action
   }
 
   revalidatePath(`/problems/[slug]`, 'page')
   revalidatePath('/garden')
   revalidatePath('/dashboard')
+
+  return solveResult
 }

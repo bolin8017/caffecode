@@ -58,8 +58,20 @@ describe('markSolved', () => {
 
   it('succeeds when history exists', async () => {
     mockSingle
-      .mockResolvedValueOnce({ data: { id: 1, sent_at: new Date().toISOString(), solved_at: null }, error: null })
+      .mockResolvedValueOnce({
+        data: {
+          id: 1,
+          sent_at: new Date().toISOString(),
+          solved_at: null,
+          problems: { topics: ['array'] },
+        },
+        error: null,
+      })
     const { markSolved } = await import('@/lib/actions/history')
-    await expect(markSolved(42)).resolves.toBeUndefined()
+    const result = await markSolved(42)
+    expect(result).toBeDefined()
+    expect(result).toHaveProperty('levelUps')
+    expect(result).toHaveProperty('newBadges')
+    expect(result).toHaveProperty('topicProgress')
   })
 })

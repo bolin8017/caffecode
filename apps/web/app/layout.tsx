@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Noto_Sans_TC, Geist_Mono } from 'next/font/google'
 import './globals.css'
+import { Toaster } from 'sonner'
 import { Nav } from '@/components/nav'
 import { PostHogProvider } from '@/components/posthog-provider'
 import { headers } from 'next/headers'
@@ -46,6 +47,7 @@ export default async function RootLayout({
           <Nav userProfile={userProfile} />
           {children}
         </PostHogProvider>
+        <Toaster position="bottom-center" duration={3000} />
       </body>
     </html>
   )

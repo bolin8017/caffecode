@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { getRecentHistory, getSolvedProblemIds } from '@/lib/repositories/history.repository'
 
 describe('getRecentHistory', () => {
@@ -27,7 +28,7 @@ describe('getRecentHistory', () => {
         }),
       }),
     }
-    const result = await getRecentHistory(mockSupabase as any, 'user-123', 7)
+    const result = await getRecentHistory(mockSupabase as unknown as SupabaseClient, 'user-123', 7)
     expect(result).toHaveLength(2)
     expect(result[0]).toMatchObject({ problem_id: 1, solved_at: expect.any(String) })
     expect(result[1]).toMatchObject({ problem_id: 2, solved_at: null })
@@ -42,7 +43,7 @@ describe('getRecentHistory', () => {
         limit: vi.fn().mockResolvedValue({ data: null, error: { message: 'timeout' } }),
       }),
     }
-    await expect(getRecentHistory(mockSupabase as any, 'user-123', 7))
+    await expect(getRecentHistory(mockSupabase as unknown as SupabaseClient, 'user-123', 7))
       .rejects.toThrow('Failed to fetch recent history')
   })
 })
@@ -60,7 +61,7 @@ describe('getSolvedProblemIds', () => {
         }),
       }),
     }
-    const result = await getSolvedProblemIds(mockSupabase as any, 'user-123', [1, 2, 42])
+    const result = await getSolvedProblemIds(mockSupabase as unknown as SupabaseClient, 'user-123', [1, 2, 42])
     expect(result).toEqual(new Set([1, 42]))
   })
 
@@ -73,13 +74,13 @@ describe('getSolvedProblemIds', () => {
         in: vi.fn().mockResolvedValue({ data: [], error: null }),
       }),
     }
-    const result = await getSolvedProblemIds(mockSupabase as any, 'user-123', [1, 2])
+    const result = await getSolvedProblemIds(mockSupabase as unknown as SupabaseClient, 'user-123', [1, 2])
     expect(result).toEqual(new Set())
   })
 
   it('returns empty Set when problemIds array is empty', async () => {
     const mockSupabase = { from: vi.fn() }
-    const result = await getSolvedProblemIds(mockSupabase as any, 'user-123', [])
+    const result = await getSolvedProblemIds(mockSupabase as unknown as SupabaseClient, 'user-123', [])
     expect(result).toEqual(new Set())
     expect(mockSupabase.from).not.toHaveBeenCalled()
   })
@@ -93,6 +94,6 @@ describe('getSolvedProblemIds', () => {
         in: vi.fn().mockResolvedValue({ data: null, error: { message: 'fail' } }),
       }),
     }
-    await expect(getSolvedProblemIds(mockSupabase as any, 'user-123', [1])).rejects.toThrow('Failed to fetch solved problem IDs')
+    await expect(getSolvedProblemIds(mockSupabase as unknown as SupabaseClient, 'user-123', [1])).rejects.toThrow('Failed to fetch solved problem IDs')
   })
 })

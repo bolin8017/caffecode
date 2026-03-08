@@ -77,7 +77,7 @@ export default async function ListDetailPage({ params }: PageProps) {
   let solvedIds: Set<number> = new Set()
   if (user && listProblems?.length) {
     const problemIds = listProblems
-      .map(lp => (lp.problems as any)?.id)
+      .map(lp => (lp.problems as unknown as { id: number } | null)?.id)
       .filter((id): id is number => id != null)
     solvedIds = await getSolvedProblemIds(supabase, user.id, problemIds)
   }

@@ -1,4 +1,4 @@
-/** Strip PostgREST filter syntax characters to prevent .or() injection */
+/** Strip PostgREST filter syntax and SQL LIKE wildcards to prevent injection */
 export function sanitizeSearch(q: string): string {
-  return q.replace(/[,.()"'\\]/g, '')
+  return q.replace(/[,.()"'\\%_]/g, '')
 }

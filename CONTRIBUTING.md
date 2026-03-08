@@ -34,7 +34,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 <type>(<scope>): <subject>
 ```
 
-**Types**: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
+**Types**: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`, `style`
 
 **Scopes**: `web`, `worker`, `shared`, `db`, `ci` (omit for cross-cutting changes)
 
@@ -80,4 +80,4 @@ Use the [issue templates](.github/ISSUE_TEMPLATE/) for bug reports and feature r
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).
+By contributing, you agree that your contributions will be licensed under the [AGPL-3.0 License](LICENSE).

@@ -73,8 +73,10 @@ export async function updateLearningMode(
   modeSchema.parse(data)
 
   if (data.mode === 'list') {
-    await updateUser(supabase, user.id, { active_mode: 'list' })
-    await deactivateAllLists(supabase, user.id)
+    await Promise.all([
+      updateUser(supabase, user.id, { active_mode: 'list' }),
+      deactivateAllLists(supabase, user.id),
+    ])
     await upsertListProgress(supabase, {
       user_id: user.id,
       list_id: data.list_id,
@@ -104,8 +106,10 @@ export async function subscribeToList(listId: number, startPosition?: number) {
   const { supabase, user } = await getAuthUser()
   subscribeSchema.parse({ listId, startPosition })
 
-  await updateUser(supabase, user.id, { active_mode: 'list' })
-  await deactivateAllLists(supabase, user.id)
+  await Promise.all([
+    updateUser(supabase, user.id, { active_mode: 'list' }),
+    deactivateAllLists(supabase, user.id),
+  ])
 
   const progressData: {
     user_id: string

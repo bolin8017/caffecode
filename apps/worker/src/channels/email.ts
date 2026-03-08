@@ -1,6 +1,6 @@
 import { render } from '@react-email/render'
 import { createElement } from 'react'
-import { sendEmailMessage, formatEmailSubject, type PushMessage, type SendResult } from '@caffecode/shared'
+import { sendEmailMessage, type PushMessage, type SendResult } from '@caffecode/shared'
 import type { NotificationChannel } from './interface.js'
 import { DailyProblemEmail } from './email-template.js'
 
@@ -9,10 +9,6 @@ export class EmailChannel implements NotificationChannel {
     private readonly apiKey: string,
     private readonly from: string
   ) {}
-
-  formatMessage(msg: PushMessage): string {
-    return formatEmailSubject(msg)
-  }
 
   async send(emailAddress: string, msg: PushMessage): Promise<SendResult> {
     const html = await render(

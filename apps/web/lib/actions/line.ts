@@ -5,7 +5,8 @@ import { getAuthUser } from '@/lib/auth'
 import { upsertChannel } from '@/lib/repositories/channel.repository'
 
 export async function connectLine(): Promise<{ deepLink: string; linkToken: string }> {
-  const botBasicId = process.env.LINE_BOT_BASIC_ID!
+  const botBasicId = process.env.LINE_BOT_BASIC_ID
+  if (!botBasicId) throw new Error('LINE_BOT_BASIC_ID is not configured')
 
   const { user } = await getAuthUser()
 

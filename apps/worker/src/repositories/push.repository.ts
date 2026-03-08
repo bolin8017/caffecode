@@ -111,6 +111,7 @@ export async function resetChannelFailures(
     .from('notification_channels')
     .update({ consecutive_send_failures: 0 })
     .eq('id', channelId)
+    .gt('consecutive_send_failures', 0)
 
   if (error) {
     logger.error({ err: error, channelId }, 'resetChannelFailures: update failed')

@@ -39,26 +39,6 @@ describe('EmailChannel', () => {
     expect(channel).toBeDefined()
   })
 
-  it('formatMessage returns a non-empty string', () => {
-    const channel = new EmailChannel('fake-api-key', 'CaffeCode <noreply@caffecode.net>')
-    const result = channel.formatMessage(msg)
-    expect(typeof result).toBe('string')
-    expect(result.length).toBeGreaterThan(0)
-  })
-
-  it('formatMessage includes the difficulty', () => {
-    const channel = new EmailChannel('fake-api-key', 'CaffeCode <noreply@caffecode.net>')
-    expect(channel.formatMessage(msg)).toContain('Easy')
-  })
-
-  it('formatMessage varies by difficulty', () => {
-    const channel = new EmailChannel('fake-api-key', 'CaffeCode <noreply@caffecode.net>')
-    const hard = { ...msg, difficulty: 'Hard' }
-    const result = channel.formatMessage(hard)
-    expect(result).toContain('Hard')
-    expect(result).not.toContain('Easy')
-  })
-
   it('send calls sendEmailMessage with correct arguments', async () => {
     const channel = new EmailChannel('fake-api-key', 'CaffeCode <noreply@caffecode.net>')
 

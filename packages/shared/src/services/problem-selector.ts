@@ -7,7 +7,7 @@ import {
   getProblemById,
 } from '../repositories/problem.repository.js'
 
-export interface ProblemSelectionContext {
+interface ProblemSelectionContext {
   id: string
   mode: 'list' | 'filter'
   difficulty_min: number

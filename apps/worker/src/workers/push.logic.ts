@@ -41,15 +41,21 @@ async function processBatch(
   users: PushCandidate[],
 ): Promise<PushJobData[]> {
   // Problem selection is per-user (different list position / filter criteria)
-  const userProblems: Array<{ user: PushCandidate; problem: NonNullable<Awaited<ReturnType<typeof selectProblemForUser>>> }> = []
-  for (const user of users) {
-    const problem = await selectProblemForUser({ ...user, mode: user.active_mode }, db)
-    if (problem) {
-      userProblems.push({ user, problem })
-    } else {
-      logger.warn({ userId: user.id, mode: user.active_mode }, 'No problem found for candidate')
-    }
-  }
+  // Parallelized with concurrency limit to avoid overwhelming the DB
+  const pLimit = (await import('p-limit')).default
+  const limit = pLimit(10)
+  const results = await Promise.all(
+    users.map(user => limit(async () => {
+      const problem = await selectProblemForUser({ ...user, mode: user.active_mode }, db)
+      if (!problem) {
+        logger.warn({ userId: user.id, mode: user.active_mode }, 'No problem found for candidate')
+      }
+      return problem ? { user, problem } : null
+    }))
+  )
+  const userProblems = results.filter(
+    (r): r is { user: PushCandidate; problem: NonNullable<Awaited<ReturnType<typeof selectProblemForUser>>> } => r !== null
+  )
 
   if (userProblems.length === 0) {
     return []

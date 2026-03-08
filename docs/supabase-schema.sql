@@ -181,6 +181,32 @@ CREATE TABLE feedback (
 CREATE INDEX idx_feedback_user ON feedback(user_id);
 CREATE INDEX idx_feedback_problem ON feedback(problem_id) WHERE content_score IS NOT NULL;
 
+-- ----------------------------------------------------------------
+-- 11. badges — Badge definitions
+-- ----------------------------------------------------------------
+CREATE TABLE badges (
+    id          SERIAL PRIMARY KEY,
+    slug        TEXT UNIQUE NOT NULL,
+    name        TEXT NOT NULL,
+    description TEXT,
+    icon        TEXT NOT NULL,
+    category    TEXT NOT NULL DEFAULT 'milestone'
+        CHECK (category IN ('milestone', 'streak', 'skill', 'variety')),
+    requirement JSONB NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ----------------------------------------------------------------
+-- 12. user_badges — User-earned badges
+-- ----------------------------------------------------------------
+CREATE TABLE user_badges (
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    badge_id    INT NOT NULL REFERENCES badges(id) ON DELETE CASCADE,
+    earned_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, badge_id)
+);
+CREATE INDEX idx_user_badges_user ON user_badges(user_id);
+
 -- ================================================================
 -- Utility Functions
 -- ================================================================
@@ -239,6 +265,8 @@ ALTER TABLE user_list_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE history            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_runs          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE badges             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_badges        ENABLE ROW LEVEL SECURITY;
 
 -- Public read on content tables (for public problem/list pages)
 CREATE POLICY "problems: anyone read"      ON problems        FOR SELECT USING (true);
@@ -293,6 +321,28 @@ CREATE TRIGGER trg_restrict_user_update
   BEFORE UPDATE ON users
   FOR EACH ROW
   EXECUTE FUNCTION restrict_user_update();
+
+-- Prevent users from modifying immutable history columns (only solved_at may change)
+CREATE OR REPLACE FUNCTION restrict_history_update()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.user_id    IS DISTINCT FROM OLD.user_id    OR
+     NEW.problem_id IS DISTINCT FROM OLD.problem_id OR
+     NEW.sent_at    IS DISTINCT FROM OLD.sent_at    OR
+     NEW.id         IS DISTINCT FROM OLD.id THEN
+    RAISE EXCEPTION 'Only solved_at may be updated on history rows';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_restrict_history_update
+  BEFORE UPDATE ON history
+  FOR EACH ROW
+  EXECUTE FUNCTION restrict_history_update();
+
+-- Revoke advance_list_positions from non-service roles
+REVOKE EXECUTE ON FUNCTION advance_list_positions(jsonb) FROM PUBLIC, anon, authenticated;
 
 -- ================================================================
 -- DB Functions: daily push

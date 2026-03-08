@@ -19,4 +19,4 @@ export const serverEnvSchema = z.object({
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
 })
 
-export type ServerEnv = z.infer<typeof serverEnvSchema>
+type ServerEnv = z.infer<typeof serverEnvSchema>

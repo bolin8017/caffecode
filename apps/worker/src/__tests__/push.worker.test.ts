@@ -98,9 +98,9 @@ describe('dispatchJob', () => {
   })
 
   function makeSupabaseMock() {
-    const updateMock = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    })
+    const gtMock = vi.fn().mockResolvedValue({ error: null })
+    const eqMock = vi.fn().mockReturnValue({ gt: gtMock })
+    const updateMock = vi.fn().mockReturnValue({ eq: eqMock })
     const fromMock = vi.fn().mockReturnValue({
       update: updateMock,
     })
@@ -111,7 +111,7 @@ describe('dispatchJob', () => {
   it('increments failure counter via RPC on permanent send failure', async () => {
     const { mock, rpcMock } = makeSupabaseMock()
     const channel: NotificationChannel = {
-      formatMessage: vi.fn().mockReturnValue('formatted'),
+
       send: vi.fn().mockResolvedValue({ success: false, shouldRetry: false, error: '403 Forbidden' }),
     }
 
@@ -123,7 +123,7 @@ describe('dispatchJob', () => {
   it('resets failure counter on successful send', async () => {
     const { mock, fromMock, updateMock } = makeSupabaseMock()
     const channel: NotificationChannel = {
-      formatMessage: vi.fn().mockReturnValue('formatted'),
+
       send: vi.fn().mockResolvedValue({ success: true }),
     }
 
@@ -138,7 +138,7 @@ describe('dispatchJob', () => {
     const rpcMock = vi.fn()
     const mock = { from: fromMock, rpc: rpcMock } as unknown as SupabaseClient
     const channel: NotificationChannel = {
-      formatMessage: vi.fn().mockReturnValue('formatted'),
+
       send: vi.fn().mockResolvedValue({ success: false, shouldRetry: true, error: '500 Server Error' }),
     }
 

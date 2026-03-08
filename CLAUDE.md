@@ -186,7 +186,9 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 
 - `packages/shared/src/channels/` — `sendTelegramMessage`, `sendLineMessage`, `sendEmailMessage` return `SendResult` with `shouldRetry`. Worker channel classes delegate here; admin `forceNotifyAll` calls directly.
 - `packages/shared/src/services/problem-selector.ts` — `selectProblemForUser()` single source of truth for both worker and admin.
+- `packages/shared/src/services/badge-checker.ts` — `evaluateBadgeCondition()` evaluates badge requirement JSONB against user context.
 - `packages/shared/src/utils/notification-formatters.ts` — `formatTelegramMessage`, `buildFlexBubble`, `formatEmailSubject`, `buildTelegramReplyMarkup`.
+- `packages/shared/src/types/push.ts` — `PushMessage`, `SendResult`, `SelectedProblem` interfaces used by worker and shared channels.
 - `packages/shared/src/utils/topic-utils.ts` — `topicLabel()`, `topicToVariety()`, `normalizeTopics()`, `TOPIC_ALIASES`. Kebab-case topic slug utilities. `normalizeTopics` merges aliases and re-sorts by `solved_count DESC`.
 - `apps/web/lib/repositories/garden.repository.ts` — `computeLevel()`, `toStage()`, `getTopicProficiency()`, `getGardenSummary()`.
 - **Build requirement**: `main: "dist/index.js"` in package.json — Railway runtime needs compiled output.
@@ -212,7 +214,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - **Error masking**: Server Actions log full Supabase errors server-side, return generic messages to clients
 - **HTML escaping**: Telegram formatter escapes `&<>"` in problem titles (defense-in-depth)
 - **RPC access control**: `advance_list_positions` EXECUTE revoked from PUBLIC/anon/authenticated — only callable by service_role (worker).
-- **Admin double guard**: Middleware route protection + per-action `is_admin` re-verification with proper `{ data, error }` destructuring
+- **Admin double guard**: Proxy route protection + per-action `is_admin` re-verification with proper `{ data, error }` destructuring
 - **service_role key**: Required for all server-side DB access — anon is denied by RLS
 - **Account deletion**: GDPR/PDPA compliant — deletes auth user first (safe: if it fails, DB data intact), then DB row (cascades via FK). Both `deleteAccount()` and admin `deleteUser()` follow this order.
 - **Supabase error handling**: All repository and Server Action Supabase calls destructure `{ data, error }` and throw on error — no silent failures
@@ -225,7 +227,8 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 ### Web (`apps/web/`)
 
 **Routes**:
-- `app/(public)/` — Landing, /problems, /problems/[slug], /lists, /lists/[slug] (all use `revalidate = 3600` ISR)
+- `app/page.tsx` — Landing page
+- `app/(public)/` — /problems, /problems/[slug], /lists, /lists/[slug] (all use `revalidate = 3600` ISR)
 - `app/robots.ts` — Dynamic robots.txt generation
 - `app/(auth)/` — /dashboard, /settings, /settings/learning, /settings/account, /settings/notifications, /onboarding, /garden
 - `app/(admin)/admin/` — Health dashboard, problems, content, lists, users, push monitor, channels
@@ -285,10 +288,8 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 
 - `src/index.ts` — Entry point: Sentry init, buildPushJobs, Promise.allSettled dispatch, recordPushRun
 - `src/workers/push.logic.ts` — `buildPushJobs()` (pure, paginated), `dispatchJob()` (circuit-breaker)
-- `src/channels/` — `telegram.ts`, `line.ts`, `email.ts`, `email-template.tsx` (React Email), `registry.ts`
+- `src/channels/` — `interface.ts`, `telegram.ts`, `line.ts`, `email.ts`, `email-template.tsx` (React Email), `registry.ts`
 - `src/repositories/push.repository.ts` — `getPushCandidatesBatch`, `getVerifiedChannelsBulk`, `upsertHistoryBatch`, `stampLastPushDate`, `incrementChannelFailures`, `resetChannelFailures`, `recordPushRun`
-- `src/repositories/problem.repository.ts` — Re-exports from `@caffecode/shared`
-- `src/services/problem-selector.ts` — Re-exports `selectProblemForUser` from `@caffecode/shared`
 - `src/lib/config.ts` + `config.schema.ts` — Zod-validated env; `config` exported everywhere
 - `src/lib/logger.ts` — Pino logger
 - `src/lib/supabase.ts` — service_role client
@@ -397,7 +398,7 @@ All deployments follow this sequence. No exceptions.
 
 ## Development Notes
 
-**Tests**: 214 TypeScript (shared 79, worker 45, web 90) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
+**Tests**: 182 TypeScript (shared 51, worker 36, web 95) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
 
 **vitest config**: `apps/web` tests outside `src/` (e.g. `lib/__tests__/`) need explicit include in `vitest.config.ts`.
 

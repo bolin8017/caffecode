@@ -11,4 +11,4 @@ export const envSchema = z.object({
   SENTRY_DSN: z.string().url().optional(),
 })
 
-export type Config = z.infer<typeof envSchema>
+type Config = z.infer<typeof envSchema>

@@ -5,6 +5,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ListSubscribeBar, StartFromHereButton } from './list-subscribe-bar'
 
+import { cache } from 'react'
+
 export const revalidate = 3600
 export const dynamicParams = true
 
@@ -14,18 +16,24 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   Hard: 'bg-rose-50 text-rose-900 dark:bg-rose-950 dark:text-rose-200',
 }
 
+// Deduplicate the list query between generateMetadata and page render
+const getListBySlug = cache(async (slug: string) => {
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('curated_lists')
+    .select('id, name, slug, description, problem_count')
+    .eq('slug', slug)
+    .single()
+  return data
+})
+
 interface PageProps {
   params: Promise<{ slug: string }>
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const supabase = createServiceClient()
-  const { data: list } = await supabase
-    .from('curated_lists')
-    .select('name, description, problem_count')
-    .eq('slug', slug)
-    .single()
+  const list = await getListBySlug(slug)
 
   if (!list) return { title: '找不到清單 — CaffeCode' }
 
@@ -37,14 +45,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ListDetailPage({ params }: PageProps) {
   const { slug } = await params
-  const serviceClient = createServiceClient()
-
-  // Fetch list metadata
-  const { data: list } = await serviceClient
-    .from('curated_lists')
-    .select('id, name, slug, description, problem_count')
-    .eq('slug', slug)
-    .single()
+  const list = await getListBySlug(slug)
 
   if (!list) notFound()
 
@@ -65,22 +66,25 @@ export default async function ListDetailPage({ params }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser()
 
   let userProgress: { current_position: number; is_active: boolean } | null = null
-  if (user) {
-    const { data } = await supabase
-      .from('user_list_progress')
-      .select('current_position, is_active')
-      .eq('user_id', user.id)
-      .eq('list_id', list.id)
-      .maybeSingle()
-    userProgress = data
-  }
-
   let solvedIds: Set<number> = new Set()
-  if (user && listProblems?.length) {
-    const problemIds = listProblems
+  if (user) {
+    const problemIds = (listProblems ?? [])
       .map(lp => (lp.problems as unknown as { id: number } | null)?.id)
       .filter((id): id is number => id != null)
-    solvedIds = await getSolvedProblemIds(supabase, user.id, problemIds)
+
+    const [progressResult, solvedResult] = await Promise.all([
+      supabase
+        .from('user_list_progress')
+        .select('current_position, is_active')
+        .eq('user_id', user.id)
+        .eq('list_id', list.id)
+        .maybeSingle(),
+      problemIds.length > 0
+        ? getSolvedProblemIds(supabase, user.id, problemIds)
+        : Promise.resolve(new Set<number>()),
+    ])
+    userProgress = progressResult.data
+    solvedIds = solvedResult
   }
 
   const progressPct = userProgress

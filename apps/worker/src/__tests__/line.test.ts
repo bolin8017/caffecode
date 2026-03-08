@@ -45,12 +45,3 @@ describe('buildFlexBubble', () => {
   })
 })
 
-describe('LineChannel.formatMessage', () => {
-  const channel = new LineChannel('fake-token')
-
-  it('returns altText string for notification preview', () => {
-    const altText = channel.formatMessage(msg)
-    expect(altText).toContain('Two Sum')
-    expect(altText).toContain('Easy')
-  })
-})

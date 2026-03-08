@@ -1,6 +1,15 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { TelegramChannel } from '../channels/telegram.js'
 import type { PushMessage } from '@caffecode/shared'
+
+const sendMock = vi.fn()
+vi.mock('@caffecode/shared', async () => {
+  const actual = await vi.importActual<typeof import('@caffecode/shared')>('@caffecode/shared')
+  return {
+    ...actual,
+    sendTelegramMessage: (...args: unknown[]) => sendMock(...args),
+  }
+})
 
 const msg: PushMessage = {
   title: 'Two Sum',
@@ -12,38 +21,13 @@ const msg: PushMessage = {
   problemId: 1,
 }
 
-describe('TelegramChannel.formatMessage', () => {
+describe('TelegramChannel.send', () => {
   const channel = new TelegramChannel('fake-token')
 
-  it('shows brand header', () => {
-    const formatted = channel.formatMessage(msg)
-    expect(formatted).toContain('☕')
-    expect(formatted).toContain('今日 CaffeCode 題目')
-  })
-
-  it('shows difficulty emoji and LeetCode number', () => {
-    const formatted = channel.formatMessage(msg)
-    expect(formatted).toContain('🟢')
-    expect(formatted).toContain('#1')
-  })
-
-  it('shows problem title in bold', () => {
-    const formatted = channel.formatMessage(msg)
-    expect(formatted).toContain('<b>Two Sum</b>')
-  })
-
-  it('does NOT include explanation text', () => {
-    const formatted = channel.formatMessage(msg)
-    expect(formatted).not.toContain('Hash Table')
-  })
-
-  it('uses 🟡 for Medium', () => {
-    const medium = { ...msg, difficulty: 'Medium' }
-    expect(channel.formatMessage(medium)).toContain('🟡')
-  })
-
-  it('uses 🔴 for Hard', () => {
-    const hard = { ...msg, difficulty: 'Hard' }
-    expect(channel.formatMessage(hard)).toContain('🔴')
+  it('delegates to sendTelegramMessage', async () => {
+    sendMock.mockResolvedValue({ success: true, shouldRetry: false })
+    const result = await channel.send('12345', msg)
+    expect(sendMock).toHaveBeenCalledWith('fake-token', '12345', msg)
+    expect(result.success).toBe(true)
   })
 })

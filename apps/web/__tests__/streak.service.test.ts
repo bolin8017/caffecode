@@ -58,10 +58,6 @@ describe('calculateStreak', () => {
 
   it('counts consecutive days for Pacific/Auckland (UTC+13)', () => {
     const tz = 'Pacific/Auckland'
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-      timeZone: tz,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-    })
     // Use actual Date objects so solved_at timestamps land on correct local dates
     const now = new Date()
     const yesterday = new Date(now.getTime() - 86400000)
@@ -77,10 +73,6 @@ describe('calculateStreak', () => {
 
   it('counts consecutive days for Pacific/Honolulu (UTC-10)', () => {
     const tz = 'Pacific/Honolulu'
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-      timeZone: tz,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-    })
     const now = new Date()
     const yesterday = new Date(now.getTime() - 86400000)
     const twoDaysAgo = new Date(now.getTime() - 2 * 86400000)

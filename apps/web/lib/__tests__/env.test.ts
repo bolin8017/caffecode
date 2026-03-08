@@ -11,6 +11,7 @@ describe('serverEnvSchema', () => {
       TELEGRAM_WEBHOOK_SECRET: 'test-secret',
       LINE_CHANNEL_ACCESS_TOKEN: 'test-token',
       LINE_CHANNEL_SECRET: 'test-secret',
+      TELEGRAM_BOT_USERNAME: 'CaffeCodeBot',
     })
     expect(result.success).toBe(true)
   })
@@ -29,6 +30,7 @@ describe('serverEnvSchema', () => {
       TELEGRAM_WEBHOOK_SECRET: 'test-secret',
       LINE_CHANNEL_ACCESS_TOKEN: 'test-token',
       LINE_CHANNEL_SECRET: 'test-secret',
+      TELEGRAM_BOT_USERNAME: 'CaffeCodeBot',
       RESEND_API_KEY: 're_test',
       SENTRY_DSN: 'https://test@sentry.io/123',
     })

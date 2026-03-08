@@ -90,12 +90,12 @@ export async function bulkImportProblems(
 
   if (!upserted) throw new Error('Failed to upsert problems')
 
-  // Build list_problems (position = index)
+  // Build list_problems (sequence_number is 1-based)
   const idMap = new Map(upserted.map(r => [r.leetcode_id, r.id]))
   const listProblems = rows.map((p, i) => ({
     list_id: list.id,
     problem_id: idMap.get(p.leetcode_id)!,
-    position: i,
+    sequence_number: i + 1,
   })).filter(r => r.problem_id !== undefined)
 
   const { error: listProblemsError } = await db

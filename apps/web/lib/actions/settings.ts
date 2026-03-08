@@ -93,6 +93,41 @@ export async function updateLearningMode(
   revalidatePath('/dashboard')
 }
 
+// ── Subscribe to list ────────────────────────────────────────────────────
+
+const subscribeSchema = z.object({
+  listId: z.number().int().positive(),
+  startPosition: z.number().int().min(0).optional(),
+})
+
+export async function subscribeToList(listId: number, startPosition?: number) {
+  const { supabase, user } = await getAuthUser()
+  subscribeSchema.parse({ listId, startPosition })
+
+  await updateUser(supabase, user.id, { active_mode: 'list' })
+  await deactivateAllLists(supabase, user.id)
+
+  const progressData: {
+    user_id: string
+    list_id: number
+    is_active: boolean
+    current_position?: number
+  } = {
+    user_id: user.id,
+    list_id: listId,
+    is_active: true,
+  }
+
+  if (startPosition !== undefined) {
+    progressData.current_position = startPosition
+  }
+
+  await upsertListProgress(supabase, progressData)
+
+  revalidatePath('/dashboard')
+  revalidatePath('/settings/learning')
+}
+
 // ── Delete account (GDPR/PDPA) ────────────────────────────────────────────
 
 export async function deleteAccount() {

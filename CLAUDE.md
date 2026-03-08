@@ -188,7 +188,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `packages/shared/src/services/problem-selector.ts` — `selectProblemForUser()` single source of truth for both worker and admin.
 - `packages/shared/src/utils/notification-formatters.ts` — `formatTelegramMessage`, `buildFlexBubble`, `formatEmailSubject`, `buildTelegramReplyMarkup`.
 - `packages/shared/src/utils/topic-utils.ts` — `topicLabel()`, `topicToVariety()`, `normalizeTopics()`, `TOPIC_ALIASES`. Kebab-case topic slug utilities. `normalizeTopics` merges aliases and re-sorts by `solved_count DESC`.
-- `packages/shared/src/utils/level-calculator.ts` — `computeTopicLevel()` uncapped level system (stages 0-4, then +1 level per 5 solves).
+- `apps/web/lib/repositories/garden.repository.ts` — `computeLevel()`, `toStage()`, `getTopicProficiency()`, `getGardenSummary()`.
 - **Build requirement**: `main: "dist/index.js"` in package.json — Railway runtime needs compiled output.
 
 ### Observability
@@ -243,7 +243,6 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `lib/posthog.ts` — PostHog init helper (no-op without key)
 - `lib/logger.ts` — Pino logger
 - `lib/schemas/timezone.ts` — Shared Zod timezone schema (IANA whitelist)
-- `lib/errors/app-error.ts` + `lib/errors/action-error-handler.ts` — typed errors
 
 **Data layer**:
 - `lib/repositories/` — `user.repository.ts`, `channel.repository.ts`, `history.repository.ts`, `list.repository.ts`, `garden.repository.ts`, `badge.repository.ts`

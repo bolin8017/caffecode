@@ -3,7 +3,7 @@
  * Accepts injected SupabaseClient for testability.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { selectProblemForUser } from '../services/problem-selector.js'
+import { selectProblemForUser } from '@caffecode/shared'
 import type { NotificationChannel } from '../channels/interface.js'
 import type { PushMessage, SendResult } from '@caffecode/shared'
 import {

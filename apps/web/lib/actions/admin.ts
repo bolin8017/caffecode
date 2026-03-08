@@ -253,6 +253,7 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
     .select('id, user_id, channel_type, channel_identifier')
     .in('user_id', users.map(u => u.id))
     .eq('is_verified', true)
+    .lt('consecutive_send_failures', 3)
 
   if (channelsError) return { results: [], summary: { sent: 0, failed: 0, skipped: 0 } }
 

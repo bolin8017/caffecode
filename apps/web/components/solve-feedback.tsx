@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { topicLabel } from '@caffecode/shared'
 import { SolveCelebrationModal } from '@/components/solve-celebration-modal'
@@ -22,20 +22,18 @@ interface Props {
 }
 
 export function SolveFeedback({ result, onDismiss }: Props) {
-  const [showModal, setShowModal] = useState(false)
+  const toastedRef = useRef<SolveResult | null>(null)
 
+  const hasLevelUp = (result?.levelUps.length ?? 0) > 0
+  const hasBadge = (result?.newBadges.length ?? 0) > 0
+  const showModal = result !== null && (hasLevelUp || hasBadge)
+
+  // Toast for progress-only results (no level-up or badge)
   useEffect(() => {
-    if (!result) return
+    if (!result || result === toastedRef.current || hasLevelUp || hasBadge) return
 
-    const hasLevelUp = result.levelUps.length > 0
-    const hasBadge = result.newBadges.length > 0
+    toastedRef.current = result
 
-    if (hasLevelUp || hasBadge) {
-      setShowModal(true)
-      return
-    }
-
-    // Toast: show the topic closest to leveling up
     if (result.topicProgress.length > 0) {
       const closest = result.topicProgress.reduce((best, t) => {
         const ratio = t.solvedCount / t.nextThreshold
@@ -49,7 +47,7 @@ export function SolveFeedback({ result, onDismiss }: Props) {
     }
 
     onDismiss()
-  }, [result, onDismiss])
+  }, [result, hasLevelUp, hasBadge, onDismiss])
 
   if (!showModal || !result) return null
 
@@ -57,10 +55,7 @@ export function SolveFeedback({ result, onDismiss }: Props) {
     <SolveCelebrationModal
       levelUps={result.levelUps}
       newBadges={result.newBadges}
-      onClose={() => {
-        setShowModal(false)
-        onDismiss()
-      }}
+      onClose={onDismiss}
     />
   )
 }

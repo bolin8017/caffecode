@@ -44,10 +44,22 @@ export async function getUserSettings(
   return data
 }
 
+export type UserUpdateData = Partial<{
+  push_enabled: boolean
+  push_hour: number
+  push_hour_utc: number
+  timezone: string
+  active_mode: 'list' | 'filter'
+  difficulty_min: number
+  difficulty_max: number
+  topic_filter: string[] | null
+  onboarding_completed: boolean
+}>
+
 export async function updateUser(
   supabase: SupabaseClient,
   userId: string,
-  data: Record<string, unknown>
+  data: UserUpdateData
 ): Promise<void> {
   const { error } = await supabase.from('users').update(data).eq('id', userId)
   if (error) throw new Error(`Failed to update user: ${error.message}`)

@@ -7,8 +7,6 @@ export type ChannelListItem = Pick<
   'id' | 'user_id' | 'channel_type' | 'display_label' | 'is_verified' | 'consecutive_send_failures' | 'connected_at'
 >
 
-export type { NotificationChannelRow }
-
 export async function getChannelsForUser(
   supabase: SupabaseClient,
   userId: string

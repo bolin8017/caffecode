@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { FeedbackWidget } from './feedback-widget'
 import { ProblemActions } from './problem-actions'
 import { cn } from '@/lib/utils'
+import { cache } from 'react'
 
 export const revalidate = 3600
 export const dynamicParams = true
@@ -23,18 +24,30 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   Hard: 'bg-rose-50 text-rose-900 dark:bg-rose-950 dark:text-rose-200',
 }
 
+// Deduplicate the problem query between generateMetadata and page render
+const getProblemBySlug = cache(async (slug: string) => {
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('problems')
+    .select(`
+      id, leetcode_id, title, slug, difficulty, rating, topics,
+      problem_content (
+        explanation, solution_code, complexity_analysis,
+        pseudocode, alternative_approaches, follow_up
+      )
+    `)
+    .eq('slug', slug)
+    .single()
+  return data
+})
+
 interface PageProps {
   params: Promise<{ slug: string }>
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from('problems')
-    .select('title, difficulty, topics')
-    .eq('slug', slug)
-    .single()
+  const data = await getProblemBySlug(slug)
 
   if (!data) return { title: '找不到題目 — CaffeCode' }
 
@@ -50,19 +63,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProblemPage({ params }: PageProps) {
   const { slug } = await params
-  const supabase = createServiceClient()
-
-  const { data: problem } = await supabase
-    .from('problems')
-    .select(`
-      id, leetcode_id, title, slug, difficulty, rating, topics,
-      problem_content (
-        explanation, solution_code, complexity_analysis,
-        pseudocode, alternative_approaches, follow_up
-      )
-    `)
-    .eq('slug', slug)
-    .single()
+  const problem = await getProblemBySlug(slug)
 
   if (!problem) notFound()
 

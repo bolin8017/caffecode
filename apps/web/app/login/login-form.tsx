@@ -11,7 +11,7 @@ export function LoginForm({ error, redirectTo }: { error?: string; redirectTo?: 
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo || '/dashboard'}`,
+        redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTo || '/dashboard')}`,
       },
     })
   }

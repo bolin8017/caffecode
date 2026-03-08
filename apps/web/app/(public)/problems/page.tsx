@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 import { SearchInput, FilterChips, Pagination } from '@/components/data-table'
 
 export const revalidate = 3600
@@ -49,7 +50,7 @@ export default async function ProblemsPage({
     .order('leetcode_id')
 
   if (params.difficulty) query = query.eq('difficulty', params.difficulty)
-  if (params.q) query = query.ilike('title', `%${params.q}%`)
+  if (params.q) query = query.ilike('title', `%${sanitizeSearch(params.q)}%`)
 
   const { data: problems, count } = await query.range(offset, offset + PAGE_SIZE - 1)
 

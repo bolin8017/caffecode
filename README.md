@@ -23,7 +23,7 @@ A daily LeetCode problem delivery platform with AI-generated C++ explanations in
 
 ## Features
 
-- **33 curated lists** — Blind 75, NeetCode 150, NeetCode All, Grind 75, company lists (FAANG, Google, Meta, Amazon, Apple, Bloomberg, Microsoft), topic & algorithm lists
+- **45 curated lists** — Blind 75, NeetCode 150, NeetCode All, Grind 75, company lists (FAANG, Google, Meta, Amazon, Apple, Bloomberg, Microsoft), topic & algorithm lists
 - **810+ problems** with AI-generated content — explanation, C++ solution, complexity analysis, pseudocode, alternative approaches, follow-up questions
 - **Automated metadata sync** — `sync_leetcode.py` fetches all ~3100 free LeetCode problems via GraphQL API + contest ratings
 - **Zero runtime LLM calls** — all content pre-generated offline via Claude Sonnet

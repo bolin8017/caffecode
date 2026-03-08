@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { SolveButton } from '@/components/solve-button'
 import { markSolved } from '@/lib/actions/history'
 import { trackSolveMarked } from '@/lib/analytics'
+import { SolveFeedback } from '@/components/solve-feedback'
+import type { SolveResult } from '@/lib/utils/solve-result'
 import { cn } from '@/lib/utils'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -37,6 +39,7 @@ export function ProblemActions({
   const [showSticky, setShowSticky] = useState(false)
   const [solvedAt, setSolvedAt] = useState(initialSolvedAt)
   const [error, setError] = useState<string | null>(null)
+  const [solveResult, setSolveResult] = useState<SolveResult | null>(null)
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -54,8 +57,9 @@ export function ProblemActions({
     setError(null)
     startTransition(async () => {
       try {
-        await markSolved(problemId)
+        const result = await markSolved(problemId)
         setSolvedAt(new Date().toISOString())
+        setSolveResult(result)
         const timeSinceSentSec = sentAt
           ? Math.round((Date.now() - new Date(sentAt).getTime()) / 1000)
           : null
@@ -123,6 +127,8 @@ export function ProblemActions({
           />
         </div>
       </div>
+
+      <SolveFeedback result={solveResult} onDismiss={() => setSolveResult(null)} />
     </>
   )
 }

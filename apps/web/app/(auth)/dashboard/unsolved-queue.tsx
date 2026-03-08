@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { SolveButton } from '@/components/solve-button'
 import { markSolved } from '@/lib/actions/history'
 import { trackSolveMarked } from '@/lib/analytics'
+import { SolveFeedback } from '@/components/solve-feedback'
+import type { SolveResult } from '@/lib/utils/solve-result'
 
 interface UnsolvedItem {
   problemId: number
@@ -23,6 +25,7 @@ const DIFFICULTY_STYLE: Record<string, { text: string; bg: string; label: string
 export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }) {
   const [items, setItems] = useState(initialItems)
   const [pendingId, setPendingId] = useState<number | null>(null)
+  const [solveResult, setSolveResult] = useState<SolveResult | null>(null)
   const [, startTransition] = useTransition()
 
   if (items.length === 0) {
@@ -37,8 +40,9 @@ export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }
     setPendingId(problemId)
     startTransition(async () => {
       try {
-        await markSolved(problemId)
+        const result = await markSolved(problemId)
         setItems((prev) => prev.filter((item) => item.problemId !== problemId))
+        setSolveResult(result)
         const timeSinceSentSec = Math.round(
           (Date.now() - new Date(sentAt).getTime()) / 1000
         )
@@ -52,6 +56,7 @@ export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }
   }
 
   return (
+    <>
     <ul className="divide-y">
       {items.map((item) => {
         const style = DIFFICULTY_STYLE[item.difficulty]
@@ -89,5 +94,7 @@ export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }
         )
       })}
     </ul>
+    <SolveFeedback result={solveResult} onDismiss={() => setSolveResult(null)} />
+    </>
   )
 }

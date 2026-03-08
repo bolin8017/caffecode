@@ -13,7 +13,10 @@ vi.mock('../lib/config.js', () => ({
 }))
 
 vi.mock('../repositories/push.repository.js')
-vi.mock('../services/problem-selector.js')
+vi.mock('@caffecode/shared', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@caffecode/shared')>()
+  return { ...actual, selectProblemForUser: vi.fn() }
+})
 
 import { buildPushJobs } from '../workers/push.logic.js'
 import {
@@ -25,7 +28,7 @@ import {
   type PushCandidate,
   type VerifiedChannel,
 } from '../repositories/push.repository.js'
-import { selectProblemForUser } from '../services/problem-selector.js'
+import { selectProblemForUser } from '@caffecode/shared'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SelectedProblem } from '@caffecode/shared'
 

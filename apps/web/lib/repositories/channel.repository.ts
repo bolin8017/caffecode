@@ -1,19 +1,25 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { NotificationChannelRow } from '@caffecode/shared'
 
+/** Subset returned by getChannelsForUser (display-only fields). */
+export type ChannelListItem = Pick<
+  NotificationChannelRow,
+  'id' | 'user_id' | 'channel_type' | 'display_label' | 'is_verified' | 'consecutive_send_failures' | 'connected_at'
+>
+
 export type { NotificationChannelRow }
 
 export async function getChannelsForUser(
   supabase: SupabaseClient,
   userId: string
-): Promise<NotificationChannelRow[]> {
+): Promise<ChannelListItem[]> {
   const { data, error } = await supabase
     .from('notification_channels')
     .select('id, user_id, channel_type, display_label, is_verified, consecutive_send_failures, connected_at')
     .eq('user_id', userId)
     .order('connected_at')
   if (error) throw new Error(`Failed to fetch channels: ${error.message}`)
-  return (data ?? []) as NotificationChannelRow[]
+  return (data ?? []) as ChannelListItem[]
 }
 
 export async function upsertChannel(

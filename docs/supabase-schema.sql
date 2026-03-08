@@ -108,6 +108,7 @@ CREATE TABLE notification_channels (
     is_verified               BOOLEAN NOT NULL DEFAULT false,
     link_token                UUID UNIQUE,    -- one-time deep-link token for Telegram verification
     consecutive_send_failures INT NOT NULL DEFAULT 0,
+    link_token_expires_at     TIMESTAMPTZ,        -- token expiry (30 min after creation)
     connected_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (channel_type, channel_identifier),

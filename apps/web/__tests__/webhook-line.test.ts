@@ -111,10 +111,7 @@ describe('POST /api/line/webhook', () => {
     expect(verifyChannelByToken).toHaveBeenCalledWith(expect.anything(), uuid, 'U1', 'line')
   })
 
-  it('sends failure reply when link token is invalid', async () => {
-    const { verifyChannelByToken } = await import('@/lib/repositories/channel.repository')
-    vi.mocked(verifyChannelByToken).mockResolvedValue(null)
-
+  it('sends failure reply when link token format is invalid', async () => {
     const { POST } = await import('../app/api/line/webhook/route')
     const body = {
       events: [{
@@ -122,6 +119,27 @@ describe('POST /api/line/webhook', () => {
         replyToken: 'rt-3',
         source: { userId: 'U1' },
         message: { type: 'text', text: 'link_bad-token' },
+      }],
+    }
+    const req = makeSignedRequest(body)
+    await POST(req)
+
+    const callBody = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(callBody.messages[0].text).toContain('連結失敗')
+  })
+
+  it('sends failure reply when link token is expired', async () => {
+    const { verifyChannelByToken } = await import('@/lib/repositories/channel.repository')
+    vi.mocked(verifyChannelByToken).mockResolvedValue(null)
+
+    const { POST } = await import('../app/api/line/webhook/route')
+    const validUuid = '12345678-1234-1234-1234-123456789012'
+    const body = {
+      events: [{
+        type: 'message',
+        replyToken: 'rt-4',
+        source: { userId: 'U1' },
+        message: { type: 'text', text: `link_${validUuid}` },
       }],
     }
     const req = makeSignedRequest(body)

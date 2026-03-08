@@ -31,32 +31,6 @@ async function requireAdmin() {
 
 // ── Problems ───────────────────────────────────────────────────
 
-const problemSchema = z.object({
-  leetcode_id: z.number().int().positive(),
-  title: z.string().min(1),
-  slug: z.string().min(1),
-  difficulty: z.enum(['Easy', 'Medium', 'Hard']),
-  rating: z.number().nullable().optional(),
-  topics: z.array(z.string()).default([]),
-})
-
-export async function createProblem(data: z.infer<typeof problemSchema>) {
-  const db = await requireAdmin()
-  const parsed = problemSchema.parse(data)
-  const { error } = await db.from('problems').insert(parsed)
-  if (error) throw new Error(`Failed to create problem: ${error.message}`)
-  revalidatePath('/admin/problems')
-}
-
-export async function updateProblem(id: number, data: Partial<z.infer<typeof problemSchema>>) {
-  z.number().int().positive().parse(id)
-  const parsed = problemSchema.partial().parse(data)
-  const db = await requireAdmin()
-  const { error } = await db.from('problems').update(parsed).eq('id', id)
-  if (error) throw new Error(`Failed to update problem: ${error.message}`)
-  revalidatePath('/admin/problems')
-}
-
 export async function deleteProblem(id: number) {
   z.number().int().positive().parse(id)
   const db = await requireAdmin()
@@ -65,78 +39,7 @@ export async function deleteProblem(id: number) {
   revalidatePath('/admin/problems')
 }
 
-export async function bulkImportProblems(
-  listSlug: string,
-  listName: string,
-  problems: z.infer<typeof problemSchema>[]
-) {
-  const db = await requireAdmin()
-
-  // Upsert list
-  const { data: list } = await db
-    .from('curated_lists')
-    .upsert({ slug: listSlug, name: listName }, { onConflict: 'slug' })
-    .select('id')
-    .single()
-
-  if (!list) throw new Error('Failed to upsert list')
-
-  // Upsert problems
-  const rows = problems.map(p => problemSchema.parse(p))
-  const { data: upserted } = await db
-    .from('problems')
-    .upsert(rows, { onConflict: 'leetcode_id' })
-    .select('id, leetcode_id')
-
-  if (!upserted) throw new Error('Failed to upsert problems')
-
-  // Build list_problems (position = index)
-  const idMap = new Map(upserted.map(r => [r.leetcode_id, r.id]))
-  const listProblems = rows.map((p, i) => ({
-    list_id: list.id,
-    problem_id: idMap.get(p.leetcode_id)!,
-    position: i,
-  })).filter(r => r.problem_id !== undefined)
-
-  const { error: listProblemsError } = await db
-    .from('list_problems')
-    .upsert(listProblems, { onConflict: 'list_id,problem_id' })
-  if (listProblemsError) throw new Error(`Failed to upsert list problems: ${listProblemsError.message}`)
-
-  // Update problem_count
-  const { error: countError } = await db
-    .from('curated_lists')
-    .update({ problem_count: listProblems.length })
-    .eq('id', list.id)
-  if (countError) throw new Error(`Failed to update problem count: ${countError.message}`)
-
-  revalidatePath('/admin/problems')
-  revalidatePath('/admin/lists')
-  return { imported: listProblems.length }
-}
-
 // ── Content ────────────────────────────────────────────────────
-
-const contentSchema = z.object({
-  explanation: z.string().min(1),
-  solution_code: z.string().min(1),
-  complexity_analysis: z.string().min(1),
-  pseudocode: z.string().nullable().optional(),
-  alternative_approaches: z.string().nullable().optional(),
-  follow_up: z.string().nullable().optional(),
-})
-
-export async function updateContent(problemId: number, data: z.infer<typeof contentSchema>) {
-  z.number().int().positive().parse(problemId)
-  const db = await requireAdmin()
-  const parsed = contentSchema.parse(data)
-  const { error } = await db
-    .from('problem_content')
-    .upsert({ problem_id: problemId, ...parsed, needs_regeneration: false }, { onConflict: 'problem_id' })
-  if (error) throw new Error(`Failed to update content: ${error.message}`)
-  revalidatePath('/admin/content')
-  revalidatePath(`/problems`)
-}
 
 export async function flagForRegeneration(problemId: number) {
   z.number().int().positive().parse(problemId)
@@ -253,6 +156,7 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
     .select('id, user_id, channel_type, channel_identifier')
     .in('user_id', users.map(u => u.id))
     .eq('is_verified', true)
+    .lt('consecutive_send_failures', 3)
 
   if (channelsError) return { results: [], summary: { sent: 0, failed: 0, skipped: 0 } }
 

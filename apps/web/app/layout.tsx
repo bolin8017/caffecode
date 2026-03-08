@@ -31,7 +31,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // Read user profile from middleware header (set in updateSession)
+  // Read user profile from proxy header (set in updateSession)
   const headerStore = await headers()
   const profileHeader = headerStore.get('x-user-profile')
   const userProfile = profileHeader ? JSON.parse(decodeURIComponent(profileHeader)) as {

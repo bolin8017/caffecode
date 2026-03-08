@@ -19,7 +19,7 @@ export function computeLevel(solvedCount: number): number {
   return 4 + Math.floor((solvedCount - 11) / 5)
 }
 
-function toStage(solvedCount: number): GrowthStage {
+export function toStage(solvedCount: number): GrowthStage {
   if (solvedCount === 0) return 0
   if (solvedCount <= 2) return 1
   if (solvedCount <= 5) return 2

@@ -7,18 +7,6 @@ export function identifyUser(userId: string, email: string | null) {
   posthog.identify(userId, { email: email ?? undefined })
 }
 
-export function trackNotificationClicked(props: {
-  channelType: 'telegram' | 'line' | 'email'
-  problemId: number
-  difficulty: string
-}) {
-  posthog.capture('notification_clicked', {
-    channel_type: props.channelType,
-    problem_id: props.problemId,
-    difficulty: props.difficulty,
-  })
-}
-
 export function trackSolveMarked(props: {
   problemId: number
   source: 'problem' | 'dashboard' | 'telegram'

@@ -63,7 +63,7 @@ export function SolveButton({
         aria-label="已標記為已解題"
       >
         <Check className="size-4" />
-        <span>Marked as solved</span>
+        <span>已標記完成</span>
       </div>
     )
   }
@@ -72,8 +72,8 @@ export function SolveButton({
     <div className={cn('space-y-1', className)}>
       <Button size="sm" onClick={onSolve} disabled={isPending}>
         {isPending
-          ? <><Loader2 className="size-4 animate-spin" /> Recording...</>
-          : <><CircleCheck className="size-4" /> I solved it!</>}
+          ? <><Loader2 className="size-4 animate-spin" /> 記錄中...</>
+          : <><CircleCheck className="size-4" /> 我解出來了！</>}
       </Button>
       {error && <p className="text-xs text-rose-600">{error}</p>}
     </div>

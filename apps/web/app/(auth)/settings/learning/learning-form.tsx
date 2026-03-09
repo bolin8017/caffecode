@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { updateLearningMode } from '@/lib/actions/settings'
@@ -33,9 +34,13 @@ export function LearningForm({ mode: initialMode, lists, activeListId: initialLi
 
   const save = (action: () => Promise<void>, label: string) => {
     startTransition(async () => {
-      await action()
-      setSaved(label)
-      setTimeout(() => setSaved(''), 2500)
+      try {
+        await action()
+        setSaved(label)
+        setTimeout(() => setSaved(''), 2500)
+      } catch {
+        toast.error('儲存失敗，請再試一次')
+      }
     })
   }
 

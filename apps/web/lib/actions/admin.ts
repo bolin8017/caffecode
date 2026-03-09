@@ -4,6 +4,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
+import pLimit from 'p-limit'
 import {
   sendTelegramMessage,
   sendLineMessage,
@@ -172,78 +173,83 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
   const deliveredUserIds: string[] = []
   const listPositionUpdates: Array<{ user_id: string; list_id: number; sequence_number: number }> = []
 
-  for (const user of users) {
-    const displayName = user.display_name ?? user.email ?? '—'
-    const channels = (channelsByUser.get(user.id) ?? []).filter(
-      ch => ch.channel_type !== 'line' || user.line_push_allowed
-    )
+  const limit = pLimit(5)
+  await Promise.allSettled(
+    users.map(user =>
+      limit(async () => {
+        const displayName = user.display_name ?? user.email ?? '—'
+        const channels = (channelsByUser.get(user.id) ?? []).filter(
+          ch => ch.channel_type !== 'line' || user.line_push_allowed
+        )
 
-    if (!channels.length) {
-      results.push({ userId: user.id, displayName, status: 'skipped', channels: [] })
-      continue
-    }
+        if (!channels.length) {
+          results.push({ userId: user.id, displayName, status: 'skipped', channels: [] })
+          return
+        }
 
-    const problem = await selectProblemForUser(
-      {
-        id: user.id,
-        mode: user.active_mode as 'list' | 'filter',
-        difficulty_min: user.difficulty_min,
-        difficulty_max: user.difficulty_max,
-        topic_filter: user.topic_filter ?? null,
-      },
-      db
-    )
+        const problem = await selectProblemForUser(
+          {
+            id: user.id,
+            mode: user.active_mode as 'list' | 'filter',
+            difficulty_min: user.difficulty_min,
+            difficulty_max: user.difficulty_max,
+            topic_filter: user.topic_filter ?? null,
+          },
+          db
+        )
 
-    if (!problem) {
-      results.push({ userId: user.id, displayName, status: 'skipped', channels: [] })
-      continue
-    }
+        if (!problem) {
+          results.push({ userId: user.id, displayName, status: 'skipped', channels: [] })
+          return
+        }
 
-    const pushMsg: PushMessage = {
-      title: problem.title,
-      difficulty: problem.difficulty,
-      leetcodeId: problem.leetcode_id,
-      explanation: problem.explanation,
-      url: `${APP_URL}/problems/${problem.slug}`,
-      problemSlug: problem.slug,
-      problemId: problem.problem_id,
-    }
+        const pushMsg: PushMessage = {
+          title: problem.title,
+          difficulty: problem.difficulty,
+          leetcodeId: problem.leetcode_id,
+          explanation: problem.explanation,
+          url: `${APP_URL}/problems/${problem.slug}`,
+          problemSlug: problem.slug,
+          problemId: problem.problem_id,
+        }
 
-    const channelResults: ChannelResult[] = []
-    let anySent = false
+        const channelResults: ChannelResult[] = []
+        let anySent = false
 
-    for (const ch of channels) {
-      const result = await dispatchToChannel(ch.channel_type, ch.channel_identifier, pushMsg)
-      channelResults.push({
-        type: ch.channel_type,
-        success: result.success,
-        error: result.error,
+        for (const ch of channels) {
+          const result = await dispatchToChannel(ch.channel_type, ch.channel_identifier, pushMsg)
+          channelResults.push({
+            type: ch.channel_type,
+            success: result.success,
+            error: result.error,
+          })
+          if (result.success) {
+            anySent = true
+          } else if (!result.shouldRetry) {
+            const { error: rpcErr } = await db.rpc('increment_channel_failures', { p_channel_id: ch.id })
+            if (rpcErr) logger.warn({ channelId: ch.id, error: rpcErr.message }, 'Failed to increment channel failures')
+          }
+        }
+
+        const userResult: NotifyUserResult = {
+          userId: user.id,
+          displayName,
+          status: anySent ? 'success' : 'failed',
+          channels: channelResults,
+          problemTitle: problem.title,
+        }
+        results.push(userResult)
+
+        if (anySent) {
+          historyEntries.push({ user_id: user.id, problem_id: problem.problem_id })
+          deliveredUserIds.push(user.id)
+          if (problem.list_id && problem.sequence_number) {
+            listPositionUpdates.push({ user_id: user.id, list_id: problem.list_id, sequence_number: problem.sequence_number })
+          }
+        }
       })
-      if (result.success) {
-        anySent = true
-      } else if (!result.shouldRetry) {
-        const { error: rpcErr } = await db.rpc('increment_channel_failures', { p_channel_id: ch.id })
-        if (rpcErr) logger.warn({ channelId: ch.id, error: rpcErr.message }, 'Failed to increment channel failures')
-      }
-    }
-
-    const userResult: NotifyUserResult = {
-      userId: user.id,
-      displayName,
-      status: anySent ? 'success' : 'failed',
-      channels: channelResults,
-      problemTitle: problem.title,
-    }
-    results.push(userResult)
-
-    if (anySent) {
-      historyEntries.push({ user_id: user.id, problem_id: problem.problem_id })
-      deliveredUserIds.push(user.id)
-      if (problem.list_id && problem.sequence_number) {
-        listPositionUpdates.push({ user_id: user.id, list_id: problem.list_id, sequence_number: problem.sequence_number })
-      }
-    }
-  }
+    )
+  )
 
   if (historyEntries.length > 0) {
     const [historyResult, stampResult, ...rest] = await Promise.all([
@@ -310,7 +316,8 @@ export async function testNotifyChannel(channelId: string): Promise<TestNotifyRe
     id: string; active_mode: string
     difficulty_min: number; difficulty_max: number
     topic_filter: string[] | null
-  }
+  } | null
+  if (!user) return { success: false, latencyMs: 0, error: 'User not found for channel' }
 
   const problem = await selectProblemForUser(
     {

@@ -63,8 +63,9 @@ export async function getUserBadges(
 
   if (error || !data) return []
 
-  return data.map(row => {
-    const b = row.badges as unknown as Badge
-    return { ...b, earned_at: row.earned_at }
+  return data.flatMap(row => {
+    const b = row.badges as unknown as Badge | null
+    if (!b) return []
+    return [{ ...b, earned_at: row.earned_at }]
   })
 }

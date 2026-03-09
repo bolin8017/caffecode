@@ -5,7 +5,7 @@ import {
   formatEmailSubject,
   buildTelegramReplyMarkup,
 } from '../utils/notification-formatters.js'
-import type { PushMessage } from '../types/push.js'
+import type { PushMessage, Difficulty } from '../types/push.js'
 
 const msg: PushMessage = {
   title: 'Two Sum',
@@ -38,17 +38,18 @@ describe('formatTelegramMessage', () => {
   })
 
   it('uses yellow emoji for Medium difficulty', () => {
-    const medium = { ...msg, difficulty: 'Medium' }
+    const medium = { ...msg, difficulty: 'Medium' as Difficulty }
     expect(formatTelegramMessage(medium)).toContain('🟡')
   })
 
   it('uses red emoji for Hard difficulty', () => {
-    const hard = { ...msg, difficulty: 'Hard' }
+    const hard = { ...msg, difficulty: 'Hard' as Difficulty }
     expect(formatTelegramMessage(hard)).toContain('🔴')
   })
 
   it('falls back to white emoji for unknown difficulty', () => {
-    const unknown = { ...msg, difficulty: 'Unknown' }
+    // Deliberately inject an out-of-range value to verify the fallback path
+    const unknown = { ...msg, difficulty: 'Unknown' as unknown as Difficulty }
     expect(formatTelegramMessage(unknown)).toContain('⚪')
   })
 
@@ -103,7 +104,7 @@ describe('buildFlexBubble', () => {
   })
 
   it('uses yellow emoji for Medium in body text', () => {
-    const medium = { ...msg, difficulty: 'Medium' }
+    const medium = { ...msg, difficulty: 'Medium' as Difficulty }
     const bubble = buildFlexBubble(medium) as {
       body: { contents: { text: string }[] }
     }
@@ -126,7 +127,7 @@ describe('formatEmailSubject', () => {
   })
 
   it('varies by difficulty', () => {
-    const hard = { ...msg, difficulty: 'Hard' }
+    const hard = { ...msg, difficulty: 'Hard' as Difficulty }
     expect(formatEmailSubject(hard)).toContain('Hard')
     expect(formatEmailSubject(hard)).not.toContain('Easy')
   })

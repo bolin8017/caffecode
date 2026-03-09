@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { SelectedProblem } from '../types/push.js'
+import type { SelectedProblem, Difficulty } from '../types/push.js'
 
 export async function getListProblemAtPosition(
   db: SupabaseClient,
@@ -48,7 +48,7 @@ export async function getProblemAtListPosition(
     leetcode_id: problem.leetcode_id,
     slug: problem.slug,
     title: problem.title,
-    difficulty: problem.difficulty,
+    difficulty: problem.difficulty as Difficulty,
     explanation: problem.problem_content.explanation,
     list_id: listId,
     sequence_number: nextSeq,
@@ -96,7 +96,7 @@ export async function getProblemById(
     leetcode_id: row.leetcode_id,
     slug: row.slug,
     title: row.title,
-    difficulty: row.difficulty,
+    difficulty: row.difficulty as Difficulty,
     explanation: content.explanation,
   }
 }

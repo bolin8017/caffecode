@@ -5,7 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { selectProblemForUser } from '@caffecode/shared'
 import type { NotificationChannel } from '../channels/interface.js'
-import type { PushMessage, SendResult } from '@caffecode/shared'
+import type { PushMessage, SendResult, Difficulty } from '@caffecode/shared'
 import {
   getPushCandidatesBatch,
   stampLastPushDate,
@@ -27,7 +27,7 @@ export interface PushJobData {
   channelIdentifier: string
   problemId: number
   title: string
-  difficulty: string
+  difficulty: Difficulty
   leetcodeId: number
   explanation: string
   problemSlug: string

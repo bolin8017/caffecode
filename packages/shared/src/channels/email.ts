@@ -30,7 +30,11 @@ export async function sendEmailMessage(
 
     if (!res.ok) {
       const body = await res.text()
-      const shouldRetry = res.status !== 422
+      // 422 = invalid email (permanent)
+      // 401 = invalid API key (permanent)
+      // 403 = domain not verified / forbidden (permanent)
+      // 429/5xx = transient (should retry)
+      const shouldRetry = res.status !== 422 && res.status !== 401 && res.status !== 403
       return { success: false, error: `HTTP ${res.status}: ${body.slice(0, 200)}`, shouldRetry }
     }
 

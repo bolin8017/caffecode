@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import './lib/config.js' // Validate env vars — fail-fast if missing
 import * as Sentry from '@sentry/node'
 import pLimit from 'p-limit'

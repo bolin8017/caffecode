@@ -18,20 +18,12 @@ export interface VerifiedChannel {
   channel_identifier: string
 }
 
-export async function getPushCandidatesBatch(
-  db: SupabaseClient,
-  offset: number,
-  batchSize: number = 100,
-): Promise<PushCandidate[]> {
-  const { data, error } = await db
-    .rpc('get_push_candidates')
-    .range(offset, offset + batchSize - 1)
-
+export async function getAllCandidates(db: SupabaseClient): Promise<PushCandidate[]> {
+  const { data, error } = await db.rpc('get_push_candidates')
   if (error) {
-    logger.error({ error, offset, batchSize }, 'Failed to get push candidates batch')
+    logger.error({ error }, 'getAllCandidates: RPC failed')
     return []
   }
-
   return (data ?? []) as PushCandidate[]
 }
 

@@ -32,11 +32,13 @@ export default async function AdminChannelsPage({
   const basePath = '/admin/channels'
 
   // Single query — channels table is small (<500 rows), so fetch all + JS filter
-  // is faster than 13 separate count queries. Revisit when channels exceed ~500.
+  // is faster than 13 separate count queries. Safety limit at 5000 rows.
+  const CHANNEL_FETCH_LIMIT = 5000
   const { data: allChannels } = await supabase
     .from('notification_channels')
     .select('id, user_id, channel_type, is_verified, consecutive_send_failures, updated_at, users(display_name, email)')
     .order('consecutive_send_failures', { ascending: false })
+    .limit(CHANNEL_FETCH_LIMIT)
 
   const all = allChannels ?? []
 

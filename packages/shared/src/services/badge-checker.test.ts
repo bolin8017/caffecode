@@ -37,4 +37,28 @@ describe('evaluateBadgeCondition', () => {
   it('topic_count: met', () => {
     expect(evaluateBadgeCondition({ type: 'topic_count', threshold: 3 }, baseCtx)).toBe(true)
   })
+
+  // -------------------------------------------------------------------------
+  // Edge cases
+  // -------------------------------------------------------------------------
+  it('total_solves: exact threshold match returns true', () => {
+    const ctx: UserBadgeContext = { ...baseCtx, totalSolves: 5 }
+    expect(evaluateBadgeCondition({ type: 'total_solves', threshold: 5 }, ctx)).toBe(true)
+  })
+
+  it('topic_count: zero topic count does not meet threshold of 1', () => {
+    const ctx: UserBadgeContext = { ...baseCtx, topicCount: 0 }
+    expect(evaluateBadgeCondition({ type: 'topic_count', threshold: 1 }, ctx)).toBe(false)
+  })
+
+  it('topic_level: missing topic in topicLevels returns false', () => {
+    const ctx: UserBadgeContext = { ...baseCtx, topicLevels: [] }
+    const req: BadgeRequirement = { type: 'topic_level', topic: 'unknown', threshold: 1 }
+    expect(evaluateBadgeCondition(req, ctx)).toBe(false)
+  })
+
+  it('unknown badge type falls back to false', () => {
+    const unknownReq = { type: 'future_badge_type', threshold: 1 } as unknown as BadgeRequirement
+    expect(evaluateBadgeCondition(unknownReq, baseCtx)).toBe(false)
+  })
 })

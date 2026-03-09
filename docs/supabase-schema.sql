@@ -117,6 +117,8 @@ CREATE TABLE notification_channels (
 CREATE INDEX idx_nc_user_id  ON notification_channels(user_id);
 CREATE INDEX idx_nc_verified ON notification_channels(is_verified, user_id)
     WHERE consecutive_send_failures < 3;
+CREATE INDEX idx_nc_failing  ON notification_channels(consecutive_send_failures)
+    WHERE consecutive_send_failures >= 3;
 
 -- ----------------------------------------------------------------
 -- 7. user_list_progress — per-user list tracking (multi-list)

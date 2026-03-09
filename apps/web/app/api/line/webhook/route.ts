@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { verifyChannelByToken } from '@/lib/repositories/channel.repository'
 import { logger } from '@/lib/logger'
+import { checkRateLimit, getClientIp } from '@/lib/utils/rate-limiter'
 
 function getEnv(name: string): string {
   const val = process.env[name]
@@ -64,6 +65,12 @@ interface LineMessageEvent {
 type LineEvent = LineFollowEvent | LineMessageEvent | { type: string }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req.headers)
+  if (!checkRateLimit(ip)) {
+    logger.warn({ ip }, 'LINE webhook: rate limit exceeded')
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 })
+  }
+
   const rawBody = await req.text()
   const signature = req.headers.get('x-line-signature') ?? ''
 

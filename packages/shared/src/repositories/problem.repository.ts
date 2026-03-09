@@ -69,7 +69,7 @@ export async function getUnsentProblemIds(
     p_topic: topic,
   })
   if (error) {
-    console.error('[getUnsentProblemIds] RPC failed:', error.message)
+    console.warn('[getUnsentProblemIds] RPC failed:', error.message)
     return []
   }
   // RPC returns TABLE(problem_id integer) -> Supabase gives [{problem_id: N}, ...]

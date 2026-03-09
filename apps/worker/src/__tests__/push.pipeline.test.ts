@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { LimitFunction } from 'p-limit'
 
 vi.mock('../lib/config.js', () => ({
   config: {
@@ -20,7 +21,7 @@ vi.mock('@caffecode/shared', async (importOriginal) => {
 
 import { buildPushJobs } from '../workers/push.logic.js'
 import {
-  getPushCandidatesBatch,
+  getAllCandidates,
   getVerifiedChannelsBulk,
   upsertHistoryBatch,
   stampLastPushDate,
@@ -31,8 +32,9 @@ import {
 import { selectProblemForUser } from '@caffecode/shared'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SelectedProblem } from '@caffecode/shared'
+import type { NotificationChannel } from '../channels/interface.js'
 
-const mockGetBatch = vi.mocked(getPushCandidatesBatch)
+const mockGetAllCandidates = vi.mocked(getAllCandidates)
 const mockGetChannels = vi.mocked(getVerifiedChannelsBulk)
 const mockUpsertHistory = vi.mocked(upsertHistoryBatch)
 const mockStamp = vi.mocked(stampLastPushDate)
@@ -40,6 +42,9 @@ const mockAdvance = vi.mocked(advanceListPositions)
 const mockSelectProblem = vi.mocked(selectProblemForUser)
 
 const db = {} as SupabaseClient
+
+// A p-limit stub that invokes the thunk immediately (no concurrency control needed in tests)
+const noopLimit = vi.fn((fn: () => unknown) => fn()) as unknown as LimitFunction
 
 function makeUser(overrides: Partial<PushCandidate> = {}): PushCandidate {
   return {
@@ -76,6 +81,14 @@ function makeChannel(overrides: Partial<VerifiedChannel> = {}): VerifiedChannel 
   }
 }
 
+// Channel registry stub: dispatches succeed without real HTTP calls
+function makeChannelRegistry(channelTypes = ['telegram', 'email', 'line']): Record<string, NotificationChannel> {
+  const channel: NotificationChannel = {
+    send: vi.fn().mockResolvedValue({ success: true }),
+  }
+  return Object.fromEntries(channelTypes.map(t => [t, channel]))
+}
+
 describe('buildPushJobs — pipeline orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -84,11 +97,20 @@ describe('buildPushJobs — pipeline orchestration', () => {
     mockAdvance.mockResolvedValue(undefined)
   })
 
-  it('builds jobs for 2 users with problems and channels', async () => {
+  it('returns zero stats when no candidates exist', async () => {
+    mockGetAllCandidates.mockResolvedValueOnce([])
+
+    const stats = await buildPushJobs(db, {}, noopLimit)
+
+    expect(stats).toEqual({ totalCandidates: 0, succeeded: 0, failed: 0 })
+    expect(mockGetAllCandidates).toHaveBeenCalledWith(db)
+  })
+
+  it('dispatches jobs for 2 users with problems and channels', async () => {
     const user1 = makeUser({ id: 'u1' })
     const user2 = makeUser({ id: 'u2', active_mode: 'filter' })
 
-    mockGetBatch.mockResolvedValueOnce([user1, user2])
+    mockGetAllCandidates.mockResolvedValueOnce([user1, user2])
     mockSelectProblem
       .mockResolvedValueOnce(makeProblem({ problem_id: 10, slug: 'two-sum' }))
       .mockResolvedValueOnce(makeProblem({ problem_id: 20, slug: 'add-two-numbers' }))
@@ -97,11 +119,10 @@ describe('buildPushJobs — pipeline orchestration', () => {
       makeChannel({ id: 'ch-2', user_id: 'u2', channel_type: 'email', channel_identifier: 'a@b.com' }),
     ])
 
-    const jobs = await buildPushJobs(db)
+    const stats = await buildPushJobs(db, makeChannelRegistry(), noopLimit)
 
-    expect(jobs).toHaveLength(2)
-    expect(jobs[0]).toMatchObject({ userId: 'u1', channelId: 'ch-1', problemId: 10 })
-    expect(jobs[1]).toMatchObject({ userId: 'u2', channelId: 'ch-2', problemId: 20 })
+    expect(stats.totalCandidates).toBe(2)
+    expect(stats.succeeded).toBe(2)
     expect(mockUpsertHistory).toHaveBeenCalledWith(db, [
       { userId: 'u1', problemId: 10 },
       { userId: 'u2', problemId: 20 },
@@ -112,88 +133,93 @@ describe('buildPushJobs — pipeline orchestration', () => {
   it('excludes LINE channel when line_push_allowed is false', async () => {
     const user = makeUser({ id: 'u1', line_push_allowed: false })
 
-    mockGetBatch.mockResolvedValueOnce([user])
+    mockGetAllCandidates.mockResolvedValueOnce([user])
     mockSelectProblem.mockResolvedValueOnce(makeProblem())
     mockGetChannels.mockResolvedValueOnce([
       makeChannel({ id: 'ch-line', user_id: 'u1', channel_type: 'line', channel_identifier: 'U123' }),
       makeChannel({ id: 'ch-tg', user_id: 'u1', channel_type: 'telegram' }),
     ])
 
-    const jobs = await buildPushJobs(db)
+    const stats = await buildPushJobs(db, makeChannelRegistry(), noopLimit)
 
-    expect(jobs).toHaveLength(1)
-    expect(jobs[0].channelType).toBe('telegram')
+    // Only telegram job dispatched (line filtered out), so succeeded=1
+    expect(stats.succeeded).toBe(1)
     expect(mockUpsertHistory).toHaveBeenCalledWith(db, [{ userId: 'u1', problemId: 42 }])
   })
 
   it('skips user when no verified channels exist', async () => {
-    mockGetBatch.mockResolvedValueOnce([makeUser({ id: 'u1' })])
+    mockGetAllCandidates.mockResolvedValueOnce([makeUser({ id: 'u1' })])
     mockSelectProblem.mockResolvedValueOnce(makeProblem())
     mockGetChannels.mockResolvedValueOnce([])
 
-    const jobs = await buildPushJobs(db)
+    const stats = await buildPushJobs(db, makeChannelRegistry(), noopLimit)
 
-    expect(jobs).toHaveLength(0)
+    expect(stats.succeeded).toBe(0)
     expect(mockGetChannels).toHaveBeenCalled()
     expect(mockUpsertHistory).not.toHaveBeenCalled()
     expect(mockStamp).not.toHaveBeenCalled()
   })
 
   it('skips user when no problem is found', async () => {
-    mockGetBatch.mockResolvedValueOnce([makeUser({ id: 'u1' })])
+    mockGetAllCandidates.mockResolvedValueOnce([makeUser({ id: 'u1' })])
     mockSelectProblem.mockResolvedValueOnce(null)
 
-    const jobs = await buildPushJobs(db)
+    const stats = await buildPushJobs(db, makeChannelRegistry(), noopLimit)
 
-    expect(jobs).toHaveLength(0)
+    expect(stats.succeeded).toBe(0)
     expect(mockGetChannels).not.toHaveBeenCalled()
   })
 
   it('advances list positions for list-mode problems', async () => {
-    mockGetBatch.mockResolvedValueOnce([makeUser({ id: 'u1', active_mode: 'list' })])
+    mockGetAllCandidates.mockResolvedValueOnce([makeUser({ id: 'u1', active_mode: 'list' })])
     mockSelectProblem.mockResolvedValueOnce(
       makeProblem({ list_id: 5, sequence_number: 3 }),
     )
     mockGetChannels.mockResolvedValueOnce([makeChannel({ user_id: 'u1' })])
 
-    await buildPushJobs(db)
+    await buildPushJobs(db, makeChannelRegistry(), noopLimit)
 
     expect(mockAdvance).toHaveBeenCalledWith(db, [
       { userId: 'u1', listId: 5, sequenceNumber: 3 },
     ])
   })
 
-  it('paginates through multiple batches until a partial batch', async () => {
-    const batch1 = Array.from({ length: 100 }, (_, i) => makeUser({ id: `u${i}` }))
-    const batch2 = Array.from({ length: 30 }, (_, i) => makeUser({ id: `u${100 + i}` }))
+  it('fetches all candidates in a single snapshot and processes in batches of 100', async () => {
+    // 130 candidates: first batch of 100, second batch of 30
+    const allUsers = Array.from({ length: 130 }, (_, i) => makeUser({ id: `u${i}` }))
 
-    mockGetBatch
-      .mockResolvedValueOnce(batch1)
-      .mockResolvedValueOnce(batch2)
+    mockGetAllCandidates.mockResolvedValueOnce(allUsers)
     mockSelectProblem.mockResolvedValue(makeProblem())
     mockGetChannels.mockImplementation(async (_db, userIds) =>
       userIds.map(uid => makeChannel({ user_id: uid, id: `ch-${uid}` })),
     )
 
-    const jobs = await buildPushJobs(db)
+    const stats = await buildPushJobs(db, makeChannelRegistry(), noopLimit)
 
-    expect(jobs).toHaveLength(130)
-    expect(mockGetBatch).toHaveBeenCalledTimes(2)
-    expect(mockGetBatch).toHaveBeenCalledWith(db, 0, 100)
-    expect(mockGetBatch).toHaveBeenCalledWith(db, 100, 100)
+    // getAllCandidates called exactly once (snapshot, no re-pagination)
+    expect(mockGetAllCandidates).toHaveBeenCalledTimes(1)
+    expect(stats.totalCandidates).toBe(130)
+    expect(stats.succeeded).toBe(130)
+    // processBatch called twice: once for users 0-99, once for users 100-129
+    expect(mockGetChannels).toHaveBeenCalledTimes(2)
   })
 
-  it('stops at MAX_BATCHES (100) safety limit', async () => {
-    const fullBatch = Array.from({ length: 100 }, (_, i) => makeUser({ id: `u${i}` }))
+  it('stamps each batch immediately after processing (not after all batches)', async () => {
+    // Use 200 candidates to force 2 batches; verify stamp is called per-batch
+    const allUsers = Array.from({ length: 200 }, (_, i) => makeUser({ id: `u${i}` }))
 
-    mockGetBatch.mockResolvedValue(fullBatch)
+    mockGetAllCandidates.mockResolvedValueOnce(allUsers)
     mockSelectProblem.mockResolvedValue(makeProblem())
     mockGetChannels.mockImplementation(async (_db, userIds) =>
       userIds.map(uid => makeChannel({ user_id: uid, id: `ch-${uid}` })),
     )
 
-    await buildPushJobs(db)
+    await buildPushJobs(db, makeChannelRegistry(), noopLimit)
 
-    expect(mockGetBatch).toHaveBeenCalledTimes(100)
+    // stampLastPushDate should be called twice — once per batch, not once for all 200
+    expect(mockStamp).toHaveBeenCalledTimes(2)
+    // Each call stamps exactly 100 users
+    expect(mockStamp.mock.calls[0][1]).toHaveLength(100)
+    expect(mockStamp.mock.calls[1][1]).toHaveLength(100)
   })
 })

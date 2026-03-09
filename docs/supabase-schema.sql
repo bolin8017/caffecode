@@ -288,9 +288,12 @@ CREATE POLICY "channels: self only" ON notification_channels
 CREATE POLICY "progress: self only" ON user_list_progress
     FOR ALL USING (auth.uid() = user_id);
 
--- history (writes via service_role from worker)
+-- history (writes via service_role from worker; direct INSERT denied to all other roles)
 CREATE POLICY "history: read own" ON history
     FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "history: deny insert" ON history
+    FOR INSERT WITH CHECK (false);
 
 -- feedback
 CREATE POLICY "feedback: self only" ON feedback
@@ -346,6 +349,12 @@ CREATE TRIGGER trg_restrict_history_update
 -- Revoke advance_list_positions from non-service roles
 REVOKE EXECUTE ON FUNCTION advance_list_positions(jsonb) FROM PUBLIC, anon, authenticated;
 
+-- Revoke push pipeline functions from authenticated/anon (worker-only, service_role bypasses)
+REVOKE EXECUTE ON FUNCTION get_push_candidates() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION stamp_last_push_date(UUID[]) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION increment_channel_failures(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION get_unsent_problem_ids_for_user(UUID, INT, INT, TEXT[]) FROM PUBLIC, anon, authenticated;
+
 -- ================================================================
 -- DB Functions: daily push
 -- ================================================================
@@ -371,6 +380,7 @@ AS $$
     SELECT id, timezone, active_mode, difficulty_min, difficulty_max, topic_filter, line_push_allowed
     FROM users
     WHERE push_enabled = true
+      AND onboarding_completed = true
       AND push_hour_utc = EXTRACT(HOUR FROM NOW() AT TIME ZONE 'UTC')::int
       AND (
           last_push_date IS NULL
@@ -440,8 +450,7 @@ AS $$
     SELECT p.id
     FROM problems p
     INNER JOIN problem_content pc ON pc.problem_id = p.id
-    WHERE p.rating >= p_diff_min
-      AND p.rating <= p_diff_max
+    WHERE (p.rating IS NULL OR (p.rating >= p_diff_min AND p.rating <= p_diff_max))
       AND (p_topic IS NULL OR p.topics && p_topic)
       AND NOT EXISTS (
           SELECT 1 FROM history h

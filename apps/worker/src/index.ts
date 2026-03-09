@@ -4,7 +4,7 @@ import pLimit from 'p-limit'
 import { logger } from './lib/logger.js'
 import { supabase } from './lib/supabase.js'
 import { channelRegistry } from './channels/registry.js'
-import { buildPushJobs, dispatchJob } from './workers/push.logic.js'
+import { buildPushJobs } from './workers/push.logic.js'
 import { recordPushRun } from './repositories/push.repository.js'
 
 if (process.env.SENTRY_DSN) {
@@ -14,48 +14,30 @@ if (process.env.SENTRY_DSN) {
   })
 }
 
-const limit = pLimit(5)
+const dispatchLimit = pLimit(5)
 
 async function main() {
   const startMs = Date.now()
   logger.info('Push run started')
 
-  const jobs = await buildPushJobs(supabase)
-
-  if (jobs.length === 0) {
-    logger.info('No push jobs to dispatch')
-    await recordPushRun(supabase, { candidates: 0, succeeded: 0, failed: 0, durationMs: Date.now() - startMs })
-    return
-  }
-
   let succeeded = 0
   let failed = 0
+  let totalCandidates = 0
   let errorMsg: string | undefined
 
   try {
-    const results = await Promise.allSettled(
-      jobs.map(jobData => {
-        const channel = channelRegistry[jobData.channelType]
-        if (!channel) return Promise.resolve(null)
-        return limit(() => dispatchJob(jobData, channel, supabase))
-      })
-    )
+    const stats = await buildPushJobs(supabase, channelRegistry, dispatchLimit)
+    succeeded = stats.succeeded
+    failed = stats.failed
+    totalCandidates = stats.totalCandidates
 
-    succeeded = results.filter(r => r.status === 'fulfilled' && r.value?.success).length
-    failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value && !r.value.success)).length
-    const errors = results
-      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-      .map(r => String(r.reason))
-
-    logger.info({ total: jobs.length, succeeded, failed, errors: errors.slice(0, 5) }, 'Dispatch complete')
-
-    if (succeeded === 0 && jobs.length > 0) {
-      errorMsg = `All ${jobs.length} push jobs failed`
+    if (succeeded === 0 && totalCandidates > 0) {
+      errorMsg = `All candidates processed but 0 messages delivered (${totalCandidates} candidates)`
       throw new Error(errorMsg)
     }
   } finally {
     await recordPushRun(supabase, {
-      candidates: jobs.length,
+      candidates: totalCandidates,
       succeeded,
       failed,
       durationMs: Date.now() - startMs,

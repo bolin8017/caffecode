@@ -30,7 +30,8 @@ export async function sendLineMessage(
 
     if (!res.ok) {
       const body = await res.text()
-      const shouldRetry = res.status !== 400 && res.status !== 403
+      // 400/401/403 = permanent failures (bad request, invalid token, bot blocked)
+      const shouldRetry = res.status !== 400 && res.status !== 403 && res.status !== 401
       return { success: false, error: `HTTP ${res.status}: ${body.slice(0, 200)}`, shouldRetry }
     }
 

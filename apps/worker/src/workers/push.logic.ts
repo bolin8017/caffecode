@@ -3,11 +3,12 @@
  * Accepts injected SupabaseClient for testability.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { LimitFunction } from 'p-limit'
 import { selectProblemForUser } from '@caffecode/shared'
 import type { NotificationChannel } from '../channels/interface.js'
 import type { PushMessage, SendResult } from '@caffecode/shared'
 import {
-  getPushCandidatesBatch,
+  getAllCandidates,
   stampLastPushDate,
   getVerifiedChannelsBulk,
   upsertHistoryBatch,
@@ -31,6 +32,12 @@ export interface PushJobData {
   leetcodeId: number
   explanation: string
   problemSlug: string
+}
+
+export interface PushRunStats {
+  totalCandidates: number
+  succeeded: number
+  failed: number
 }
 
 const BATCH_SIZE = 100
@@ -105,7 +112,11 @@ async function processBatch(
     }
   }
 
-  // Batch-write history, stamp delivery date, and advance list positions in parallel
+  // Stamp delivery date and write history/positions before dispatching.
+  // Stamping here (not after dispatch) provides at-most-once delivery:
+  // a crash mid-dispatch will not re-deliver to already-stamped users.
+  // The stamp window is bounded to this single batch (not all batches),
+  // so a crash only risks one batch rather than the entire run.
   if (historyEntries.length > 0) {
     await Promise.all([
       upsertHistoryBatch(db, historyEntries),
@@ -117,46 +128,76 @@ async function processBatch(
   return jobs
 }
 
-const MAX_BATCHES = 100 // Safety limit: 100 batches × 100 candidates = 10,000 users max
+/**
+ * Fetch all push candidates in a single RPC snapshot, then process and
+ * dispatch each batch of BATCH_SIZE inline.
+ *
+ * Fetching all candidates first (rather than paginating with an offset) avoids
+ * the H-2 skipping bug: stampLastPushDate shrinks the eligible set between
+ * pages, causing mid-range users to fall out of subsequent offset windows.
+ *
+ * Dispatching inline per batch (rather than collecting all jobs first) bounds
+ * the C-3 stamp window: if the worker crashes, only the in-flight batch may
+ * have been stamped without delivery — not the entire run's worth of users.
+ */
+export async function buildPushJobs(
+  db: SupabaseClient,
+  channelRegistryArg: Record<string, NotificationChannel>,
+  dispatchLimit: LimitFunction,
+): Promise<PushRunStats> {
+  const allCandidates = await getAllCandidates(db)
 
-export async function buildPushJobs(db: SupabaseClient): Promise<PushJobData[]> {
-  const allJobs: PushJobData[] = []
-  let offset = 0
-  let totalCandidates = 0
-  let batchCount = 0
+  if (allCandidates.length === 0) {
+    logger.info('No push candidates found')
+    return { totalCandidates: 0, succeeded: 0, failed: 0 }
+  }
 
-  while (batchCount < MAX_BATCHES) {
-    const batch = await getPushCandidatesBatch(db, offset, BATCH_SIZE)
-    if (batch.length === 0 && offset === 0) {
-      logger.info('No push candidates found')
-      return []
-    }
-    if (batch.length === 0) break
+  logger.info({ totalCandidates: allCandidates.length }, 'Push candidates snapshot fetched')
 
-    batchCount++
-    totalCandidates += batch.length
+  let succeeded = 0
+  let failed = 0
+  const totalCandidates = allCandidates.length
+
+  for (let i = 0; i < allCandidates.length; i += BATCH_SIZE) {
+    const batchUsers = allCandidates.slice(i, i + BATCH_SIZE)
+    const batchNumber = Math.floor(i / BATCH_SIZE) + 1
     logger.info(
-      { batchSize: batch.length, offset, batchCount },
+      { batchSize: batchUsers.length, batchNumber, offset: i },
       'Processing push candidate batch',
     )
 
-    const batchJobs = await processBatch(db, batch)
-    allJobs.push(...batchJobs)
+    // processBatch: selects problems, collects jobs, stamps this batch, writes history
+    const batchJobs = await processBatch(db, batchUsers)
 
-    if (batch.length < BATCH_SIZE) break // Last batch
-    offset += BATCH_SIZE
+    if (batchJobs.length === 0) continue
+
+    // Dispatch this batch's jobs immediately (inline), before moving to the next batch
+    const results = await Promise.allSettled(
+      batchJobs.map(job => {
+        const channel = channelRegistryArg[job.channelType]
+        if (!channel) return Promise.resolve(null)
+        return dispatchLimit(() => dispatchJob(job, channel, db))
+      })
+    )
+
+    succeeded += results.filter(r => r.status === 'fulfilled' && r.value?.success).length
+    failed += results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value && !r.value.success)).length
+
+    const errors = results
+      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      .map(r => String(r.reason))
+
+    if (errors.length > 0) {
+      logger.warn({ batchNumber, errors: errors.slice(0, 5) }, 'Some dispatches rejected in batch')
+    }
   }
 
-  if (batchCount >= MAX_BATCHES) {
-    logger.error({ totalCandidates, batchCount }, 'Push job building hit safety limit — possible infinite loop')
+  if (succeeded === 0 && totalCandidates > 0) {
+    logger.warn({ totalCandidates }, 'All candidates had no problem to send or all dispatches failed')
   }
 
-  if (allJobs.length === 0 && totalCandidates > 0) {
-    logger.warn('All candidates had no problem to send')
-  }
-
-  logger.info({ jobCount: allJobs.length, totalCandidates }, 'Push jobs built')
-  return allJobs
+  logger.info({ totalCandidates, succeeded, failed }, 'Push run complete')
+  return { totalCandidates, succeeded, failed }
 }
 
 export async function dispatchJob(

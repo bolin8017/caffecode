@@ -6,7 +6,7 @@ import {
   advanceListPositions,
   upsertHistoryBatch,
   incrementChannelFailures,
-  getPushCandidatesBatch,
+  getAllCandidates,
 } from '../repositories/push.repository.js'
 
 describe('getVerifiedChannelsBulk', () => {
@@ -104,15 +104,33 @@ describe('incrementChannelFailures', () => {
   })
 })
 
-describe('getPushCandidatesBatch', () => {
-  it('calls range with correct offset and limit', async () => {
-    const rangeMock = vi.fn().mockResolvedValue({ data: [], error: null })
-    const rpcMock = vi.fn().mockReturnValue({ range: rangeMock })
+describe('getAllCandidates', () => {
+  it('calls get_push_candidates RPC and returns all rows', async () => {
+    const mockRow = {
+      id: 'user-1',
+      timezone: 'Asia/Taipei',
+      active_mode: 'list',
+      difficulty_min: 0,
+      difficulty_max: 3000,
+      topic_filter: null,
+      line_push_allowed: true,
+    }
+    const rpcMock = vi.fn().mockResolvedValue({ data: [mockRow], error: null })
     const db = { rpc: rpcMock } as unknown as SupabaseClient
 
-    await getPushCandidatesBatch(db, 200, 100)
+    const result = await getAllCandidates(db)
 
     expect(rpcMock).toHaveBeenCalledWith('get_push_candidates')
-    expect(rangeMock).toHaveBeenCalledWith(200, 299)
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ id: 'user-1' })
+  })
+
+  it('returns empty array on RPC error', async () => {
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } })
+    const db = { rpc: rpcMock } as unknown as SupabaseClient
+
+    const result = await getAllCandidates(db)
+
+    expect(result).toHaveLength(0)
   })
 })

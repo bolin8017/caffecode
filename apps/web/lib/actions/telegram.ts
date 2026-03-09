@@ -5,7 +5,8 @@ import { getAuthUser } from '@/lib/auth'
 import { upsertChannel } from '@/lib/repositories/channel.repository'
 
 export async function connectTelegram(): Promise<{ deepLink: string; linkToken: string }> {
-  const botUsername = process.env.TELEGRAM_BOT_USERNAME!
+  const botUsername = process.env.TELEGRAM_BOT_USERNAME
+  if (!botUsername) throw new Error('TELEGRAM_BOT_USERNAME is not configured')
 
   const { user } = await getAuthUser()
 

@@ -166,8 +166,9 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - **`toUtcHour(localHour, timezone)`** in `lib/utils/timezone.ts`: converts local push hour → UTC at write time via `Intl.DateTimeFormat`; called from `updatePushSettings` and `updateTimezone`
 - **Batch queries**: `getVerifiedChannelsBulk` (single `.in()` query), `upsertHistoryBatch`, `advance_list_positions` RPC (single `jsonb_to_recordset()` UPDATE) — never query per-user in a loop
 - **Parallel dispatch**: `Promise.allSettled` + `p-limit(5)`; fetch timeouts 15s (Telegram/LINE), 30s (Resend)
-- **Circuit-breaker**: `consecutive_send_failures` counter increments on permanent failure (400/403); channel paused at >= 3 failures, auto-recovers on next successful send (counter resets to 0). Channels are NOT deleted on failure.
-- **Cursor-based pagination**: `getPushCandidatesBatch()` processes 100 candidates at a time via `.range()`
+- **Circuit-breaker**: `consecutive_send_failures` counter increments on permanent failure (non-retryable: 400/401/403/422); channel paused at >= 3 failures, auto-recovers on next successful send (counter resets to 0). Channels are NOT deleted on failure.
+- **Snapshot pagination**: `getAllCandidates()` fetches all eligible users at once via `get_push_candidates()` RPC, then slices into batches of 100 locally. Avoids offset-skip bug where stamping shrinks the live query between pages.
+- **Inline batch dispatch**: `buildPushJobs` stamps + dispatches each 100-user batch before moving to the next. Bounds the undelivered window to one batch on crash.
 - **At-most-once guard**: `stamp_last_push_date()` marks users before dispatch; `last_push_date` prevents re-delivery on worker crash/retry
 - **List position indexing**: `sequence_number` starts at 1; `current_position` defaults to 0 (= "nothing sent yet"). Query: `sequence_number = current_position + 1`. After delivery: `current_position = sequence_number`.
 - **List coverage invariant**: Every problem with content MUST belong to at least one curated list. `build_database.py` only imports list-referenced problems — orphans are invisible on the site. When adding new problems, create or expand topic lists to maintain zero orphans. Use `scripts/generate_topic_lists.py` to verify coverage.
@@ -221,7 +222,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - **Account deletion**: GDPR/PDPA compliant — deletes auth user first (safe: if it fails, DB data intact), then DB row (cascades via FK). Both `deleteAccount()` and admin `deleteUser()` follow this order.
 - **Supabase error handling**: All repository and Server Action Supabase calls destructure `{ data, error }` and throw on error — no silent failures
 - **API error truncation**: Shared channel senders truncate error response bodies to 200 chars to prevent info leakage in logs
-- **Worker safety limit**: `MAX_BATCHES=100` in `buildPushJobs` prevents unbounded pagination loops
+- **RPC access control**: `get_push_candidates`, `stamp_last_push_date`, `increment_channel_failures`, `get_unsent_problem_ids_for_user` EXECUTE revoked from PUBLIC/anon/authenticated — only callable by service_role (worker).
 - Vercel Production Protection: **OFF** (webhooks must reach production)
 
 ## Key Files
@@ -291,7 +292,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `src/index.ts` — Entry point: Sentry init, buildPushJobs, Promise.allSettled dispatch, recordPushRun
 - `src/workers/push.logic.ts` — `buildPushJobs()` (pure, paginated), `dispatchJob()` (circuit-breaker)
 - `src/channels/` — `index.ts` (channel interface + registry), `telegram.ts`, `line.ts`, `email.ts`
-- `src/repositories/push.repository.ts` — `getPushCandidatesBatch`, `getVerifiedChannelsBulk`, `upsertHistoryBatch`, `stampLastPushDate`, `incrementChannelFailures`, `resetChannelFailures`, `recordPushRun`
+- `src/repositories/push.repository.ts` — `getAllCandidates`, `getVerifiedChannelsBulk`, `upsertHistoryBatch`, `stampLastPushDate`, `incrementChannelFailures`, `resetChannelFailures`, `recordPushRun`
 - `src/lib/config.ts` + `config.schema.ts` — Zod-validated env; `config` exported everywhere
 - `src/lib/logger.ts` — Pino logger
 - `src/lib/supabase.ts` — service_role client
@@ -400,7 +401,7 @@ All deployments follow this sequence. No exceptions.
 
 ## Development Notes
 
-**Tests**: 236 TypeScript (shared 67, worker 40, web 129) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
+**Tests**: 245 TypeScript (shared 67, worker 42, web 136) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
 
 **vitest config**: `apps/web` tests outside `src/` (e.g. `lib/__tests__/`) need explicit include in `vitest.config.ts`.
 

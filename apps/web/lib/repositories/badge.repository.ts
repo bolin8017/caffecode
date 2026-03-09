@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { evaluateBadgeCondition } from '@caffecode/shared'
 import type { BadgeRequirement, UserBadgeContext } from '@caffecode/shared'
+import { logger } from '@/lib/logger'
 
 export interface Badge {
   id: number
@@ -32,21 +33,24 @@ export async function checkAndAwardBadges(
   const earnedIds = new Set((earned ?? []).map(e => e.badge_id))
   const unearned = allBadges.filter(b => !earnedIds.has(b.id))
 
-  // 2. Check each unearned badge
-  const newlyEarned: Badge[] = []
+  // 2. Check each unearned badge and batch-insert all that qualify
+  const toAward = unearned
+    .filter(badge => evaluateBadgeCondition(badge.requirement as BadgeRequirement, ctx))
+    .map(badge => ({ user_id: userId, badge_id: badge.id, earned_at: new Date().toISOString() }))
 
-  for (const badge of unearned) {
-    const req = badge.requirement as BadgeRequirement
-    if (evaluateBadgeCondition(req, ctx)) {
-      const { error } = await supabase
-        .from('user_badges')
-        .insert({ user_id: userId, badge_id: badge.id })
-
-      if (!error) {
-        newlyEarned.push({ id: badge.id, slug: badge.slug, name: badge.name, icon: badge.icon, category: badge.category })
-      }
+  if (toAward.length > 0) {
+    const { error: insertError } = await supabase
+      .from('user_badges')
+      .insert(toAward)
+    if (insertError) {
+      logger.error({ error: insertError, userId }, 'checkAndAwardBadges: batch insert failed')
+      return []
     }
   }
+
+  const newlyEarned: Badge[] = unearned
+    .filter(badge => toAward.some(a => a.badge_id === badge.id))
+    .map(badge => ({ id: badge.id, slug: badge.slug, name: badge.name, icon: badge.icon, category: badge.category }))
 
   return newlyEarned
 }

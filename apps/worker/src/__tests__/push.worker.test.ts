@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { LimitFunction } from 'p-limit'
 
 // Mock config before importing modules that depend on it
 vi.mock('../lib/config.js', () => ({
@@ -18,24 +19,17 @@ import { recordPushRun } from '../repositories/push.repository.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { NotificationChannel } from '../channels/interface.js'
 
+const noopLimit = vi.fn((fn: () => unknown) => fn()) as unknown as LimitFunction
+
 // Test the pure logic of building push jobs — decoupled from BullMQ
 describe('buildPushJobs', () => {
-  it('returns empty array when no users due for push', async () => {
+  it('returns zero stats when no users due for push', async () => {
     const mockSupabase = {
-      rpc: vi.fn().mockReturnValue({
-        range: vi.fn().mockResolvedValue({ data: [], error: null }),
-      }),
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-          }),
-        }),
-      }),
+      rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
     } as unknown as SupabaseClient
 
-    const jobs = await buildPushJobs(mockSupabase)
-    expect(jobs).toHaveLength(0)
+    const stats = await buildPushJobs(mockSupabase, {}, noopLimit)
+    expect(stats).toEqual({ totalCandidates: 0, succeeded: 0, failed: 0 })
   })
 })
 

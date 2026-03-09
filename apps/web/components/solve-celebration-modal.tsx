@@ -18,6 +18,7 @@ interface Props {
 export function SolveCelebrationModal({ levelUps, newBadges, firstSolve = false, onClose }: Props) {
   const router = useRouter()
   const overlayRef = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
 
   // Close on Escape key
   useEffect(() => {
@@ -27,6 +28,29 @@ export function SolveCelebrationModal({ levelUps, newBadges, firstSolve = false,
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
+
+  // Focus management and Tab trap
+  useEffect(() => {
+    const focusable = modalRef.current?.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    focusable?.[0]?.focus()
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !focusable?.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleTab)
+    return () => document.removeEventListener('keydown', handleTab)
+  }, [])
 
   const handleNavigate = (path: string) => {
     onClose()
@@ -39,7 +63,14 @@ export function SolveCelebrationModal({ levelUps, newBadges, firstSolve = false,
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
-      <div className="mx-4 w-full max-w-sm rounded-2xl border bg-card p-6 shadow-lg animate-in zoom-in-95 duration-200">
+      <div
+        ref={modalRef}
+        className="mx-4 w-full max-w-sm rounded-2xl border bg-card p-6 shadow-lg animate-in zoom-in-95 duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="celebration-title"
+      >
+        <h2 id="celebration-title" className="sr-only">解題慶祝</h2>
         {/* Level-ups */}
         {levelUps.length > 0 && (
           <div className="space-y-4">

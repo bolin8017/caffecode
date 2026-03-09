@@ -62,12 +62,18 @@ export async function markSolved(problemId: number): Promise<SolveResult> {
 
     const problemTopics = (historyRow.problems as unknown as { topics: string[] })?.topics ?? []
 
-    const [summary, streakHistory] = await Promise.all([
+    const [summary, streakHistory, profileRow] = await Promise.all([
       getGardenSummary(supabase, user.id),
       supabase.from('history').select('solved_at').eq('user_id', user.id).not('solved_at', 'is', null).order('solved_at', { ascending: false }),
+      supabase.from('users').select('timezone').eq('id', user.id).single(),
     ])
 
-    const streak = calculateStreak(streakHistory.data ?? [])
+    const { data: streakData, error: streakError } = streakHistory
+    if (streakError) {
+      logger.warn({ error: streakError }, 'markSolved: streak query failed, using 0 for badge evaluation')
+    }
+    const userTimezone = profileRow.data?.timezone ?? 'Asia/Taipei'
+    const streak = streakError ? 0 : calculateStreak(streakData ?? [], userTimezone)
 
     // Post-solve proficiency for badge check (beforeTopics + 1 for this problem's topics)
     const postTopics = beforeTopics.map(t => ({

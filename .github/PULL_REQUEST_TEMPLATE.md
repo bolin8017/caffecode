@@ -6,11 +6,12 @@
 
 -
 
-## Test plan
+## Test Plan
 
-- [ ] Unit tests pass (`pnpm test`)
-- [ ] Build succeeds (`pnpm build`)
-- [ ] Manual testing completed
+<!-- List only items you have actually verified. No unchecked checkboxes. -->
+- Unit tests pass (`pnpm test`)
+- Build succeeds (`pnpm build`)
+- Manual testing completed
 
 ## Screenshots
 

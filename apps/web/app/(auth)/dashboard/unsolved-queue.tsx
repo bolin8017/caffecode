@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { SolveButton } from '@/components/solve-button'
 import { markSolved } from '@/lib/actions/history'
 import { trackSolveMarked } from '@/lib/analytics'
@@ -48,7 +49,8 @@ export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }
         )
         trackSolveMarked({ problemId, source: 'dashboard', timeSinceSentSec })
       } catch {
-        // Keep item in list on failure
+        toast.error('標記失敗，請再試一次')
+        // item stays in list (correct — don't remove on failure)
       } finally {
         setPendingId(null)
       }

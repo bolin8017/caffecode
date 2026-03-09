@@ -52,5 +52,5 @@ export async function completeOnboarding(data: {
     })
   }
 
-  redirect('/dashboard')
+  redirect('/garden')
 }

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getTopicProficiency, getGardenSummary } from '@/lib/repositories/garden.repository'
 import { getUserBadges } from '@/lib/repositories/badge.repository'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { CoffeeTree } from './coffee-tree'
 import { GardenTracker } from './garden-tracker'
 import { BadgeShowcase } from './badge-showcase'
@@ -57,10 +58,39 @@ export default async function GardenPage() {
 
       {/* Garden grid */}
       {topics.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
-          <p className="text-4xl mb-3">🌱</p>
-          <p className="text-sm">你的莊園還沒有任何植物</p>
-          <p className="text-xs mt-1">標記解出來的題目，咖啡樹就會開始生長</p>
+        <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground space-y-4">
+          <p className="text-4xl">🌱</p>
+          <div>
+            <p className="text-sm font-medium text-foreground">你的莊園正在等待第一顆種子</p>
+            <p className="text-xs mt-1">每道解出來的題目，都會讓對應主題的咖啡樹成長</p>
+          </div>
+          {/* Growth path preview */}
+          <div className="flex justify-center items-center gap-2 text-2xl py-1">
+            <span>🌱</span>
+            <span className="text-base text-muted-foreground/60">→</span>
+            <span>🌿</span>
+            <span className="text-base text-muted-foreground/60">→</span>
+            <span>🌳</span>
+            <span className="text-base text-muted-foreground/60">→</span>
+            <span>🌲</span>
+            <span className="text-base text-muted-foreground/60">→</span>
+            <span>☕</span>
+          </div>
+          {/* CTAs */}
+          <div className="flex justify-center gap-3 pt-1">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+            >
+              去解今天的題目
+            </Link>
+            <Link
+              href="/problems"
+              className="inline-flex items-center rounded-lg border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+            >
+              瀏覽題庫
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

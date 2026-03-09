@@ -220,6 +220,9 @@ export function OnboardingWizard({ lists }: Props) {
           <p className="text-xs text-muted-foreground mt-3">
             也可以之後在「設定 → 通知」連結 Telegram 或 LINE。
           </p>
+          <p className="text-xs text-muted-foreground/70 mt-4 text-center">
+            完成後帶你看你的咖啡園 →
+          </p>
           <div className="flex gap-3 mt-8">
             <Button variant="outline" onClick={back}>上一步</Button>
             <Button onClick={finish} disabled={isPending}>

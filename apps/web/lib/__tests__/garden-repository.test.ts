@@ -1,10 +1,46 @@
 import { describe, it, expect, vi } from 'vitest'
+import { computeLevel, toStage } from '../repositories/garden.repository'
 
 function makeChain(data: unknown, error: unknown = null) {
   const rpcMock = vi.fn().mockResolvedValue({ data, error })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { db: { rpc: rpcMock } as any, rpcMock }
 }
+
+describe('computeLevel', () => {
+  it.each([
+    [0, 0],   // 0 solved → level 0
+    [1, 1],   // 1 solved → level 1
+    [2, 1],   // 2 solved → still level 1
+    [3, 2],   // 3 solved (threshold) → level 2
+    [5, 2],   // 5 solved → still level 2
+    [6, 3],   // 6 solved (threshold) → level 3
+    [10, 3],  // 10 solved → still level 3
+    [11, 4],  // 11 solved (threshold) → level 4
+    [15, 4],  // 15 solved → still level 4 (11-15 is the same band)
+    [16, 5],  // 16 solved (threshold) → level 5 (11 + 1*5 = 16)
+    [50, 11], // 50 solved → level 4 + floor((50-11)/5) = 4 + floor(39/5) = 4 + 7 = 11
+  ])('computeLevel(%i) = %i', (count, expected) => {
+    expect(computeLevel(count)).toBe(expected)
+  })
+})
+
+describe('toStage', () => {
+  it.each([
+    [0, 0],   // 0 solved → stage 0 (seed/empty)
+    [1, 1],   // 1 solved → stage 1
+    [2, 1],   // 2 solved → still stage 1
+    [3, 2],   // 3 solved (threshold) → stage 2
+    [5, 2],   // 5 solved → still stage 2
+    [6, 3],   // 6 solved (threshold) → stage 3
+    [10, 3],  // 10 solved → still stage 3
+    [11, 4],  // 11 solved → stage 4 (max)
+    [20, 4],  // 20 solved → still stage 4 (max)
+    [100, 4], // large value → still stage 4 (max)
+  ])('toStage(%i) = %i', (count, expected) => {
+    expect(toStage(count)).toBe(expected)
+  })
+})
 
 describe('getTopicProficiency', () => {
   it('returns topic proficiency array with correct stages', async () => {

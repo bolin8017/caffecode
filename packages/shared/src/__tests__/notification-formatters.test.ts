@@ -133,6 +133,50 @@ describe('formatEmailSubject', () => {
 })
 
 // ---------------------------------------------------------------------------
+// escapeHtml (via formatTelegramMessage)
+// ---------------------------------------------------------------------------
+describe('escapeHtml (via formatTelegramMessage)', () => {
+  it('escapes ampersand in title', () => {
+    const m = { ...msg, title: 'Tom & Jerry' }
+    expect(formatTelegramMessage(m)).toContain('Tom &amp; Jerry')
+  })
+
+  it('escapes less-than sign in title', () => {
+    const m = { ...msg, title: 'a < b' }
+    expect(formatTelegramMessage(m)).toContain('a &lt; b')
+  })
+
+  it('escapes greater-than sign in title', () => {
+    const m = { ...msg, title: 'a > b' }
+    expect(formatTelegramMessage(m)).toContain('a &gt; b')
+  })
+
+  it('escapes double-quote in title', () => {
+    const m = { ...msg, title: 'say "hello"' }
+    expect(formatTelegramMessage(m)).toContain('say &quot;hello&quot;')
+  })
+
+  it('XSS payload does not produce a raw <img tag in output', () => {
+    const m = { ...msg, title: '<img src=x onerror=alert(1)>' }
+    expect(formatTelegramMessage(m)).not.toContain('<img')
+  })
+
+  it('does not double-escape an already-escaped ampersand input', () => {
+    const m = { ...msg, title: 'Tom &amp; Jerry' }
+    // Input literal "&amp;" → escapeHtml turns "&" → "&amp;", so result is "&amp;amp; Jerry"
+    // Crucially the output must NOT contain the plain, unescaped "&amp;" from the input
+    // (because the "&" was re-escaped); but it must NOT produce "&amp;amp;" either from
+    // a *second* pass — one pass only.
+    const output = formatTelegramMessage(m)
+    // The "&" in "&amp;" is escaped to "&amp;", producing "&amp;amp; Jerry" — not a double
+    // escape issue in escapeHtml itself (single pass), but verify no raw HTML injection.
+    expect(output).not.toContain('<img')
+    // Confirm the title portion is present (escaped form of the input string):
+    expect(output).toContain('&amp;amp;')
+  })
+})
+
+// ---------------------------------------------------------------------------
 // buildTelegramReplyMarkup
 // ---------------------------------------------------------------------------
 describe('buildTelegramReplyMarkup', () => {

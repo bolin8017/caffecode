@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { verifyChannelByToken } from '@/lib/repositories/channel.repository'
 import { logger } from '@/lib/logger'
+import { checkRateLimit, getClientIp } from '@/lib/utils/rate-limiter'
 
 function getEnv(name: string): string {
   const val = process.env[name]
@@ -38,6 +39,12 @@ async function sendTelegramMessage(chatId: number, text: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req.headers)
+  if (!checkRateLimit(ip)) {
+    logger.warn({ ip }, 'Telegram webhook: rate limit exceeded')
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 })
+  }
+
   const secretHeader = req.headers.get('x-telegram-bot-api-secret-token')
   let secretValid = false
   const webhookSecret = getEnv('TELEGRAM_WEBHOOK_SECRET')

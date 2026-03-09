@@ -88,6 +88,25 @@ describe('sendTelegramMessage', () => {
     expect(result.success).toBe(false)
     expect(result.shouldRetry).toBe(true)
   })
+
+  it('truncates long error body to at most 200 chars in SendResult.error', async () => {
+    const longBody = 'x'.repeat(500)
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: () => Promise.resolve(longBody),
+    })
+    const { sendTelegramMessage } = await import('../channels/telegram.js')
+    const result = await sendTelegramMessage('bot-token', '12345', msg)
+    expect(result.success).toBe(false)
+    // The error field is "HTTP 429: <body slice(0,200)>" — total length may exceed 200
+    // but the body portion must not exceed 200 chars.
+    const errorStr = result.error ?? ''
+    // Strip the "HTTP 429: " prefix (10 chars) to isolate the body portion
+    const bodyPortion = errorStr.replace(/^HTTP \d+: /, '')
+    expect(bodyPortion.length).toBeLessThanOrEqual(200)
+    expect(bodyPortion).not.toBe(longBody)
+  })
 })
 
 // ---------------------------------------------------------------------------

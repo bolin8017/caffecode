@@ -2,6 +2,10 @@
   "name": "caffe-code",
   "private": true,
   "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.15.0"
+  },
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
@@ -9,7 +13,7 @@
     "lint": "turbo lint"
   },
   "devDependencies": {
-    "turbo": "^2.8.11",
+    "turbo": "^2.8.14",
     "typescript": "^5"
   },
   "pnpm": {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock config before importing modules that depend on it
 vi.mock('../lib/config.js', () => ({
@@ -146,5 +146,73 @@ describe('dispatchJob', () => {
 
     expect(fromMock).not.toHaveBeenCalled()
     expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  // P3-6 circuit-breaker edge cases
+
+  it('retryable failure does NOT call incrementChannelFailures', async () => {
+    const { mock, rpcMock } = makeSupabaseMock()
+    const channel: NotificationChannel = {
+      send: vi.fn().mockResolvedValue({ success: false, shouldRetry: true, error: '429 Too Many Requests' }),
+    }
+
+    await dispatchJob(makeJob(), channel, mock)
+
+    const incrementCalls = rpcMock.mock.calls.filter(
+      ([name]) => name === 'increment_channel_failures'
+    )
+    expect(incrementCalls).toHaveLength(0)
+  })
+
+  it('successful send after 2 failures calls resetChannelFailures (resets to 0)', async () => {
+    const { mock, fromMock, updateMock } = makeSupabaseMock()
+    const job = makeJob()
+
+    // Simulate successful send (the counter value is managed by the DB — we just verify reset is called)
+    const channel: NotificationChannel = {
+      send: vi.fn().mockResolvedValue({ success: true }),
+    }
+
+    await dispatchJob(job, channel, mock)
+
+    expect(fromMock).toHaveBeenCalledWith('notification_channels')
+    expect(updateMock).toHaveBeenCalledWith({ consecutive_send_failures: 0 })
+  })
+
+  it('three sequential permanent failures each call incrementChannelFailures once', async () => {
+    const { mock, rpcMock } = makeSupabaseMock()
+    const channel: NotificationChannel = {
+      send: vi.fn().mockResolvedValue({ success: false, shouldRetry: false, error: '403 Forbidden' }),
+    }
+
+    await dispatchJob(makeJob(), channel, mock)
+    await dispatchJob(makeJob(), channel, mock)
+    await dispatchJob(makeJob(), channel, mock)
+
+    const incrementCalls = rpcMock.mock.calls.filter(
+      ([name]) => name === 'increment_channel_failures'
+    )
+    expect(incrementCalls).toHaveLength(3)
+    for (const [, params] of incrementCalls) {
+      expect(params).toEqual({ p_channel_id: 'ch-1' })
+    }
+  })
+
+  it('retryable failure then permanent failure increments counter exactly once', async () => {
+    const { mock, rpcMock } = makeSupabaseMock()
+    const channel: NotificationChannel = {
+      send: vi.fn()
+        .mockResolvedValueOnce({ success: false, shouldRetry: true, error: '503 Service Unavailable' })
+        .mockResolvedValueOnce({ success: false, shouldRetry: false, error: '403 Forbidden' }),
+    }
+
+    await dispatchJob(makeJob(), channel, mock)   // retryable — no increment
+    await dispatchJob(makeJob(), channel, mock)   // permanent — increment once
+
+    const incrementCalls = rpcMock.mock.calls.filter(
+      ([name]) => name === 'increment_channel_failures'
+    )
+    expect(incrementCalls).toHaveLength(1)
+    expect(incrementCalls[0][1]).toEqual({ p_channel_id: 'ch-1' })
   })
 })

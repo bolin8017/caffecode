@@ -188,7 +188,8 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 - `packages/shared/src/services/problem-selector.ts` — `selectProblemForUser()` single source of truth for both worker and admin.
 - `packages/shared/src/services/badge-checker.ts` — `evaluateBadgeCondition()` evaluates badge requirement JSONB against user context.
 - `packages/shared/src/utils/notification-formatters.ts` — `formatTelegramMessage`, `buildFlexBubble`, `formatEmailSubject`, `buildTelegramReplyMarkup`.
-- `packages/shared/src/types/push.ts` — `PushMessage`, `SendResult`, `SelectedProblem` interfaces used by worker and shared channels.
+- `packages/shared/src/types/push.ts` — `PushMessage`, `SendResult`, `SelectedProblem`, `Difficulty` type used by worker and shared channels.
+- `packages/shared/src/repositories/problem.repository.ts` — `getListProblemAtPosition`, `getProblemAtListPosition`, `getUnsentProblemIds`, `getProblemById`. Internal to `problem-selector.ts`; not part of the shared public API.
 - `packages/shared/src/utils/topic-utils.ts` — `topicLabel()`, `topicToVariety()`, `normalizeTopics()`, `TOPIC_ALIASES`. Kebab-case topic slug utilities. `normalizeTopics` merges aliases and re-sorts by `solved_count DESC`.
 - `apps/web/lib/repositories/garden.repository.ts` — `computeLevel()`, `toStage()`, `getTopicProficiency()`, `getGardenSummary()`.
 - **Build requirement**: `main: "dist/index.js"` in package.json — Railway runtime needs compiled output.
@@ -204,6 +205,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 
 - **CSP + security headers**: Configured in `next.config.ts` `headers()` — Content-Security-Policy (no `unsafe-eval`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`), X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy (strict-origin-when-cross-origin), Strict-Transport-Security (HSTS preload), Permissions-Policy, X-Permitted-Cross-Domain-Policies
 - **Webhook verification**: Telegram uses `x-telegram-bot-api-secret-token` with `crypto.timingSafeEqual()`; LINE uses `X-Line-Signature` HMAC-SHA256 with `crypto.timingSafeEqual()`. Both webhooks validate JSON payloads with try-catch and per-event error isolation.
+- **Webhook rate limiting**: `lib/utils/rate-limiter.ts` — per-IP sliding window (120 req/min), module-level Map resets on Vercel cold start. Applied to `/api/telegram/webhook` and `/api/line/webhook` before secret validation.
 - **Link token expiration**: `link_token_expires_at` column on `notification_channels` — tokens expire 30 minutes after creation. Verification checks expiry and clears token on success.
 - **Link token validation**: Strict RFC 4122 UUID regex (`[0-9a-f]{8}-[0-9a-f]{4}-...-[0-9a-f]{12}`) in both Telegram and LINE webhook handlers, preventing injection of arbitrary strings.
 - **Timezone IANA validation**: `Intl.supportedValuesOf('timeZone')` whitelist via shared Zod schema in `lib/schemas/timezone.ts`, used by `settings.ts` and `onboarding.ts`.
@@ -288,7 +290,7 @@ Include these doc updates as a `docs:` commit in the same feature branch — do 
 
 - `src/index.ts` — Entry point: Sentry init, buildPushJobs, Promise.allSettled dispatch, recordPushRun
 - `src/workers/push.logic.ts` — `buildPushJobs()` (pure, paginated), `dispatchJob()` (circuit-breaker)
-- `src/channels/` — `interface.ts`, `telegram.ts`, `line.ts`, `email.ts`, `email-template.tsx` (React Email), `registry.ts`
+- `src/channels/` — `index.ts` (channel interface + registry), `telegram.ts`, `line.ts`, `email.ts`
 - `src/repositories/push.repository.ts` — `getPushCandidatesBatch`, `getVerifiedChannelsBulk`, `upsertHistoryBatch`, `stampLastPushDate`, `incrementChannelFailures`, `resetChannelFailures`, `recordPushRun`
 - `src/lib/config.ts` + `config.schema.ts` — Zod-validated env; `config` exported everywhere
 - `src/lib/logger.ts` — Pino logger
@@ -398,7 +400,7 @@ All deployments follow this sequence. No exceptions.
 
 ## Development Notes
 
-**Tests**: 182 TypeScript (shared 51, worker 36, web 95) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
+**Tests**: 236 TypeScript (shared 67, worker 40, web 129) + 20 Python (sync script). TS tests: `pnpm exec vitest run` inside each package dir. Python tests: `cd scripts && python3 -m pytest tests/ -v`. CI runs TS tests via `pnpm --filter @caffecode/{shared,worker,web} test`.
 
 **vitest config**: `apps/web` tests outside `src/` (e.g. `lib/__tests__/`) need explicit include in `vitest.config.ts`.
 

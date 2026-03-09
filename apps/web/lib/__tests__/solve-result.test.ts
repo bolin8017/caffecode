@@ -14,6 +14,8 @@ describe('nextLevelThreshold', () => {
     [11, 16], // level 4 → need 16 to reach level 5
     [15, 16],
     [16, 21], // level 5 → need 21 to reach level 6
+    [20, 21],
+    [21, 26], // level 6 → need 26 to reach level 7
   ])('nextLevelThreshold(%i) = %i', (count, expected) => {
     expect(nextLevelThreshold(count)).toBe(expected)
   })

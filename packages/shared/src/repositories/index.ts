@@ -1,6 +1,2 @@
-export {
-  getListProblemAtPosition,
-  getProblemAtListPosition,
-  getUnsentProblemIds,
-  getProblemById,
-} from './problem.repository.js'
+// problem.repository functions are internal to problem-selector.ts
+// and are not part of the shared package's public API

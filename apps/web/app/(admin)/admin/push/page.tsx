@@ -43,12 +43,16 @@ export default async function AdminPushPage() {
   const columnDates = getLastNUtcDates(7)
   const currentUtcHour = new Date().getUTCHours()
 
+  // Precompute the 7 UTC date strings once — avoids creating 7 Date objects per user
+  const last7UtcDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setUTCDate(d.getUTCDate() - (6 - i))
+    return d.toISOString().slice(0, 10)
+  })
+
   const usersWithGaps = pushUsers.map(user => {
     let consecutiveGap = 0
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date()
-      d.setUTCDate(d.getUTCDate() - i)
-      const utcDate = d.toISOString().slice(0, 10)
+    for (const utcDate of last7UtcDates) {
       if (!deliverySet.has(`${user.id}|${utcDate}`)) consecutiveGap++
       else consecutiveGap = 0
     }

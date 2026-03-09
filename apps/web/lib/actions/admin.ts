@@ -15,8 +15,8 @@ import {
 
 async function requireAdmin() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthenticated')
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) throw new Error('Unauthenticated')
 
   const { data: profile, error: profileError } = await supabase
     .from('users')
@@ -24,16 +24,19 @@ async function requireAdmin() {
     .eq('id', user.id)
     .single()
 
-  if (profileError) throw new Error(`Failed to verify admin status: ${profileError.message}`)
+  if (profileError) {
+    logger.error({ error: profileError, userId: user.id }, 'requireAdmin: profile query failed')
+    throw new Error('Forbidden')
+  }
   if (!profile?.is_admin) throw new Error('Forbidden')
-  return createServiceClient()
+  return { user, adminDb: await createServiceClient() }
 }
 
 // ── Problems ───────────────────────────────────────────────────
 
 export async function deleteProblem(id: number) {
   z.number().int().positive().parse(id)
-  const db = await requireAdmin()
+  const { adminDb: db } = await requireAdmin()
   const { error } = await db.from('problems').delete().eq('id', id)
   if (error) throw new Error(`Failed to delete problem: ${error.message}`)
   revalidatePath('/admin/problems')
@@ -43,7 +46,7 @@ export async function deleteProblem(id: number) {
 
 export async function flagForRegeneration(problemId: number) {
   z.number().int().positive().parse(problemId)
-  const db = await requireAdmin()
+  const { adminDb: db } = await requireAdmin()
   const { error } = await db
     .from('problem_content')
     .update({ needs_regeneration: true })
@@ -54,7 +57,7 @@ export async function flagForRegeneration(problemId: number) {
 
 export async function unflagRegeneration(problemId: number) {
   z.number().int().positive().parse(problemId)
-  const db = await requireAdmin()
+  const { adminDb: db } = await requireAdmin()
   const { error } = await db
     .from('problem_content')
     .update({ needs_regeneration: false })
@@ -66,7 +69,7 @@ export async function unflagRegeneration(problemId: number) {
 export async function setLinePushAllowed(userId: string, allowed: boolean) {
   z.string().uuid().parse(userId)
   z.boolean().parse(allowed)
-  const db = await requireAdmin()
+  const { adminDb: db } = await requireAdmin()
   const { error } = await db.from('users').update({ line_push_allowed: allowed }).eq('id', userId)
   if (error) throw new Error(`Failed to update LINE push allowed: ${error.message}`)
   revalidatePath('/admin/users')
@@ -74,7 +77,27 @@ export async function setLinePushAllowed(userId: string, allowed: boolean) {
 
 export async function deleteUser(userId: string) {
   z.string().uuid().parse(userId)
-  const db = await requireAdmin()
+  const { user, adminDb: db } = await requireAdmin()
+
+  // Guard: prevent self-deletion
+  if (userId === user.id) {
+    throw new Error('Cannot delete your own admin account')
+  }
+
+  // Guard: prevent deleting other admin accounts
+  const { data: targetProfile, error: targetError } = await db
+    .from('users')
+    .select('is_admin')
+    .eq('id', userId)
+    .single()
+  if (targetError) {
+    logger.error({ error: targetError, targetUserId: userId }, 'deleteUser: target lookup failed')
+    throw new Error('Failed to verify target user')
+  }
+  if (targetProfile?.is_admin) {
+    throw new Error('Cannot delete another admin account')
+  }
+
   // Delete auth user first — if this fails, DB data is still intact
   const { error: authError } = await db.auth.admin.deleteUser(userId)
   if (authError) {
@@ -142,7 +165,7 @@ export interface ForceNotifyResult {
 }
 
 export async function forceNotifyAll(): Promise<ForceNotifyResult> {
-  const db = await requireAdmin()
+  const { adminDb: db } = await requireAdmin()
 
   const { data: users, error: usersError } = await db
     .from('users')
@@ -279,12 +302,15 @@ const channelIdSchema = z.string().uuid()
 
 export async function resetChannelFailures(channelId: string) {
   const parsed = channelIdSchema.parse(channelId)
-  const db = await requireAdmin()
+  const { adminDb: db } = await requireAdmin()
   const { error } = await db
     .from('notification_channels')
     .update({ consecutive_send_failures: 0 })
     .eq('id', parsed)
-  if (error) throw new Error(error.message)
+  if (error) {
+    logger.error({ error, channelId }, 'resetChannelFailures: DB update failed')
+    throw new Error('Failed to reset channel failures')
+  }
   revalidatePath('/admin/channels')
 }
 
@@ -296,7 +322,7 @@ export interface TestNotifyResult {
 
 export async function testNotifyChannel(channelId: string): Promise<TestNotifyResult> {
   const parsed = channelIdSchema.parse(channelId)
-  const db = await requireAdmin()
+  const { adminDb: db } = await requireAdmin()
 
   const { data: channel, error: chErr } = await db
     .from('notification_channels')
@@ -305,6 +331,18 @@ export async function testNotifyChannel(channelId: string): Promise<TestNotifyRe
     .single()
 
   if (chErr || !channel) return { success: false, latencyMs: 0, error: 'Channel not found' }
+
+  // Respect line_push_allowed — LINE free tier has 200 msg/month limit
+  if (channel.channel_type === 'line') {
+    const { data: userRow, error: userErr } = await db
+      .from('users')
+      .select('line_push_allowed')
+      .eq('id', channel.user_id)
+      .single()
+    if (userErr || !userRow?.line_push_allowed) {
+      return { success: false, latencyMs: 0, error: 'LINE push not allowed for this user (line_push_allowed = false)' }
+    }
+  }
 
   const user = channel.users as unknown as {
     id: string; active_mode: string
@@ -350,6 +388,6 @@ export async function testNotifyChannel(channelId: string): Promise<TestNotifyRe
   return {
     success: result.success,
     latencyMs,
-    error: result.error,
+    error: result.error?.slice(0, 200),
   }
 }

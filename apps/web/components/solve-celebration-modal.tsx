@@ -11,10 +11,11 @@ const STAGE_EMOJI = ['🌱', '🌿', '🌳', '🌲', '☕'] as const
 interface Props {
   levelUps: SolveResult['levelUps']
   newBadges: SolveResult['newBadges']
+  firstSolve?: boolean
   onClose: () => void
 }
 
-export function SolveCelebrationModal({ levelUps, newBadges, onClose }: Props) {
+export function SolveCelebrationModal({ levelUps, newBadges, firstSolve = false, onClose }: Props) {
   const router = useRouter()
   const overlayRef = useRef<HTMLDivElement>(null)
 
@@ -72,6 +73,13 @@ export function SolveCelebrationModal({ levelUps, newBadges, onClose }: Props) {
               </div>
             ))}
           </div>
+        )}
+
+        {/* First solve celebration note */}
+        {firstSolve && (
+          <p className="text-center text-xs text-muted-foreground mt-4">
+            🎉 你的第一株咖啡樹！前往咖啡園看它成長
+          </p>
         )}
 
         {/* Actions */}

@@ -26,7 +26,7 @@ export function SolveFeedback({ result, onDismiss }: Props) {
 
   const hasLevelUp = (result?.levelUps.length ?? 0) > 0
   const hasBadge = (result?.newBadges.length ?? 0) > 0
-  const showModal = result !== null && (hasLevelUp || hasBadge)
+  const showModal = result !== null && (hasLevelUp || hasBadge || (result.firstSolve ?? false))
 
   // Toast for progress-only results (no level-up or badge)
   useEffect(() => {
@@ -55,6 +55,7 @@ export function SolveFeedback({ result, onDismiss }: Props) {
     <SolveCelebrationModal
       levelUps={result.levelUps}
       newBadges={result.newBadges}
+      firstSolve={result.firstSolve}
       onClose={onDismiss}
     />
   )

@@ -73,5 +73,6 @@ describe('markSolved', () => {
     expect(result).toHaveProperty('levelUps')
     expect(result).toHaveProperty('newBadges')
     expect(result).toHaveProperty('topicProgress')
+    expect(result).toHaveProperty('firstSolve')
   })
 })

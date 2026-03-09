@@ -21,6 +21,7 @@ export interface SolveResult {
     nextThreshold: number
     level: number
   }>
+  firstSolve: boolean
 }
 
 /** Empty result for edge cases (already solved, concurrent race). */
@@ -28,6 +29,7 @@ export const EMPTY_SOLVE_RESULT: SolveResult = {
   levelUps: [],
   newBadges: [],
   topicProgress: [],
+  firstSolve: false,
 }
 
 /** Given a current solved count, return the count needed to reach the next level. */
@@ -82,5 +84,6 @@ export function buildSolveResult(
     levelUps,
     newBadges: newBadges.map(b => ({ name: b.name, icon: b.icon })),
     topicProgress,
+    firstSolve: false,
   }
 }

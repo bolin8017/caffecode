@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { nextLevelThreshold, buildSolveResult } from '@/lib/utils/solve-result'
+import { nextLevelThreshold, buildSolveResult, EMPTY_SOLVE_RESULT } from '@/lib/utils/solve-result'
 import type { TopicProficiency } from '@/lib/repositories/garden.repository'
 
 describe('nextLevelThreshold', () => {
@@ -18,6 +18,12 @@ describe('nextLevelThreshold', () => {
     [21, 26], // level 6 → need 26 to reach level 7
   ])('nextLevelThreshold(%i) = %i', (count, expected) => {
     expect(nextLevelThreshold(count)).toBe(expected)
+  })
+})
+
+describe('EMPTY_SOLVE_RESULT', () => {
+  it('has firstSolve: false', () => {
+    expect(EMPTY_SOLVE_RESULT.firstSolve).toBe(false)
   })
 })
 
@@ -43,6 +49,7 @@ describe('buildSolveResult', () => {
       newLevel: 2,
       newStage: 2,
     })
+    expect(result.firstSolve).toBe(false)
   })
 
   it('returns empty levelUps when no threshold crossed', () => {
@@ -51,6 +58,7 @@ describe('buildSolveResult', () => {
     const result = buildSolveResult(before, ['dynamic-programming'], [])
 
     expect(result.levelUps).toHaveLength(0)
+    expect(result.firstSolve).toBe(false)
   })
 
   it('handles new topic not in proficiency (count 0 → 1)', () => {
@@ -62,6 +70,7 @@ describe('buildSolveResult', () => {
       oldLevel: 0,
       newLevel: 1,
     })
+    expect(result.firstSolve).toBe(false)
   })
 
   it('includes topicProgress for all problem topics', () => {
@@ -90,6 +99,7 @@ describe('buildSolveResult', () => {
     const result = buildSolveResult([], ['array'], badges)
 
     expect(result.newBadges).toEqual([{ name: 'First Brew', icon: '☕' }])
+    expect(result.firstSolve).toBe(false)
   })
 
   it('handles multiple simultaneous level-ups', () => {
@@ -98,5 +108,6 @@ describe('buildSolveResult', () => {
     const result = buildSolveResult(before, ['array', 'string'], [])
 
     expect(result.levelUps).toHaveLength(2)
+    expect(result.firstSolve).toBe(false)
   })
 })

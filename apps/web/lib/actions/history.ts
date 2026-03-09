@@ -85,7 +85,11 @@ export async function markSolved(problemId: number): Promise<SolveResult> {
       topicCount: postTopics.filter(t => t.solvedCount > 0).length,
     })
 
-    solveResult = buildSolveResult(beforeTopics, problemTopics, newBadges)
+    const isFirstSolve = summary.totalSolved === 1
+    solveResult = {
+      ...buildSolveResult(beforeTopics, problemTopics, newBadges),
+      firstSolve: isFirstSolve,
+    }
   } catch {
     // Badge/feedback failure should never block the solve action
   }

@@ -179,11 +179,30 @@ export function OnboardingWizard({ lists }: Props) {
             <div>
               <label className="block text-sm font-medium mb-1">時區</label>
               <div className="flex gap-2">
-                <input
+                <select
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
                   className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
-                />
+                >
+                  {(() => {
+                    const zones = Intl.supportedValuesOf('timeZone')
+                    const grouped: Record<string, string[]> = {}
+                    for (const tz of zones) {
+                      const slash = tz.indexOf('/')
+                      const region = slash === -1 ? 'Other' : tz.slice(0, slash)
+                      ;(grouped[region] ??= []).push(tz)
+                    }
+                    return Object.entries(grouped)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([region, tzs]) => (
+                        <optgroup key={region} label={region}>
+                          {tzs.map((tz) => (
+                            <option key={tz} value={tz}>{tz}</option>
+                          ))}
+                        </optgroup>
+                      ))
+                  })()}
+                </select>
                 <Button
                   variant="outline"
                   size="sm"

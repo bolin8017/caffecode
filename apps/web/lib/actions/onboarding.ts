@@ -29,6 +29,17 @@ export async function completeOnboarding(data: {
 }) {
   const { supabase, user } = await getAuthUser()
 
+  // Idempotency guard: if already onboarded, skip straight to redirect
+  const { data: profile, error: fetchError } = await supabase
+    .from('users')
+    .select('onboarding_completed')
+    .eq('id', user.id)
+    .single()
+  if (fetchError) throw new Error(`Failed to fetch user: ${fetchError.message}`)
+  if (profile?.onboarding_completed) {
+    redirect('/garden')
+  }
+
   onboardingSchema.parse(data)
 
   const push_hour_utc = toUtcHour(data.push_hour, data.timezone)

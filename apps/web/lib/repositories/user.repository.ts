@@ -89,5 +89,7 @@ export async function getSuggestedRange(
     })
     .filter((s): s is { difficulty: string; rating: number } => s.rating !== null)
 
+  if (signals.length < 3) return null
+
   return computeSuggestedRange(signals)
 }

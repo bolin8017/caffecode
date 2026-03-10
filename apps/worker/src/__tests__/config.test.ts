@@ -29,4 +29,13 @@ describe('envSchema (worker config)', () => {
     const result = envSchema.safeParse(missingToken)
     expect(result.success).toBe(false)
   })
+
+  it('parses successfully without RESEND env vars', () => {
+    const { RESEND_API_KEY: _, ...noResend } = validEnv
+    const result = envSchema.safeParse(noResend)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.RESEND_API_KEY).toBeUndefined()
+    }
+  })
 })

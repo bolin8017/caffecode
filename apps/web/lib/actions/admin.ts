@@ -195,27 +195,41 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
   const deliveredUserIds: string[] = []
   const listPositionUpdates: Array<{ user_id: string; list_id: number; sequence_number: number }> = []
 
-  for (const user of users) {
-    const displayName = user.display_name ?? user.email ?? '—'
-    const channels = (channelsByUser.get(user.id) ?? []).filter(
-      ch => ch.channel_type !== 'line' || user.line_push_allowed
-    )
+  // First pass: parallel problem selection with p-limit(10)
+  const pLimit = (await import('p-limit')).default
+  const limit = pLimit(10)
 
+  const userProblems = await Promise.all(
+    users.map(user => limit(async () => {
+      const displayName = user.display_name ?? user.email ?? '—'
+      const channels = (channelsByUser.get(user.id) ?? []).filter(
+        ch => ch.channel_type !== 'line' || user.line_push_allowed
+      )
+
+      if (!channels.length) {
+        return { user, displayName, channels, problem: null as Awaited<ReturnType<typeof selectProblemForUser>> }
+      }
+
+      const problem = await selectProblemForUser(
+        {
+          id: user.id,
+          mode: user.active_mode as 'list' | 'filter',
+          difficulty_min: user.difficulty_min,
+          difficulty_max: user.difficulty_max,
+          topic_filter: user.topic_filter ?? null,
+        },
+        db
+      )
+      return { user, displayName, channels, problem }
+    }))
+  )
+
+  // Second pass: serial channel dispatch + result collection
+  for (const { user, displayName, channels, problem } of userProblems) {
     if (!channels.length) {
       results.push({ userId: user.id, displayName, status: 'skipped', channels: [] })
       continue
     }
-
-    const problem = await selectProblemForUser(
-      {
-        id: user.id,
-        mode: user.active_mode as 'list' | 'filter',
-        difficulty_min: user.difficulty_min,
-        difficulty_max: user.difficulty_max,
-        topic_filter: user.topic_filter ?? null,
-      },
-      db
-    )
 
     if (!problem) {
       results.push({ userId: user.id, displayName, status: 'skipped', channels: [] })

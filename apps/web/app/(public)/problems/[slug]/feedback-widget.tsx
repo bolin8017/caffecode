@@ -66,12 +66,14 @@ export function FeedbackWidget({ problemId, initialScore, initialDifficulty }: P
       </div>
 
       {/* Star rating */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" role="radiogroup" aria-label="內容評分">
         {[1, 2, 3, 4, 5].map((s) => {
           const filled = displayScore !== undefined && s <= displayScore
           return (
             <button
               key={s}
+              role="radio"
+              aria-checked={score === s}
               disabled={isPending}
               onClick={() => handleScore(s)}
               onMouseEnter={() => setHovered(s)}
@@ -81,7 +83,7 @@ export function FeedbackWidget({ problemId, initialScore, initialDifficulty }: P
                   ? 'text-yellow-500 drop-shadow-[0_0_2px_rgba(234,179,8,0.3)]'
                   : 'text-gray-300 dark:text-gray-600'
               }`}
-              aria-label={`${s} 星`}
+              aria-label={`${s} 顆星${score === s ? '（已選取）' : ''}`}
             >
               {filled ? '★' : '☆'}
             </button>

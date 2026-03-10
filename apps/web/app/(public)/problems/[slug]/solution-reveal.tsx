@@ -8,7 +8,13 @@ export function SolutionReveal({ code }: { code: string }) {
 
   return (
     <div>
-      <Button variant="outline" size="sm" onClick={() => setVisible(!visible)}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setVisible(!visible)}
+        aria-expanded={visible}
+        aria-label={visible ? '隱藏解法' : '顯示完整解法'}
+      >
         {visible ? '隱藏解法' : '顯示完整解法'}
       </Button>
       {visible && (

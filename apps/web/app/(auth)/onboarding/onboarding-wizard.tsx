@@ -48,23 +48,35 @@ export function OnboardingWizard({ lists }: Props) {
   return (
     <div className="mx-auto max-w-lg px-6 py-16">
       {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-10">
-        {[1, 2, 3, 4].map((s) => (
-          <div key={s} className="flex items-center gap-2">
-            <div
-              className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium ${
-                s < step
-                  ? 'bg-primary text-primary-foreground'
-                  : s === step
-                  ? 'bg-primary/20 text-primary border border-primary'
-                  : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {s < step ? '✓' : s}
+      <div
+        className="flex items-center gap-2 mb-10"
+        role="progressbar"
+        aria-valuenow={step}
+        aria-valuemin={1}
+        aria-valuemax={4}
+        aria-label={`設定進度：第 ${step} 步，共 4 步`}
+      >
+        {[1, 2, 3, 4].map((s) => {
+          const stepLabels = ['選擇模式', '設定偏好', '通知時間', '連結頻道']
+          const status = s < step ? '已完成' : s === step ? '進行中' : '未開始'
+          return (
+            <div key={s} className="flex items-center gap-2">
+              <div
+                className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium ${
+                  s < step
+                    ? 'bg-primary text-primary-foreground'
+                    : s === step
+                    ? 'bg-primary/20 text-primary border border-primary'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+                aria-label={`第 ${s} 步：${stepLabels[s - 1]}（${status}）`}
+              >
+                <span aria-hidden="true">{s < step ? '✓' : s}</span>
+              </div>
+              {s < 4 && <div className={`h-px w-8 ${s < step ? 'bg-primary' : 'bg-border'}`} aria-hidden="true" />}
             </div>
-            {s < 4 && <div className={`h-px w-8 ${s < step ? 'bg-primary' : 'bg-border'}`} />}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Step 1: Mode selection */}

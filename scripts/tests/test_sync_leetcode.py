@@ -279,3 +279,185 @@ class TestGenerateSyncReport:
         assert report["metadata_only"] == 1
         assert report["metadata_only_ids"] == [9]
         assert "synced_at" in report
+
+
+class TestParseRatingsTsvEdgeCases:
+    """Edge cases for ratings TSV parsing."""
+
+    def test_handles_malformed_lines_missing_columns(self):
+        """Lines with fewer than 2 columns should be skipped."""
+        tsv = (
+            "Rating\tID\tTitle\n"
+            "1116.5\n"  # Only one column
+            "2045.0\t42\tTrapping Rain Water\n"
+        )
+        result = parse_ratings_tsv(tsv)
+        assert result == {42: 2045}
+
+    def test_handles_non_numeric_rating_values(self):
+        """Non-numeric rating and ID values should be skipped."""
+        tsv = (
+            "Rating\tID\tTitle\n"
+            "abc\t1\tTwo Sum\n"  # Non-numeric rating
+            "1500.0\txyz\tOther\n"  # Non-numeric ID
+            "2000.0\t42\tValid\n"
+        )
+        result = parse_ratings_tsv(tsv)
+        assert result == {42: 2000}
+
+    def test_rounds_ratings_correctly(self):
+        """Ratings should be rounded to nearest integer."""
+        tsv = (
+            "Rating\tID\tTitle\n"
+            "1499.4\t1\tRound Down\n"
+            "1499.5\t2\tRound Up\n"
+            "1500.9\t3\tRound Up High\n"
+        )
+        result = parse_ratings_tsv(tsv)
+        assert result[1] == 1499  # .4 rounds down
+        assert result[2] == 1500  # .5 rounds up (Python banker's rounding: 1500)
+        assert result[3] == 1501  # .9 rounds up
+
+
+class TestBuildMetadataEdgeCases:
+    """Edge cases for build_metadata."""
+
+    def test_handles_none_topic_tags(self):
+        """topicTags field set to None should produce empty topics list."""
+        question = {
+            "questionFrontendId": "100",
+            "title": "Test Problem",
+            "titleSlug": "test-problem",
+            "difficulty": "EASY",
+            "paidOnly": False,
+            "topicTags": None,
+        }
+        result = build_metadata(question, {})
+        assert result is not None
+        assert result["topics"] == []
+
+    def test_handles_empty_topic_tags_list(self):
+        """Empty topicTags list should produce empty topics list."""
+        question = {
+            "questionFrontendId": "101",
+            "title": "No Topics",
+            "titleSlug": "no-topics",
+            "difficulty": "MEDIUM",
+            "paidOnly": False,
+            "topicTags": [],
+        }
+        result = build_metadata(question, {})
+        assert result is not None
+        assert result["topics"] == []
+
+
+class TestMergeProblemFileEdgeCases:
+    """Edge cases for merge_problem_file."""
+
+    def test_partial_update_preserves_existing_fields(self, tmp_path):
+        """Updating one metadata field should preserve all others."""
+        problems_dir = tmp_path / "problems"
+        problems_dir.mkdir()
+
+        existing = {
+            "leetcode_id": 1,
+            "title": "Two Sum",
+            "slug": "two-sum",
+            "difficulty": "Easy",
+            "rating": 1116,
+            "topics": ["array", "hash-table"],
+            "explanation": "Use a hash map for O(n).",
+            "solution_code": "class Solution { ... }",
+            "custom_field": "preserved",
+        }
+        f = problems_dir / "0001-two-sum.json"
+        f.write_text(json.dumps(existing, indent=2, ensure_ascii=False))
+
+        # Only change topics
+        metadata = {
+            "leetcode_id": 1,
+            "title": "Two Sum",
+            "slug": "two-sum",
+            "difficulty": "Easy",
+            "rating": 1116,
+            "topics": ["array", "hash-table", "two-pointers"],
+        }
+        action = merge_problem_file(metadata, problems_dir)
+        assert action == "updated"
+
+        data = json.loads(f.read_text())
+        assert data["explanation"] == "Use a hash map for O(n)."  # content preserved
+        assert data["custom_field"] == "preserved"  # extra field preserved
+        assert data["topics"] == ["array", "hash-table", "two-pointers"]
+
+    def test_generates_correct_filename_format(self, tmp_path):
+        """Filename should be {id:04d}-{slug}.json (zero-padded to 4 digits)."""
+        problems_dir = tmp_path / "problems"
+        problems_dir.mkdir()
+
+        metadata = {
+            "leetcode_id": 42,
+            "title": "Trapping Rain Water",
+            "slug": "trapping-rain-water",
+            "difficulty": "Hard",
+            "rating": 2046,
+            "topics": ["two-pointers"],
+        }
+        merge_problem_file(metadata, problems_dir)
+
+        expected_file = problems_dir / "0042-trapping-rain-water.json"
+        assert expected_file.exists()
+
+
+class TestGenerateSyncReportEdgeCases:
+    """Edge cases for generate_sync_report."""
+
+    def test_calculates_total_correctly(self, tmp_path):
+        """Total should equal with_content + metadata_only."""
+        problems_dir = tmp_path / "problems"
+        problems_dir.mkdir()
+
+        # 2 with content
+        for i in [1, 2]:
+            data = {
+                "leetcode_id": i, "title": f"P{i}", "slug": f"p{i}",
+                "difficulty": "Easy", "rating": 1000, "topics": [],
+                "explanation": "content here",
+            }
+            (problems_dir / f"{i:04d}-p{i}.json").write_text(json.dumps(data))
+
+        # 3 metadata only
+        for i in [3, 4, 5]:
+            data = {
+                "leetcode_id": i, "title": f"P{i}", "slug": f"p{i}",
+                "difficulty": "Easy", "rating": 1000, "topics": [],
+            }
+            (problems_dir / f"{i:04d}-p{i}.json").write_text(json.dumps(data))
+
+        report = generate_sync_report(problems_dir)
+        assert report["total"] == 5
+        assert report["with_content"] == 2
+        assert report["metadata_only"] == 3
+        assert report["total"] == report["with_content"] + report["metadata_only"]
+
+    def test_handles_empty_directory(self, tmp_path):
+        """Empty problems directory should return all zeros."""
+        problems_dir = tmp_path / "problems"
+        problems_dir.mkdir()
+
+        report = generate_sync_report(problems_dir)
+        assert report["total"] == 0
+        assert report["with_content"] == 0
+        assert report["metadata_only"] == 0
+        assert report["metadata_only_ids"] == []
+
+    def test_uses_iso_utc_timestamp_format(self, tmp_path):
+        """synced_at should be an ISO 8601 UTC timestamp."""
+        problems_dir = tmp_path / "problems"
+        problems_dir.mkdir()
+
+        report = generate_sync_report(problems_dir)
+        synced_at = report["synced_at"]
+        # Should be a valid ISO 8601 string with timezone info
+        assert "T" in synced_at
+        assert "+" in synced_at or "Z" in synced_at or synced_at.endswith("+00:00")

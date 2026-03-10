@@ -1,15 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { forceNotifyAll, type ForceNotifyResult } from '@/lib/actions/admin'
 
 export function ForceNotifyButton() {
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [result, setResult] = useState<ForceNotifyResult | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const busyRef = useRef(false)
 
   async function handleClick() {
+    if (busyRef.current) return
     if (!confirm('立即傳送通知給所有啟用通知的用戶（忽略通知時間設定）？')) return
+    busyRef.current = true
     setState('loading')
     setErrorMsg(null)
     try {
@@ -19,6 +22,8 @@ export function ForceNotifyButton() {
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : '傳送失敗')
       setState('error')
+    } finally {
+      busyRef.current = false
     }
   }
 
@@ -51,7 +56,7 @@ export function ForceNotifyButton() {
           </button>
         </div>
         {result.results.length > 0 && (
-          <div className="rounded-lg border overflow-hidden">
+          <div className="rounded-lg border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs text-muted-foreground uppercase">
                 <tr>

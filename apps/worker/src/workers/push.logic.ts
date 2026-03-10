@@ -176,12 +176,14 @@ export async function buildPushJobs(
     const pausedChannels = new Set<string>()
     const results = await Promise.allSettled(
       batchJobs.map(job => {
-        if (pausedChannels.has(job.channelId)) {
-          return Promise.resolve({ success: false, error: 'channel paused mid-batch', shouldRetry: false } as SendResult)
-        }
         const channel = channelRegistryArg[job.channelType]
         if (!channel) return Promise.resolve(null)
         return dispatchLimit(async () => {
+          // Check inside dispatchLimit so it's evaluated when the job
+          // actually executes, not when the map synchronously builds promises.
+          if (pausedChannels.has(job.channelId)) {
+            return { success: false, error: 'channel paused mid-batch', shouldRetry: false } as SendResult
+          }
           const result = await dispatchJob(job, channel, db)
           if (!result.success && !result.shouldRetry) {
             pausedChannels.add(job.channelId)

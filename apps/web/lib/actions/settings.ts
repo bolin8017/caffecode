@@ -204,8 +204,12 @@ export async function exportData() {
       supabase.from('user_list_progress').select('current_position, is_active, curated_lists(name, slug)').eq('user_id', user.id),
     ])
 
-    const firstError = historyRes.error ?? feedbackRes.error ?? progressRes.error
-    if (firstError) throw firstError
+    const errors = [historyRes.error, feedbackRes.error, progressRes.error].filter(Boolean)
+    if (errors.length > 0) {
+      const { logger } = await import('@/lib/logger')
+      for (const err of errors) logger.error({ error: err }, 'exportData: query failed')
+      throw errors[0]
+    }
 
     return {
       exported_at: new Date().toISOString(),

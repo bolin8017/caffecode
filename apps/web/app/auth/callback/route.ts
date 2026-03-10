@@ -1,8 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { sanitizeRedirect } from '@/lib/utils/safe-redirect'
+import { checkRateLimit, getClientIp } from '@/lib/utils/rate-limiter'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
+  const ip = getClientIp(request.headers)
+  if (!checkRateLimit(ip, 30)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const redirect = sanitizeRedirect(searchParams.get('redirect'))

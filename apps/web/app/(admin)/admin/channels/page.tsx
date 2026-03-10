@@ -123,7 +123,7 @@ export default async function AdminChannelsPage({
       </div>
 
       {/* Channel Table */}
-      <div className="rounded-lg border overflow-hidden">
+      <div className="rounded-lg border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs text-muted-foreground uppercase">
             <tr>

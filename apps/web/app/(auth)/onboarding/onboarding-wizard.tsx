@@ -84,26 +84,30 @@ export function OnboardingWizard({ lists }: Props) {
         <div>
           <h1 className="text-2xl font-bold mb-2">選擇學習模式</h1>
           <p className="text-muted-foreground mb-8">你想怎麼刷題？</p>
-          <div className="grid gap-4">
+          <div className="grid gap-4" role="radiogroup" aria-label="學習模式">
             <button
+              role="radio"
+              aria-checked={mode === 'list'}
               onClick={() => { setMode('list'); next() }}
               className={`rounded-xl border-2 p-6 text-left transition-all hover:border-primary ${
                 mode === 'list' ? 'border-primary bg-primary/5' : 'border-border'
               }`}
             >
-              <div className="text-2xl mb-2">📋</div>
+              <div className="text-2xl mb-2" aria-hidden="true">📋</div>
               <div className="font-semibold">清單模式</div>
               <div className="text-sm text-muted-foreground mt-1">
                 跟著 Blind 75、NeetCode 150 等精選清單依序刷題
               </div>
             </button>
             <button
+              role="radio"
+              aria-checked={mode === 'filter'}
               onClick={() => { setMode('filter'); next() }}
               className={`rounded-xl border-2 p-6 text-left transition-all hover:border-primary ${
                 mode === 'filter' ? 'border-primary bg-primary/5' : 'border-border'
               }`}
             >
-              <div className="text-2xl mb-2">🔍</div>
+              <div className="text-2xl mb-2" aria-hidden="true">🔍</div>
               <div className="font-semibold">篩選模式</div>
               <div className="text-sm text-muted-foreground mt-1">
                 設定難度範圍，系統每天從題庫中隨機送題
@@ -118,10 +122,12 @@ export function OnboardingWizard({ lists }: Props) {
         <div>
           <h1 className="text-2xl font-bold mb-2">選擇學習清單</h1>
           <p className="text-muted-foreground mb-6">選一份你想從頭開始的清單</p>
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1" role="radiogroup" aria-label="學習清單">
             {lists.map((l) => (
               <button
                 key={l.id}
+                role="radio"
+                aria-checked={listId === l.id}
                 onClick={() => setListId(l.id)}
                 className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all hover:border-primary ${
                   listId === l.id ? 'border-primary bg-primary/5' : 'border-border'
@@ -143,7 +149,7 @@ export function OnboardingWizard({ lists }: Props) {
         <div>
           <h1 className="text-2xl font-bold mb-2">設定難度範圍</h1>
           <p className="text-muted-foreground mb-6">依 Zerotrac Contest Rating 篩選</p>
-          <div className="space-y-4">
+          <div className="space-y-4" role="radiogroup" aria-label="難度範圍">
             {[
               { label: '≤ 1300（入門）', min: 0, max: 1300 },
               { label: '1300 – 1500（初階）', min: 1300, max: 1500 },
@@ -152,6 +158,8 @@ export function OnboardingWizard({ lists }: Props) {
             ].map((tier) => (
               <button
                 key={tier.label}
+                role="radio"
+                aria-checked={diffMin === tier.min && diffMax === tier.max}
                 onClick={() => { setDiffMin(tier.min); setDiffMax(tier.max) }}
                 className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all hover:border-primary ${
                   diffMin === tier.min && diffMax === tier.max

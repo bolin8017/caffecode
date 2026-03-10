@@ -1,11 +1,6 @@
 'use client'
 
-export default function AuthError({
-  reset,
-}: {
-  error: Error & { digest?: string }
-  reset: () => void
-}) {
+export default function PublicError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <main className="mx-auto max-w-3xl px-6 py-10 text-center">
       <p className="text-4xl mb-4">&#x26A0;&#xFE0F;</p>

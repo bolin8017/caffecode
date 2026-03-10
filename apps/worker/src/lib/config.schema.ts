@@ -6,7 +6,7 @@ export const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(1),
   LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1),
   RESEND_API_KEY: z.string().min(1).optional(),
-  RESEND_FROM_EMAIL: z.string().min(1).default('CaffeCode <noreply@caffecode.net>').optional(),
+  RESEND_FROM_EMAIL: z.string().min(1).optional().default('CaffeCode <noreply@caffecode.net>'),
   APP_URL: z.string().url().default('https://caffecode.net'),
   SENTRY_DSN: z.string().url().optional(),
 })

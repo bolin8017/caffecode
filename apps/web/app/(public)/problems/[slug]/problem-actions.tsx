@@ -65,7 +65,7 @@ export function ProblemActions({
           : null
         trackSolveMarked({ problemId, source: 'problem', timeSinceSentSec })
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed, please try again')
+        setError(err instanceof Error ? err.message : '標記失敗，請再試一次')
       }
     })
   }

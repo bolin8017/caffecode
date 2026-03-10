@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
         const tokenMatch = text.match(/^link_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)
         if (tokenMatch) {
           const linkToken = tokenMatch[1]
+          if (!linkToken) continue
 
           const result = await verifyChannelByToken(supabase, linkToken, userId, 'line')
 

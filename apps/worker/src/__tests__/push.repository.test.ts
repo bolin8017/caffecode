@@ -6,6 +6,7 @@ import {
   advanceListPositions,
   upsertHistoryBatch,
   incrementChannelFailures,
+  resetChannelFailuresForUsers,
   getAllCandidates,
 } from '../repositories/push.repository.js'
 
@@ -101,6 +102,32 @@ describe('incrementChannelFailures', () => {
     expect(rpcMock).toHaveBeenCalledWith('increment_channel_failures', {
       p_channel_id: 'ch-42',
     })
+  })
+})
+
+describe('resetChannelFailuresForUsers', () => {
+  it('resets failures for all channels belonging to given user IDs', async () => {
+    const gtMock = vi.fn().mockResolvedValue({ error: null })
+    const inMock = vi.fn().mockReturnValue({ gt: gtMock })
+    const updateMock = vi.fn().mockReturnValue({ in: inMock })
+    const fromMock = vi.fn().mockReturnValue({ update: updateMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    await resetChannelFailuresForUsers(db, ['user-1', 'user-2'])
+
+    expect(fromMock).toHaveBeenCalledWith('notification_channels')
+    expect(updateMock).toHaveBeenCalledWith({ consecutive_send_failures: 0 })
+    expect(inMock).toHaveBeenCalledWith('user_id', ['user-1', 'user-2'])
+    expect(gtMock).toHaveBeenCalledWith('consecutive_send_failures', 0)
+  })
+
+  it('returns early without querying for empty user IDs', async () => {
+    const fromMock = vi.fn()
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    await resetChannelFailuresForUsers(db, [])
+
+    expect(fromMock).not.toHaveBeenCalled()
   })
 })
 

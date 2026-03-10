@@ -109,6 +109,27 @@ export async function resetChannelFailures(
   }
 }
 
+/**
+ * Bulk-reset consecutive_send_failures for ALL channels belonging to the
+ * given user IDs. Used for auto-recovery: when any channel for a user
+ * succeeds, all that user's paused channels get a fresh retry.
+ */
+export async function resetChannelFailuresForUsers(
+  db: SupabaseClient,
+  userIds: string[],
+): Promise<void> {
+  if (userIds.length === 0) return
+  const { error } = await db
+    .from('notification_channels')
+    .update({ consecutive_send_failures: 0 })
+    .in('user_id', userIds)
+    .gt('consecutive_send_failures', 0)
+
+  if (error) {
+    logger.error({ err: error, userIds: userIds.slice(0, 5) }, 'resetChannelFailuresForUsers: update failed')
+  }
+}
+
 interface PushRunData {
   candidates: number
   succeeded: number

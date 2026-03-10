@@ -48,23 +48,35 @@ export function OnboardingWizard({ lists }: Props) {
   return (
     <div className="mx-auto max-w-lg px-6 py-16">
       {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-10">
-        {[1, 2, 3, 4].map((s) => (
-          <div key={s} className="flex items-center gap-2">
-            <div
-              className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium ${
-                s < step
-                  ? 'bg-primary text-primary-foreground'
-                  : s === step
-                  ? 'bg-primary/20 text-primary border border-primary'
-                  : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {s < step ? '✓' : s}
+      <div
+        className="flex items-center gap-2 mb-10"
+        role="progressbar"
+        aria-valuenow={step}
+        aria-valuemin={1}
+        aria-valuemax={4}
+        aria-label={`設定進度：第 ${step} 步，共 4 步`}
+      >
+        {[1, 2, 3, 4].map((s) => {
+          const stepLabels = ['選擇模式', '設定偏好', '通知時間', '連結頻道']
+          const status = s < step ? '已完成' : s === step ? '進行中' : '未開始'
+          return (
+            <div key={s} className="flex items-center gap-2">
+              <div
+                className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium ${
+                  s < step
+                    ? 'bg-primary text-primary-foreground'
+                    : s === step
+                    ? 'bg-primary/20 text-primary border border-primary'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+                aria-label={`第 ${s} 步：${stepLabels[s - 1]}（${status}）`}
+              >
+                <span aria-hidden="true">{s < step ? '✓' : s}</span>
+              </div>
+              {s < 4 && <div className={`h-px w-8 ${s < step ? 'bg-primary' : 'bg-border'}`} aria-hidden="true" />}
             </div>
-            {s < 4 && <div className={`h-px w-8 ${s < step ? 'bg-primary' : 'bg-border'}`} />}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Step 1: Mode selection */}
@@ -72,26 +84,30 @@ export function OnboardingWizard({ lists }: Props) {
         <div>
           <h1 className="text-2xl font-bold mb-2">選擇學習模式</h1>
           <p className="text-muted-foreground mb-8">你想怎麼刷題？</p>
-          <div className="grid gap-4">
+          <div className="grid gap-4" role="radiogroup" aria-label="學習模式">
             <button
+              role="radio"
+              aria-checked={mode === 'list'}
               onClick={() => { setMode('list'); next() }}
               className={`rounded-xl border-2 p-6 text-left transition-all hover:border-primary ${
                 mode === 'list' ? 'border-primary bg-primary/5' : 'border-border'
               }`}
             >
-              <div className="text-2xl mb-2">📋</div>
+              <div className="text-2xl mb-2" aria-hidden="true">📋</div>
               <div className="font-semibold">清單模式</div>
               <div className="text-sm text-muted-foreground mt-1">
                 跟著 Blind 75、NeetCode 150 等精選清單依序刷題
               </div>
             </button>
             <button
+              role="radio"
+              aria-checked={mode === 'filter'}
               onClick={() => { setMode('filter'); next() }}
               className={`rounded-xl border-2 p-6 text-left transition-all hover:border-primary ${
                 mode === 'filter' ? 'border-primary bg-primary/5' : 'border-border'
               }`}
             >
-              <div className="text-2xl mb-2">🔍</div>
+              <div className="text-2xl mb-2" aria-hidden="true">🔍</div>
               <div className="font-semibold">篩選模式</div>
               <div className="text-sm text-muted-foreground mt-1">
                 設定難度範圍，系統每天從題庫中隨機送題
@@ -106,10 +122,12 @@ export function OnboardingWizard({ lists }: Props) {
         <div>
           <h1 className="text-2xl font-bold mb-2">選擇學習清單</h1>
           <p className="text-muted-foreground mb-6">選一份你想從頭開始的清單</p>
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1" role="radiogroup" aria-label="學習清單">
             {lists.map((l) => (
               <button
                 key={l.id}
+                role="radio"
+                aria-checked={listId === l.id}
                 onClick={() => setListId(l.id)}
                 className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all hover:border-primary ${
                   listId === l.id ? 'border-primary bg-primary/5' : 'border-border'
@@ -131,7 +149,7 @@ export function OnboardingWizard({ lists }: Props) {
         <div>
           <h1 className="text-2xl font-bold mb-2">設定難度範圍</h1>
           <p className="text-muted-foreground mb-6">依 Zerotrac Contest Rating 篩選</p>
-          <div className="space-y-4">
+          <div className="space-y-4" role="radiogroup" aria-label="難度範圍">
             {[
               { label: '≤ 1300（入門）', min: 0, max: 1300 },
               { label: '1300 – 1500（初階）', min: 1300, max: 1500 },
@@ -140,6 +158,8 @@ export function OnboardingWizard({ lists }: Props) {
             ].map((tier) => (
               <button
                 key={tier.label}
+                role="radio"
+                aria-checked={diffMin === tier.min && diffMax === tier.max}
                 onClick={() => { setDiffMin(tier.min); setDiffMax(tier.max) }}
                 className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all hover:border-primary ${
                   diffMin === tier.min && diffMax === tier.max
@@ -165,13 +185,33 @@ export function OnboardingWizard({ lists }: Props) {
           <p className="text-muted-foreground mb-6">每天幾點要收到題目？</p>
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium mb-1">時區</label>
+              <label htmlFor="tz-select" className="block text-sm font-medium mb-1">時區</label>
               <div className="flex gap-2">
-                <input
+                <select
+                  id="tz-select"
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
                   className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
-                />
+                >
+                  {(() => {
+                    const zones = Intl.supportedValuesOf('timeZone')
+                    const grouped: Record<string, string[]> = {}
+                    for (const tz of zones) {
+                      const slash = tz.indexOf('/')
+                      const region = slash === -1 ? 'Other' : tz.slice(0, slash)
+                      ;(grouped[region] ??= []).push(tz)
+                    }
+                    return Object.entries(grouped)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([region, tzs]) => (
+                        <optgroup key={region} label={region}>
+                          {tzs.map((tz) => (
+                            <option key={tz} value={tz}>{tz}</option>
+                          ))}
+                        </optgroup>
+                      ))
+                  })()}
+                </select>
                 <Button
                   variant="outline"
                   size="sm"
@@ -183,8 +223,9 @@ export function OnboardingWizard({ lists }: Props) {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">通知時間</label>
+              <label htmlFor="push-hour-select" className="block text-sm font-medium mb-1">通知時間</label>
               <select
+                id="push-hour-select"
                 value={pushHour}
                 onChange={(e) => setPushHour(Number(e.target.value))}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"

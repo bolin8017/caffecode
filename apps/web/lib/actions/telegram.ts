@@ -15,15 +15,21 @@ export async function connectTelegram(): Promise<{ deepLink: string; linkToken: 
 
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 min
 
-  await upsertChannel(serviceClient, {
-    user_id: user.id,
-    channel_type: 'telegram',
-    channel_identifier: '',
-    display_label: null,
-    is_verified: false,
-    link_token: linkToken,
-    link_token_expires_at: expiresAt,
-  })
+  try {
+    await upsertChannel(serviceClient, {
+      user_id: user.id,
+      channel_type: 'telegram',
+      channel_identifier: '',
+      display_label: null,
+      is_verified: false,
+      link_token: linkToken,
+      link_token_expires_at: expiresAt,
+    })
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'connectTelegram failed')
+    throw new Error('Telegram 連結失敗')
+  }
 
   // Do NOT revalidatePath here — that would re-render the page and wipe
   // the Client Component state (result) before the user can copy the token.

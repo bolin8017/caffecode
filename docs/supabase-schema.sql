@@ -295,6 +295,11 @@ CREATE POLICY "history: read own" ON history
 CREATE POLICY "history: deny insert" ON history
     FOR INSERT WITH CHECK (false);
 
+CREATE POLICY "history: update own solved_at" ON history
+    FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
 -- feedback
 CREATE POLICY "feedback: self only" ON feedback
     FOR ALL USING (auth.uid() = user_id);
@@ -431,6 +436,7 @@ LANGUAGE sql STABLE AS $$
   JOIN problems p ON p.id = h.problem_id
   CROSS JOIN unnest(p.topics) AS t(topic)
   WHERE h.user_id = p_user_id
+    AND h.user_id = auth.uid()
   GROUP BY t.topic
   ORDER BY solved_count DESC, total_received DESC
 $$;

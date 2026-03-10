@@ -36,7 +36,7 @@ export function PushSettingsForm({ pushEnabled: initialEnabled, pushHour: initia
   return (
     <div className="space-y-8">
       {saved && (
-        <div className="rounded-md bg-green-50 dark:bg-green-950 px-4 py-2 text-sm text-green-700 dark:text-green-300">
+        <div role="status" className="rounded-md bg-green-50 dark:bg-green-950 px-4 py-2 text-sm text-green-700 dark:text-green-300">
           ✓ {saved} 已儲存
         </div>
       )}

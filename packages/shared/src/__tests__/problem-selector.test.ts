@@ -74,6 +74,12 @@ describe('selectProblemForUser — filter mode', () => {
     expect(result).toBeNull()
     expect(mockGetProblemById).not.toHaveBeenCalled()
   })
+
+  it('propagates error when getUnsentProblemIds throws', async () => {
+    mockGetUnsentProblemIds.mockRejectedValue(new Error('getUnsentProblemIds: RPC failed: connection refused'))
+
+    await expect(selectProblemForUser(baseUser, fakeSupabase)).rejects.toThrow('RPC failed')
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
   const linkTokenMatch = text.match(/^(?:\/start )?link_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)
   if (linkTokenMatch) {
     const linkToken = linkTokenMatch[1]
+    if (!linkToken) return NextResponse.json({ ok: true })
 
     try {
       const supabase = createServiceClient()

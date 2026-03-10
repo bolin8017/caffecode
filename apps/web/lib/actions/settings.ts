@@ -24,7 +24,13 @@ export async function updatePushSettings(push_enabled: boolean, push_hour: numbe
   const timezone = current?.timezone ?? 'Asia/Taipei'
   const push_hour_utc = toUtcHour(push_hour, timezone)
 
-  await updateUser(supabase, user.id, { push_enabled, push_hour, push_hour_utc })
+  try {
+    await updateUser(supabase, user.id, { push_enabled, push_hour, push_hour_utc })
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'updatePushSettings failed')
+    throw new Error('推送設定更新失敗')
+  }
   revalidatePath('/settings')
   revalidatePath('/dashboard')
 }
@@ -43,7 +49,13 @@ export async function updateTimezone(timezone: string) {
   const push_hour = current?.push_hour ?? 9
   const push_hour_utc = toUtcHour(push_hour, timezone)
 
-  await updateUser(supabase, user.id, { timezone, push_hour_utc })
+  try {
+    await updateUser(supabase, user.id, { timezone, push_hour_utc })
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'updateTimezone failed')
+    throw new Error('時區更新失敗')
+  }
   revalidatePath('/settings')
 }
 
@@ -72,23 +84,29 @@ export async function updateLearningMode(
   const { supabase, user } = await getAuthUser()
   modeSchema.parse(data)
 
-  if (data.mode === 'list') {
-    await Promise.all([
-      updateUser(supabase, user.id, { active_mode: 'list' }),
-      deactivateAllLists(supabase, user.id),
-    ])
-    await upsertListProgress(supabase, {
-      user_id: user.id,
-      list_id: data.list_id,
-      is_active: true,
-    })
-  } else {
-    await updateUser(supabase, user.id, {
-      active_mode: 'filter',
-      difficulty_min: data.difficulty_min,
-      difficulty_max: data.difficulty_max,
-      topic_filter: data.topic_filter,
-    })
+  try {
+    if (data.mode === 'list') {
+      await Promise.all([
+        updateUser(supabase, user.id, { active_mode: 'list' }),
+        deactivateAllLists(supabase, user.id),
+      ])
+      await upsertListProgress(supabase, {
+        user_id: user.id,
+        list_id: data.list_id,
+        is_active: true,
+      })
+    } else {
+      await updateUser(supabase, user.id, {
+        active_mode: 'filter',
+        difficulty_min: data.difficulty_min,
+        difficulty_max: data.difficulty_max,
+        topic_filter: data.topic_filter,
+      })
+    }
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'updateLearningMode failed')
+    throw new Error('學習模式更新失敗')
   }
 
   revalidatePath('/settings')
@@ -106,27 +124,33 @@ export async function subscribeToList(listId: number, startPosition?: number) {
   const { supabase, user } = await getAuthUser()
   subscribeSchema.parse({ listId, startPosition })
 
-  await Promise.all([
-    updateUser(supabase, user.id, { active_mode: 'list' }),
-    deactivateAllLists(supabase, user.id),
-  ])
+  try {
+    await Promise.all([
+      updateUser(supabase, user.id, { active_mode: 'list' }),
+      deactivateAllLists(supabase, user.id),
+    ])
 
-  const progressData: {
-    user_id: string
-    list_id: number
-    is_active: boolean
-    current_position?: number
-  } = {
-    user_id: user.id,
-    list_id: listId,
-    is_active: true,
+    const progressData: {
+      user_id: string
+      list_id: number
+      is_active: boolean
+      current_position?: number
+    } = {
+      user_id: user.id,
+      list_id: listId,
+      is_active: true,
+    }
+
+    if (startPosition !== undefined) {
+      progressData.current_position = startPosition
+    }
+
+    await upsertListProgress(supabase, progressData)
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'subscribeToList failed')
+    throw new Error('列表訂閱失敗')
   }
-
-  if (startPosition !== undefined) {
-    progressData.current_position = startPosition
-  }
-
-  await upsertListProgress(supabase, progressData)
 
   revalidatePath('/dashboard')
   revalidatePath('/settings/learning')
@@ -173,32 +197,29 @@ export async function deleteAccount() {
 export async function exportData() {
   const { supabase, user } = await getAuthUser()
 
-  const [historyRes, feedbackRes, progressRes] = await Promise.all([
-    supabase.from('history').select('sent_at, problems(title, slug)').eq('user_id', user.id),
-    supabase.from('feedback').select('problem_id, difficulty, content_score, created_at').eq('user_id', user.id),
-    supabase.from('user_list_progress').select('current_position, is_active, curated_lists(name, slug)').eq('user_id', user.id),
-  ])
+  try {
+    const [historyRes, feedbackRes, progressRes] = await Promise.all([
+      supabase.from('history').select('sent_at, problems(title, slug)').eq('user_id', user.id),
+      supabase.from('feedback').select('problem_id, difficulty, content_score, created_at').eq('user_id', user.id),
+      supabase.from('user_list_progress').select('current_position, is_active, curated_lists(name, slug)').eq('user_id', user.id),
+    ])
 
-  if (historyRes.error) {
-    const { logger } = await import('@/lib/logger')
-    logger.error({ error: historyRes.error }, 'exportData: failed to fetch history')
-    throw new Error('Failed to export data')
-  }
-  if (feedbackRes.error) {
-    const { logger } = await import('@/lib/logger')
-    logger.error({ error: feedbackRes.error }, 'exportData: failed to fetch feedback')
-    throw new Error('Failed to export data')
-  }
-  if (progressRes.error) {
-    const { logger } = await import('@/lib/logger')
-    logger.error({ error: progressRes.error }, 'exportData: failed to fetch progress')
-    throw new Error('Failed to export data')
-  }
+    const errors = [historyRes.error, feedbackRes.error, progressRes.error].filter(Boolean)
+    if (errors.length > 0) {
+      const { logger } = await import('@/lib/logger')
+      for (const err of errors) logger.error({ error: err }, 'exportData: query failed')
+      throw errors[0]
+    }
 
-  return {
-    exported_at: new Date().toISOString(),
-    history: historyRes.data ?? [],
-    feedback: feedbackRes.data ?? [],
-    list_progress: progressRes.data ?? [],
+    return {
+      exported_at: new Date().toISOString(),
+      history: historyRes.data ?? [],
+      feedback: feedbackRes.data ?? [],
+      list_progress: progressRes.data ?? [],
+    }
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'exportData failed')
+    throw new Error('資料匯出失敗')
   }
 }

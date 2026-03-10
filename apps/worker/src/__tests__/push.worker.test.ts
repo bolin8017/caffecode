@@ -114,8 +114,8 @@ describe('dispatchJob', () => {
     expect(rpcMock).toHaveBeenCalledWith('increment_channel_failures', { p_channel_id: 'ch-1' })
   })
 
-  it('resets failure counter on successful send', async () => {
-    const { mock, fromMock, updateMock } = makeSupabaseMock()
+  it('does not reset failure counter per-channel on successful send (bulk reset handles this)', async () => {
+    const { mock, fromMock, rpcMock } = makeSupabaseMock()
     const channel: NotificationChannel = {
 
       send: vi.fn().mockResolvedValue({ success: true }),
@@ -123,8 +123,9 @@ describe('dispatchJob', () => {
 
     await dispatchJob(makeJob(), channel, mock)
 
-    expect(fromMock).toHaveBeenCalledWith('notification_channels')
-    expect(updateMock).toHaveBeenCalledWith({ consecutive_send_failures: 0 })
+    // dispatchJob no longer resets per-channel — bulk resetChannelFailuresForUsers in buildPushJobs handles it
+    expect(fromMock).not.toHaveBeenCalled()
+    expect(rpcMock).not.toHaveBeenCalled()
   })
 
   it('does not modify failure counter on retryable failure', async () => {
@@ -158,19 +159,19 @@ describe('dispatchJob', () => {
     expect(incrementCalls).toHaveLength(0)
   })
 
-  it('successful send after 2 failures calls resetChannelFailures (resets to 0)', async () => {
-    const { mock, fromMock, updateMock } = makeSupabaseMock()
+  it('successful send after prior failures does not reset per-channel (bulk reset handles this)', async () => {
+    const { mock, fromMock, rpcMock } = makeSupabaseMock()
     const job = makeJob()
 
-    // Simulate successful send (the counter value is managed by the DB — we just verify reset is called)
+    // Simulate successful send — per-channel reset removed; bulk resetChannelFailuresForUsers in buildPushJobs handles it
     const channel: NotificationChannel = {
       send: vi.fn().mockResolvedValue({ success: true }),
     }
 
     await dispatchJob(job, channel, mock)
 
-    expect(fromMock).toHaveBeenCalledWith('notification_channels')
-    expect(updateMock).toHaveBeenCalledWith({ consecutive_send_failures: 0 })
+    expect(fromMock).not.toHaveBeenCalled()
+    expect(rpcMock).not.toHaveBeenCalled()
   })
 
   it('three sequential permanent failures each call incrementChannelFailures once', async () => {

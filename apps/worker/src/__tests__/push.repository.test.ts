@@ -6,6 +6,7 @@ import {
   advanceListPositions,
   upsertHistoryBatch,
   incrementChannelFailures,
+  resetChannelFailuresForUsers,
   getAllCandidates,
 } from '../repositories/push.repository.js'
 
@@ -104,6 +105,32 @@ describe('incrementChannelFailures', () => {
   })
 })
 
+describe('resetChannelFailuresForUsers', () => {
+  it('resets failures for all channels belonging to given user IDs', async () => {
+    const gtMock = vi.fn().mockResolvedValue({ error: null })
+    const inMock = vi.fn().mockReturnValue({ gt: gtMock })
+    const updateMock = vi.fn().mockReturnValue({ in: inMock })
+    const fromMock = vi.fn().mockReturnValue({ update: updateMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    await resetChannelFailuresForUsers(db, ['user-1', 'user-2'])
+
+    expect(fromMock).toHaveBeenCalledWith('notification_channels')
+    expect(updateMock).toHaveBeenCalledWith({ consecutive_send_failures: 0 })
+    expect(inMock).toHaveBeenCalledWith('user_id', ['user-1', 'user-2'])
+    expect(gtMock).toHaveBeenCalledWith('consecutive_send_failures', 0)
+  })
+
+  it('returns early without querying for empty user IDs', async () => {
+    const fromMock = vi.fn()
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    await resetChannelFailuresForUsers(db, [])
+
+    expect(fromMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('getAllCandidates', () => {
   it('calls get_push_candidates RPC and returns all rows', async () => {
     const mockRow = {
@@ -125,12 +152,10 @@ describe('getAllCandidates', () => {
     expect(result[0]).toMatchObject({ id: 'user-1' })
   })
 
-  it('returns empty array on RPC error', async () => {
+  it('throws on RPC error', async () => {
     const rpcMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } })
     const db = { rpc: rpcMock } as unknown as SupabaseClient
 
-    const result = await getAllCandidates(db)
-
-    expect(result).toHaveLength(0)
+    await expect(getAllCandidates(db)).rejects.toThrow('getAllCandidates: RPC failed: DB error')
   })
 })

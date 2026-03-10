@@ -71,7 +71,7 @@ export function AccountForm() {
           </Button>
         </div>
         {deleteError && (
-          <p className="text-xs text-destructive">{deleteError}</p>
+          <p role="alert" className="text-xs text-destructive">{deleteError}</p>
         )}
       </section>
     </div>

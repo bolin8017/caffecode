@@ -21,8 +21,7 @@ export interface VerifiedChannel {
 export async function getAllCandidates(db: SupabaseClient): Promise<PushCandidate[]> {
   const { data, error } = await db.rpc('get_push_candidates')
   if (error) {
-    logger.error({ error }, 'getAllCandidates: RPC failed')
-    return []
+    throw new Error(`getAllCandidates: RPC failed: ${error.message}`)
   }
   return (data ?? []) as PushCandidate[]
 }
@@ -33,7 +32,7 @@ export async function stampLastPushDate(
 ): Promise<void> {
   const { error } = await db.rpc('stamp_last_push_date', { p_user_ids: userIds })
   if (error) {
-    logger.error({ err: error }, 'stampLastPushDate: RPC failed')
+    throw new Error(`stampLastPushDate: RPC failed: ${error.message}`)
   }
 }
 
@@ -64,7 +63,7 @@ export async function upsertHistoryBatch(
     { onConflict: 'user_id,problem_id', ignoreDuplicates: true }
   )
   if (error) {
-    logger.error({ err: error }, 'upsertHistoryBatch: upsert failed')
+    throw new Error(`upsertHistoryBatch: upsert failed: ${error.message}`)
   }
 }
 
@@ -81,7 +80,7 @@ export async function advanceListPositions(
     })),
   })
   if (error) {
-    logger.error({ err: error }, 'advanceListPositions: RPC failed')
+    throw new Error(`advanceListPositions: RPC failed: ${error.message}`)
   }
 }
 
@@ -95,18 +94,28 @@ export async function incrementChannelFailures(
   }
 }
 
-export async function resetChannelFailures(
+/**
+ * Bulk-reset consecutive_send_failures for ALL channels belonging to the
+ * given user IDs. Used for auto-recovery: when any channel for a user
+ * succeeds, all that user's paused channels get a fresh retry.
+ *
+ * Intentionally non-throwing: failure here only delays auto-recovery and
+ * must not block critical writes (history, stamp, list positions) that
+ * run in the same Promise.all.
+ */
+export async function resetChannelFailuresForUsers(
   db: SupabaseClient,
-  channelId: string,
+  userIds: string[],
 ): Promise<void> {
+  if (userIds.length === 0) return
   const { error } = await db
     .from('notification_channels')
     .update({ consecutive_send_failures: 0 })
-    .eq('id', channelId)
+    .in('user_id', userIds)
     .gt('consecutive_send_failures', 0)
 
   if (error) {
-    logger.error({ err: error, channelId }, 'resetChannelFailures: update failed')
+    logger.error({ err: error, userIds: userIds.slice(0, 5) }, 'resetChannelFailuresForUsers: update failed')
   }
 }
 

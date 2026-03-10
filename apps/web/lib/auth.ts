@@ -9,6 +9,7 @@ export async function getAuthUser() {
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error) {
     logger.error({ error: error.message }, 'Auth user fetch failed')
+    throw new Error('Unauthenticated')
   }
   if (!user) throw new Error('Unauthenticated')
   return { supabase, user }

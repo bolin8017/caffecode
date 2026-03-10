@@ -37,9 +37,14 @@ async function requireAdmin() {
 export async function deleteProblem(id: number) {
   z.number().int().positive().parse(id)
   const { adminDb: db } = await requireAdmin()
-  const { error } = await db.from('problems').delete().eq('id', id)
-  if (error) throw new Error(`Failed to delete problem: ${error.message}`)
-  revalidatePath('/admin/problems')
+  try {
+    const { error } = await db.from('problems').delete().eq('id', id)
+    if (error) throw error
+    revalidatePath('/admin/problems')
+  } catch (err) {
+    logger.error({ error: String(err), problemId: id }, 'deleteProblem failed')
+    throw new Error('Failed to delete problem')
+  }
 }
 
 // ── Content ────────────────────────────────────────────────────
@@ -47,32 +52,47 @@ export async function deleteProblem(id: number) {
 export async function flagForRegeneration(problemId: number) {
   z.number().int().positive().parse(problemId)
   const { adminDb: db } = await requireAdmin()
-  const { error } = await db
-    .from('problem_content')
-    .update({ needs_regeneration: true })
-    .eq('problem_id', problemId)
-  if (error) throw new Error(`Failed to flag for regeneration: ${error.message}`)
-  revalidatePath('/admin/content')
+  try {
+    const { error } = await db
+      .from('problem_content')
+      .update({ needs_regeneration: true })
+      .eq('problem_id', problemId)
+    if (error) throw error
+    revalidatePath('/admin/content')
+  } catch (err) {
+    logger.error({ error: String(err), problemId }, 'flagForRegeneration failed')
+    throw new Error('Failed to flag for regeneration')
+  }
 }
 
 export async function unflagRegeneration(problemId: number) {
   z.number().int().positive().parse(problemId)
   const { adminDb: db } = await requireAdmin()
-  const { error } = await db
-    .from('problem_content')
-    .update({ needs_regeneration: false })
-    .eq('problem_id', problemId)
-  if (error) throw new Error(`Failed to unflag regeneration: ${error.message}`)
-  revalidatePath('/admin/content')
+  try {
+    const { error } = await db
+      .from('problem_content')
+      .update({ needs_regeneration: false })
+      .eq('problem_id', problemId)
+    if (error) throw error
+    revalidatePath('/admin/content')
+  } catch (err) {
+    logger.error({ error: String(err), problemId }, 'unflagRegeneration failed')
+    throw new Error('Failed to unflag regeneration')
+  }
 }
 
 export async function setLinePushAllowed(userId: string, allowed: boolean) {
   z.string().uuid().parse(userId)
   z.boolean().parse(allowed)
   const { adminDb: db } = await requireAdmin()
-  const { error } = await db.from('users').update({ line_push_allowed: allowed }).eq('id', userId)
-  if (error) throw new Error(`Failed to update LINE push allowed: ${error.message}`)
-  revalidatePath('/admin/users')
+  try {
+    const { error } = await db.from('users').update({ line_push_allowed: allowed }).eq('id', userId)
+    if (error) throw error
+    revalidatePath('/admin/users')
+  } catch (err) {
+    logger.error({ error: String(err), userId }, 'setLinePushAllowed failed')
+    throw new Error('Failed to update LINE push allowed')
+  }
 }
 
 export async function deleteUser(userId: string) {
@@ -195,27 +215,47 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
   const deliveredUserIds: string[] = []
   const listPositionUpdates: Array<{ user_id: string; list_id: number; sequence_number: number }> = []
 
-  for (const user of users) {
-    const displayName = user.display_name ?? user.email ?? '—'
-    const channels = (channelsByUser.get(user.id) ?? []).filter(
-      ch => ch.channel_type !== 'line' || user.line_push_allowed
-    )
+  // First pass: parallel problem selection with p-limit(10)
+  const pLimit = (await import('p-limit')).default
+  const limit = pLimit(10)
 
+  const settled = await Promise.allSettled(
+    users.map(user => limit(async () => {
+      const displayName = user.display_name ?? user.email ?? '—'
+      const channels = (channelsByUser.get(user.id) ?? []).filter(
+        ch => ch.channel_type !== 'line' || user.line_push_allowed
+      )
+
+      if (!channels.length) {
+        return { user, displayName, channels, problem: null as Awaited<ReturnType<typeof selectProblemForUser>> }
+      }
+
+      const problem = await selectProblemForUser(
+        {
+          id: user.id,
+          mode: user.active_mode as 'list' | 'filter',
+          difficulty_min: user.difficulty_min,
+          difficulty_max: user.difficulty_max,
+          topic_filter: user.topic_filter ?? null,
+        },
+        db
+      )
+      return { user, displayName, channels, problem }
+    }))
+  )
+  const userProblems = settled.map((r, idx) => {
+    if (r.status === 'fulfilled') return r.value
+    logger.error({ userId: users[idx].id, error: String(r.reason) }, 'forceNotifyAll: problem selection failed')
+    const u = users[idx]
+    return { user: u, displayName: u.display_name ?? u.email ?? '—', channels: [] as typeof allChannels, problem: null as Awaited<ReturnType<typeof selectProblemForUser>> }
+  })
+
+  // Second pass: serial channel dispatch + result collection
+  for (const { user, displayName, channels, problem } of userProblems) {
     if (!channels.length) {
       results.push({ userId: user.id, displayName, status: 'skipped', channels: [] })
       continue
     }
-
-    const problem = await selectProblemForUser(
-      {
-        id: user.id,
-        mode: user.active_mode as 'list' | 'filter',
-        difficulty_min: user.difficulty_min,
-        difficulty_max: user.difficulty_max,
-        topic_filter: user.topic_filter ?? null,
-      },
-      db
-    )
 
     if (!problem) {
       results.push({ userId: user.id, displayName, status: 'skipped', channels: [] })
@@ -282,9 +322,15 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
           })]
         : []),
     ])
-    if (historyResult.error) logger.warn({ error: historyResult.error.message }, 'Failed to upsert history in forceNotifyAll')
-    if (stampResult.error) logger.warn({ error: stampResult.error.message }, 'Failed to stamp push date in forceNotifyAll')
-    if (rest[0]?.error) logger.warn({ error: rest[0].error.message }, 'Failed to advance list positions in forceNotifyAll')
+    const writeErrors: string[] = []
+    if (historyResult.error) writeErrors.push(`History: ${historyResult.error.message}`)
+    if (stampResult.error) writeErrors.push(`Stamp: ${stampResult.error.message}`)
+    if (rest[0]?.error) writeErrors.push(`Positions: ${rest[0].error.message}`)
+    if (writeErrors.length > 0) {
+      // Log but don't throw — notifications are already sent.
+      // Throwing here would hide per-user results from the admin UI.
+      logger.error({ errors: writeErrors }, 'forceNotifyAll: post-dispatch writes partially failed')
+    }
   }
 
   revalidatePath('/admin/push')
@@ -350,16 +396,22 @@ export async function testNotifyChannel(channelId: string): Promise<TestNotifyRe
     topic_filter: string[] | null
   }
 
-  const problem = await selectProblemForUser(
-    {
-      id: user.id,
-      mode: user.active_mode as 'list' | 'filter',
-      difficulty_min: user.difficulty_min,
-      difficulty_max: user.difficulty_max,
-      topic_filter: user.topic_filter ?? null,
-    },
-    db
-  )
+  let problem: Awaited<ReturnType<typeof selectProblemForUser>>
+  try {
+    problem = await selectProblemForUser(
+      {
+        id: user.id,
+        mode: user.active_mode as 'list' | 'filter',
+        difficulty_min: user.difficulty_min,
+        difficulty_max: user.difficulty_max,
+        topic_filter: user.topic_filter ?? null,
+      },
+      db
+    )
+  } catch (err) {
+    logger.error({ userId: user.id, error: String(err) }, 'testNotifyChannel: problem selection failed')
+    return { success: false, latencyMs: 0, error: 'Problem selection failed' }
+  }
 
   if (!problem) return { success: false, latencyMs: 0, error: 'No problem available for this user' }
 

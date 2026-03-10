@@ -11,14 +11,20 @@ export async function connectEmail(): Promise<{ email: string }> {
 
   const serviceClient = createServiceClient()
 
-  await upsertChannel(serviceClient, {
-    user_id: user.id,
-    channel_type: 'email',
-    channel_identifier: user.email,
-    display_label: null,
-    is_verified: true,
-    link_token: null,
-  })
+  try {
+    await upsertChannel(serviceClient, {
+      user_id: user.id,
+      channel_type: 'email',
+      channel_identifier: user.email,
+      display_label: null,
+      is_verified: true,
+      link_token: null,
+    })
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'connectEmail failed')
+    throw new Error('Email 連結失敗')
+  }
 
   revalidatePath('/settings')
   return { email: user.email }

@@ -81,7 +81,7 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 ## Development Notes
 
-**Tests**: 245 TypeScript (shared 67, worker 42, web 136) + 20 Python. TS: `pnpm exec vitest run` per package. Python: `cd scripts && python3 -m pytest tests/ -v`.
+**Tests**: 252 TypeScript (shared 68, worker 48, web 136) + 20 Python. TS: `pnpm exec vitest run` per package. Python: `cd scripts && python3 -m pytest tests/ -v`.
 
 **Next.js 16**: `proxy.ts` (not `middleware.ts`); export must be named `proxy`.
 

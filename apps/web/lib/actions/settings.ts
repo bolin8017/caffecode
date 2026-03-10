@@ -24,7 +24,13 @@ export async function updatePushSettings(push_enabled: boolean, push_hour: numbe
   const timezone = current?.timezone ?? 'Asia/Taipei'
   const push_hour_utc = toUtcHour(push_hour, timezone)
 
-  await updateUser(supabase, user.id, { push_enabled, push_hour, push_hour_utc })
+  try {
+    await updateUser(supabase, user.id, { push_enabled, push_hour, push_hour_utc })
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'updatePushSettings failed')
+    throw new Error('推送設定更新失敗')
+  }
   revalidatePath('/settings')
   revalidatePath('/dashboard')
 }
@@ -43,7 +49,13 @@ export async function updateTimezone(timezone: string) {
   const push_hour = current?.push_hour ?? 9
   const push_hour_utc = toUtcHour(push_hour, timezone)
 
-  await updateUser(supabase, user.id, { timezone, push_hour_utc })
+  try {
+    await updateUser(supabase, user.id, { timezone, push_hour_utc })
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'updateTimezone failed')
+    throw new Error('時區更新失敗')
+  }
   revalidatePath('/settings')
 }
 
@@ -72,23 +84,29 @@ export async function updateLearningMode(
   const { supabase, user } = await getAuthUser()
   modeSchema.parse(data)
 
-  if (data.mode === 'list') {
-    await Promise.all([
-      updateUser(supabase, user.id, { active_mode: 'list' }),
-      deactivateAllLists(supabase, user.id),
-    ])
-    await upsertListProgress(supabase, {
-      user_id: user.id,
-      list_id: data.list_id,
-      is_active: true,
-    })
-  } else {
-    await updateUser(supabase, user.id, {
-      active_mode: 'filter',
-      difficulty_min: data.difficulty_min,
-      difficulty_max: data.difficulty_max,
-      topic_filter: data.topic_filter,
-    })
+  try {
+    if (data.mode === 'list') {
+      await Promise.all([
+        updateUser(supabase, user.id, { active_mode: 'list' }),
+        deactivateAllLists(supabase, user.id),
+      ])
+      await upsertListProgress(supabase, {
+        user_id: user.id,
+        list_id: data.list_id,
+        is_active: true,
+      })
+    } else {
+      await updateUser(supabase, user.id, {
+        active_mode: 'filter',
+        difficulty_min: data.difficulty_min,
+        difficulty_max: data.difficulty_max,
+        topic_filter: data.topic_filter,
+      })
+    }
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'updateLearningMode failed')
+    throw new Error('學習模式更新失敗')
   }
 
   revalidatePath('/settings')

@@ -282,9 +282,14 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
           })]
         : []),
     ])
-    if (historyResult.error) logger.warn({ error: historyResult.error.message }, 'Failed to upsert history in forceNotifyAll')
-    if (stampResult.error) logger.warn({ error: stampResult.error.message }, 'Failed to stamp push date in forceNotifyAll')
-    if (rest[0]?.error) logger.warn({ error: rest[0].error.message }, 'Failed to advance list positions in forceNotifyAll')
+    const writeErrors: string[] = []
+    if (historyResult.error) writeErrors.push(`History: ${historyResult.error.message}`)
+    if (stampResult.error) writeErrors.push(`Stamp: ${stampResult.error.message}`)
+    if (rest[0]?.error) writeErrors.push(`Positions: ${rest[0].error.message}`)
+    if (writeErrors.length > 0) {
+      logger.error({ errors: writeErrors }, 'forceNotifyAll: post-dispatch writes failed')
+      throw new Error(`Data consistency error: ${writeErrors.join('; ')}`)
+    }
   }
 
   revalidatePath('/admin/push')

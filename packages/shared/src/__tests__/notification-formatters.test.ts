@@ -211,3 +211,91 @@ describe('buildTelegramReplyMarkup', () => {
     expect(markup.inline_keyboard[0][0].text).toBeTruthy()
   })
 })
+
+// ---------------------------------------------------------------------------
+// formatTelegramMessage — additional edge cases
+// ---------------------------------------------------------------------------
+describe('formatTelegramMessage — edge cases', () => {
+  it('escapes HTML entities in difficulty field', () => {
+    const m: PushMessage = { ...msg, difficulty: '<script>Hard</script>' }
+    const output = formatTelegramMessage(m)
+    expect(output).not.toContain('<script>')
+    expect(output).toContain('&lt;script&gt;')
+  })
+
+  it('uses red emoji for Hard difficulty', () => {
+    const m: PushMessage = { ...msg, difficulty: 'Hard' }
+    expect(formatTelegramMessage(m)).toContain('🔴')
+  })
+
+  it('uses white circle for unknown difficulty', () => {
+    const m: PushMessage = { ...msg, difficulty: 'Expert' }
+    expect(formatTelegramMessage(m)).toContain('⚪')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// buildFlexBubble — additional assertions
+// ---------------------------------------------------------------------------
+describe('buildFlexBubble — additional', () => {
+  it('header has dark background color #0f172a', () => {
+    const bubble = buildFlexBubble(msg) as {
+      header: { backgroundColor: string }
+    }
+    expect(bubble.header.backgroundColor).toBe('#0f172a')
+  })
+
+  it('footer contains the problem URL in button action', () => {
+    const m: PushMessage = { ...msg, url: 'https://caffecode.net/problems/median-of-two-sorted-arrays' }
+    const bubble = buildFlexBubble(m) as {
+      footer: { contents: { action: { uri: string } }[] }
+    }
+    expect(bubble.footer.contents[0].action.uri).toBe(
+      'https://caffecode.net/problems/median-of-two-sorted-arrays'
+    )
+  })
+
+  it('title text has wrap:true for long titles', () => {
+    const bubble = buildFlexBubble(msg) as {
+      body: { contents: { wrap?: boolean; text: string }[] }
+    }
+    const titleEl = bubble.body.contents.find(c => c.text === 'Two Sum')
+    expect(titleEl?.wrap).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// formatEmailSubject — additional
+// ---------------------------------------------------------------------------
+describe('formatEmailSubject — additional', () => {
+  it('contains coffee emoji', () => {
+    expect(formatEmailSubject(msg)).toContain('☕')
+  })
+
+  it('handles empty title gracefully (does not crash)', () => {
+    const m: PushMessage = { ...msg, title: '' }
+    // Subject uses msg.difficulty, not msg.title, so it should still work
+    const subject = formatEmailSubject(m)
+    expect(subject.length).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// buildTelegramReplyMarkup — additional
+// ---------------------------------------------------------------------------
+describe('buildTelegramReplyMarkup — additional', () => {
+  it('button text is "查看解題 →"', () => {
+    const markup = buildTelegramReplyMarkup('https://example.com') as {
+      inline_keyboard: { text: string; url: string }[][]
+    }
+    expect(markup.inline_keyboard[0][0].text).toBe('查看解題 →')
+  })
+
+  it('URL matches the provided URL exactly', () => {
+    const url = 'https://caffecode.net/problems/two-sum?ref=push'
+    const markup = buildTelegramReplyMarkup(url) as {
+      inline_keyboard: { text: string; url: string }[][]
+    }
+    expect(markup.inline_keyboard[0][0].url).toBe(url)
+  })
+})

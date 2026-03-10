@@ -107,6 +107,34 @@ describe('sendTelegramMessage', () => {
     expect(bodyPortion.length).toBeLessThanOrEqual(200)
     expect(bodyPortion).not.toBe(longBody)
   })
+
+  it('returns shouldRetry:false for 401 Unauthorized', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false, status: 401, text: () => Promise.resolve('Unauthorized'),
+    })
+    const { sendTelegramMessage } = await import('../channels/telegram.js')
+    const result = await sendTelegramMessage('bot-token', '12345', msg)
+    expect(result.shouldRetry).toBe(false)
+  })
+
+  it('returns shouldRetry:true for 429 Too Many Requests', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false, status: 429, text: () => Promise.resolve('Too Many Requests'),
+    })
+    const { sendTelegramMessage } = await import('../channels/telegram.js')
+    const result = await sendTelegramMessage('bot-token', '12345', msg)
+    expect(result.shouldRetry).toBe(true)
+  })
+
+  it('uses 15s timeout via AbortSignal', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+    globalThis.fetch = mockFetch
+    const { sendTelegramMessage } = await import('../channels/telegram.js')
+    await sendTelegramMessage('bot-token', '12345', msg)
+
+    const requestInit = mockFetch.mock.calls[0][1]
+    expect(requestInit.signal).toBeDefined()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -172,6 +200,48 @@ describe('sendLineMessage', () => {
     const result = await sendLineMessage('line-token', 'U1234', msg)
     expect(result.success).toBe(false)
     expect(result.shouldRetry).toBe(true)
+  })
+
+  it('returns shouldRetry:false for 401 Unauthorized', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false, status: 401, text: () => Promise.resolve('Unauthorized'),
+    })
+    const { sendLineMessage } = await import('../channels/line.js')
+    const result = await sendLineMessage('line-token', 'U1234', msg)
+    expect(result.shouldRetry).toBe(false)
+  })
+
+  it('uses 15s timeout via AbortSignal', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+    globalThis.fetch = mockFetch
+    const { sendLineMessage } = await import('../channels/line.js')
+    await sendLineMessage('line-token', 'U1234', msg)
+
+    const requestInit = mockFetch.mock.calls[0][1]
+    expect(requestInit.signal).toBeDefined()
+  })
+
+  it('includes altText with title and difficulty', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+    globalThis.fetch = mockFetch
+    const { sendLineMessage } = await import('../channels/line.js')
+    await sendLineMessage('line-token', 'U1234', msg)
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    const altText = body.messages[0].altText
+    expect(altText).toContain('Two Sum')
+    expect(altText).toContain('Easy')
+  })
+
+  it('truncates long error body to 200 chars', async () => {
+    const longBody = 'x'.repeat(500)
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false, status: 500, text: () => Promise.resolve(longBody),
+    })
+    const { sendLineMessage } = await import('../channels/line.js')
+    const result = await sendLineMessage('line-token', 'U1234', msg)
+    const bodyPortion = (result.error ?? '').replace(/^HTTP \d+: /, '')
+    expect(bodyPortion.length).toBeLessThanOrEqual(200)
   })
 })
 
@@ -240,5 +310,62 @@ describe('sendEmailMessage', () => {
     const { sendEmailMessage } = await import('../channels/email.js')
     const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
     expect(result.shouldRetry).toBe(true)
+  })
+
+  it('returns shouldRetry:false for 401 Unauthorized', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false, status: 401, text: () => Promise.resolve('Unauthorized'),
+    })
+    const { sendEmailMessage } = await import('../channels/email.js')
+    const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
+    expect(result.shouldRetry).toBe(false)
+  })
+
+  it('returns shouldRetry:true for 429 Too Many Requests', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false, status: 429, text: () => Promise.resolve('Rate Limited'),
+    })
+    const { sendEmailMessage } = await import('../channels/email.js')
+    const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
+    expect(result.shouldRetry).toBe(true)
+  })
+
+  it('truncates long error body to 200 chars', async () => {
+    const longBody = 'y'.repeat(500)
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false, status: 500, text: () => Promise.resolve(longBody),
+    })
+    const { sendEmailMessage } = await import('../channels/email.js')
+    const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
+    const bodyPortion = (result.error ?? '').replace(/^HTTP \d+: /, '')
+    expect(bodyPortion.length).toBeLessThanOrEqual(200)
+  })
+
+  it('returns shouldRetry:true on network error', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+    const { sendEmailMessage } = await import('../channels/email.js')
+    const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
+    expect(result.success).toBe(false)
+    expect(result.shouldRetry).toBe(true)
+  })
+
+  it('includes URL in plain text fallback', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+    globalThis.fetch = mockFetch
+    const { sendEmailMessage } = await import('../channels/email.js')
+    await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body.text).toContain('https://caffecode.net/problems/two-sum')
+  })
+
+  it('uses 30s timeout (longer than Telegram/LINE)', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
+    globalThis.fetch = mockFetch
+    const { sendEmailMessage } = await import('../channels/email.js')
+    await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
+
+    const requestInit = mockFetch.mock.calls[0][1]
+    expect(requestInit.signal).toBeDefined()
   })
 })

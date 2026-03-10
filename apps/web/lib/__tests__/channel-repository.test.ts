@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { verifyChannelByToken } from '../repositories/channel.repository.js'
+import { verifyChannelByToken, getChannelsForUser, deleteChannel } from '../repositories/channel.repository.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** Build a self-referencing Supabase chain mock (update/eq/gt/select/single). */
@@ -57,5 +57,97 @@ describe('verifyChannelByToken', () => {
     await verifyChannelByToken(db, 'tok-abc', 'chat-id', 'telegram')
 
     expect(chain.eq).toHaveBeenCalledWith('channel_type', 'telegram')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getChannelsForUser
+// ---------------------------------------------------------------------------
+describe('getChannelsForUser', () => {
+  const channels = [
+    {
+      id: 'ch-1',
+      user_id: 'user-1',
+      channel_type: 'telegram',
+      display_label: 'My Telegram',
+      is_verified: true,
+      consecutive_send_failures: 0,
+      connected_at: '2026-03-01T00:00:00Z',
+    },
+  ]
+
+  it('returns channel list on success', async () => {
+    // getChannelsForUser uses: from → select → eq → order (no .single)
+    const orderMock = vi.fn().mockResolvedValue({ data: channels, error: null })
+    const eqMock = vi.fn().mockReturnValue({ order: orderMock })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
+    const fromMock = vi.fn().mockReturnValue({ select: selectMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    const result = await getChannelsForUser(db, 'user-1')
+    expect(result).toEqual(channels)
+  })
+
+  it('returns empty array when no channels exist', async () => {
+    const orderMock = vi.fn().mockResolvedValue({ data: [], error: null })
+    const eqMock = vi.fn().mockReturnValue({ order: orderMock })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
+    const fromMock = vi.fn().mockReturnValue({ select: selectMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    const result = await getChannelsForUser(db, 'user-1')
+    expect(result).toEqual([])
+  })
+
+  it('returns empty array when data is null', async () => {
+    const orderMock = vi.fn().mockResolvedValue({ data: null, error: null })
+    const eqMock = vi.fn().mockReturnValue({ order: orderMock })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
+    const fromMock = vi.fn().mockReturnValue({ select: selectMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    const result = await getChannelsForUser(db, 'user-1')
+    expect(result).toEqual([])
+  })
+
+  it('throws on DB error', async () => {
+    const orderMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'timeout' } })
+    const eqMock = vi.fn().mockReturnValue({ order: orderMock })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
+    const fromMock = vi.fn().mockReturnValue({ select: selectMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    await expect(getChannelsForUser(db, 'user-1')).rejects.toThrow('Failed to fetch channels: timeout')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// deleteChannel
+// ---------------------------------------------------------------------------
+describe('deleteChannel', () => {
+  it('resolves without error on success', async () => {
+    // deleteChannel: from → delete → eq → eq (double eq for id + user_id)
+    const eq2Mock = vi.fn().mockResolvedValue({ error: null })
+    const eq1Mock = vi.fn().mockReturnValue({ eq: eq2Mock })
+    const deleteMock = vi.fn().mockReturnValue({ eq: eq1Mock })
+    const fromMock = vi.fn().mockReturnValue({ delete: deleteMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    await expect(deleteChannel(db, 'ch-1', 'user-1')).resolves.toBeUndefined()
+    expect(fromMock).toHaveBeenCalledWith('notification_channels')
+    expect(eq1Mock).toHaveBeenCalledWith('id', 'ch-1')
+    expect(eq2Mock).toHaveBeenCalledWith('user_id', 'user-1')
+  })
+
+  it('throws on DB error', async () => {
+    const eq2Mock = vi.fn().mockResolvedValue({ error: { message: 'RLS denied' } })
+    const eq1Mock = vi.fn().mockReturnValue({ eq: eq2Mock })
+    const deleteMock = vi.fn().mockReturnValue({ eq: eq1Mock })
+    const fromMock = vi.fn().mockReturnValue({ delete: deleteMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    await expect(deleteChannel(db, 'ch-1', 'user-1')).rejects.toThrow(
+      'Failed to delete channel: RLS denied'
+    )
   })
 })

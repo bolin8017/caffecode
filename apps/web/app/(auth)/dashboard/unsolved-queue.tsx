@@ -39,18 +39,28 @@ export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }
 
   const handleSolve = (problemId: number, sentAt: string) => {
     setPendingId(problemId)
+    // Optimistically remove the item; save snapshot so we can restore on error
+    let removedItem: UnsolvedItem | undefined
+    setItems((prev) => {
+      removedItem = prev.find((item) => item.problemId === problemId)
+      return prev.filter((item) => item.problemId !== problemId)
+    })
     startTransition(async () => {
       try {
         const result = await markSolved(problemId)
-        setItems((prev) => prev.filter((item) => item.problemId !== problemId))
         setSolveResult(result)
         const timeSinceSentSec = Math.round(
           (Date.now() - new Date(sentAt).getTime()) / 1000
         )
         trackSolveMarked({ problemId, source: 'dashboard', timeSinceSentSec })
       } catch {
+        // Restore the optimistically removed item
+        if (removedItem) {
+          setItems((prev) => [...prev, removedItem!].sort(
+            (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
+          ))
+        }
         toast.error('標記失敗，請再試一次')
-        // item stays in list (correct — don't remove on failure)
       } finally {
         setPendingId(null)
       }

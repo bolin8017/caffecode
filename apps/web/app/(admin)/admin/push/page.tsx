@@ -139,7 +139,7 @@ export default async function AdminPushPage() {
           用戶交付狀態 — 最近 7 天
         </h2>
         <div className="rounded-lg border overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[700px] text-xs sm:text-sm">
             <thead className="bg-muted/50 text-xs text-muted-foreground uppercase">
               <tr>
                 <th className="text-left px-4 py-2">用戶</th>

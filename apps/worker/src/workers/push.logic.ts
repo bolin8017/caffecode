@@ -42,11 +42,16 @@ export interface PushRunStats {
 
 const BATCH_SIZE = 100
 
+interface BatchResult {
+  jobs: PushJobData[]
+  userProblemMap: Map<string, { problemId: number; listId?: number; sequenceNumber?: number }>
+}
+
 /** Process a single batch of push candidates into jobs. */
 async function processBatch(
   db: SupabaseClient,
   users: PushCandidate[],
-): Promise<PushJobData[]> {
+): Promise<BatchResult> {
   // Problem selection is per-user (different list position / filter criteria)
   // Parallelized with concurrency limit to avoid overwhelming the DB
   const pLimit = (await import('p-limit')).default
@@ -65,7 +70,7 @@ async function processBatch(
   )
 
   if (userProblems.length === 0) {
-    return []
+    return { jobs: [], userProblemMap: new Map() }
   }
 
   // Batch-fetch all channels in one query instead of N queries
@@ -78,9 +83,8 @@ async function processBatch(
   }
 
   const jobs: PushJobData[] = []
-  const historyEntries: Array<{ userId: string; problemId: number }> = []
-  const deliveredUserIds: string[] = []
-  const listPositionUpdates: Array<{ userId: string; listId: number; sequenceNumber: number }> = []
+  // Track per-user problem info for post-dispatch stamping
+  const userProblemMap = new Map<string, { problemId: number; listId?: number; sequenceNumber?: number }>()
 
   for (const { user, problem } of userProblems) {
     // For LINE channels, also require line_push_allowed (quota control)
@@ -105,27 +109,14 @@ async function processBatch(
       })
     }
 
-    historyEntries.push({ userId: user.id, problemId: problem.problem_id })
-    deliveredUserIds.push(user.id)
-    if (problem.list_id && problem.sequence_number) {
-      listPositionUpdates.push({ userId: user.id, listId: problem.list_id, sequenceNumber: problem.sequence_number })
-    }
+    userProblemMap.set(user.id, {
+      problemId: problem.problem_id,
+      listId: problem.list_id,
+      sequenceNumber: problem.sequence_number,
+    })
   }
 
-  // Stamp delivery date and write history/positions before dispatching.
-  // Stamping here (not after dispatch) provides at-most-once delivery:
-  // a crash mid-dispatch will not re-deliver to already-stamped users.
-  // The stamp window is bounded to this single batch (not all batches),
-  // so a crash only risks one batch rather than the entire run.
-  if (historyEntries.length > 0) {
-    await Promise.all([
-      upsertHistoryBatch(db, historyEntries),
-      stampLastPushDate(db, deliveredUserIds),
-      advanceListPositions(db, listPositionUpdates),
-    ])
-  }
-
-  return jobs
+  return { jobs, userProblemMap }
 }
 
 /**
@@ -166,22 +157,67 @@ export async function buildPushJobs(
       'Processing push candidate batch',
     )
 
-    // processBatch: selects problems, collects jobs, stamps this batch, writes history
-    const batchJobs = await processBatch(db, batchUsers)
+    // processBatch: selects problems, collects jobs (no stamping yet)
+    const { jobs: batchJobs, userProblemMap } = await processBatch(db, batchUsers)
 
     if (batchJobs.length === 0) continue
 
-    // Dispatch this batch's jobs immediately (inline), before moving to the next batch
+    // Dispatch this batch's jobs immediately (inline), before moving to the next batch.
+    // Track channels that hit permanent failure to skip them within the same batch.
+    const pausedChannels = new Set<string>()
     const results = await Promise.allSettled(
       batchJobs.map(job => {
+        if (pausedChannels.has(job.channelId)) {
+          return Promise.resolve({ success: false, error: 'channel paused mid-batch', shouldRetry: false } as SendResult)
+        }
         const channel = channelRegistryArg[job.channelType]
         if (!channel) return Promise.resolve(null)
-        return dispatchLimit(() => dispatchJob(job, channel, db))
+        return dispatchLimit(async () => {
+          const result = await dispatchJob(job, channel, db)
+          if (!result.success && !result.shouldRetry) {
+            pausedChannels.add(job.channelId)
+          }
+          return result
+        })
       })
     )
 
     succeeded += results.filter(r => r.status === 'fulfilled' && r.value?.success).length
     failed += results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value && !r.value.success)).length
+
+    // Determine which users had at least one successful send
+    const successfulUserIds = new Set<string>()
+    for (let j = 0; j < batchJobs.length; j++) {
+      const r = results[j]
+      if (r.status === 'fulfilled' && r.value?.success) {
+        successfulUserIds.add(batchJobs[j].userId)
+      }
+    }
+
+    // Stamp only users with at least one successful delivery
+    if (successfulUserIds.size > 0) {
+      const deliveredUserIds = [...successfulUserIds]
+      const historyEntries = deliveredUserIds
+        .map(uid => {
+          const info = userProblemMap.get(uid)
+          return info ? { userId: uid, problemId: info.problemId } : null
+        })
+        .filter((e): e is { userId: string; problemId: number } => e !== null)
+      const listPositionUpdates = deliveredUserIds
+        .map(uid => {
+          const info = userProblemMap.get(uid)
+          return info?.listId && info?.sequenceNumber
+            ? { userId: uid, listId: info.listId, sequenceNumber: info.sequenceNumber }
+            : null
+        })
+        .filter((u): u is { userId: string; listId: number; sequenceNumber: number } => u !== null)
+
+      await Promise.all([
+        upsertHistoryBatch(db, historyEntries),
+        stampLastPushDate(db, deliveredUserIds),
+        advanceListPositions(db, listPositionUpdates),
+      ])
+    }
 
     const errors = results
       .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
@@ -221,7 +257,10 @@ export async function dispatchJob(
     await resetChannelFailures(db, job.channelId)
   } else if (!result.shouldRetry) {
     await incrementChannelFailures(db, job.channelId)
-    logger.warn({ channelId: job.channelId, channelType: job.channelType }, 'Channel failure counter incremented (permanent failure)')
+    logger.warn(
+      { channelId: job.channelId, channelType: job.channelType, userId: job.userId },
+      'Channel failure counter incremented (permanent failure)',
+    )
   }
 
   return result

@@ -125,12 +125,10 @@ describe('getAllCandidates', () => {
     expect(result[0]).toMatchObject({ id: 'user-1' })
   })
 
-  it('returns empty array on RPC error', async () => {
+  it('throws on RPC error', async () => {
     const rpcMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } })
     const db = { rpc: rpcMock } as unknown as SupabaseClient
 
-    const result = await getAllCandidates(db)
-
-    expect(result).toHaveLength(0)
+    await expect(getAllCandidates(db)).rejects.toThrow('getAllCandidates: RPC failed: DB error')
   })
 })

@@ -56,7 +56,7 @@ async function processBatch(
   // Parallelized with concurrency limit to avoid overwhelming the DB
   const pLimit = (await import('p-limit')).default
   const limit = pLimit(10)
-  const results = await Promise.all(
+  const settled = await Promise.allSettled(
     users.map(user => limit(async () => {
       const problem = await selectProblemForUser({ ...user, mode: user.active_mode }, db)
       if (!problem) {
@@ -69,6 +69,11 @@ async function processBatch(
       return problem ? { user, problem } : null
     }))
   )
+  const results = settled.map((r, idx) => {
+    if (r.status === 'fulfilled') return r.value
+    logger.error({ userId: users[idx].id, error: String(r.reason) }, 'Problem selection failed for candidate')
+    return null
+  })
   const userProblems = results.filter(
     (r): r is { user: PushCandidate; problem: NonNullable<Awaited<ReturnType<typeof selectProblemForUser>>> } => r !== null
   )

@@ -35,6 +35,9 @@ async function main() {
       errorMsg = `All candidates processed but 0 messages delivered (${totalCandidates} candidates)`
       throw new Error(errorMsg)
     }
+  } catch (err) {
+    if (!errorMsg) errorMsg = String(err)
+    throw err
   } finally {
     await recordPushRun(supabase, {
       candidates: totalCandidates,

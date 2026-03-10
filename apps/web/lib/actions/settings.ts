@@ -124,27 +124,33 @@ export async function subscribeToList(listId: number, startPosition?: number) {
   const { supabase, user } = await getAuthUser()
   subscribeSchema.parse({ listId, startPosition })
 
-  await Promise.all([
-    updateUser(supabase, user.id, { active_mode: 'list' }),
-    deactivateAllLists(supabase, user.id),
-  ])
+  try {
+    await Promise.all([
+      updateUser(supabase, user.id, { active_mode: 'list' }),
+      deactivateAllLists(supabase, user.id),
+    ])
 
-  const progressData: {
-    user_id: string
-    list_id: number
-    is_active: boolean
-    current_position?: number
-  } = {
-    user_id: user.id,
-    list_id: listId,
-    is_active: true,
+    const progressData: {
+      user_id: string
+      list_id: number
+      is_active: boolean
+      current_position?: number
+    } = {
+      user_id: user.id,
+      list_id: listId,
+      is_active: true,
+    }
+
+    if (startPosition !== undefined) {
+      progressData.current_position = startPosition
+    }
+
+    await upsertListProgress(supabase, progressData)
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'subscribeToList failed')
+    throw new Error('列表訂閱失敗')
   }
-
-  if (startPosition !== undefined) {
-    progressData.current_position = startPosition
-  }
-
-  await upsertListProgress(supabase, progressData)
 
   revalidatePath('/dashboard')
   revalidatePath('/settings/learning')
@@ -191,32 +197,25 @@ export async function deleteAccount() {
 export async function exportData() {
   const { supabase, user } = await getAuthUser()
 
-  const [historyRes, feedbackRes, progressRes] = await Promise.all([
-    supabase.from('history').select('sent_at, problems(title, slug)').eq('user_id', user.id),
-    supabase.from('feedback').select('problem_id, difficulty, content_score, created_at').eq('user_id', user.id),
-    supabase.from('user_list_progress').select('current_position, is_active, curated_lists(name, slug)').eq('user_id', user.id),
-  ])
+  try {
+    const [historyRes, feedbackRes, progressRes] = await Promise.all([
+      supabase.from('history').select('sent_at, problems(title, slug)').eq('user_id', user.id),
+      supabase.from('feedback').select('problem_id, difficulty, content_score, created_at').eq('user_id', user.id),
+      supabase.from('user_list_progress').select('current_position, is_active, curated_lists(name, slug)').eq('user_id', user.id),
+    ])
 
-  if (historyRes.error) {
-    const { logger } = await import('@/lib/logger')
-    logger.error({ error: historyRes.error }, 'exportData: failed to fetch history')
-    throw new Error('Failed to export data')
-  }
-  if (feedbackRes.error) {
-    const { logger } = await import('@/lib/logger')
-    logger.error({ error: feedbackRes.error }, 'exportData: failed to fetch feedback')
-    throw new Error('Failed to export data')
-  }
-  if (progressRes.error) {
-    const { logger } = await import('@/lib/logger')
-    logger.error({ error: progressRes.error }, 'exportData: failed to fetch progress')
-    throw new Error('Failed to export data')
-  }
+    const firstError = historyRes.error ?? feedbackRes.error ?? progressRes.error
+    if (firstError) throw firstError
 
-  return {
-    exported_at: new Date().toISOString(),
-    history: historyRes.data ?? [],
-    feedback: feedbackRes.data ?? [],
-    list_progress: progressRes.data ?? [],
+    return {
+      exported_at: new Date().toISOString(),
+      history: historyRes.data ?? [],
+      feedback: feedbackRes.data ?? [],
+      list_progress: progressRes.data ?? [],
+    }
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'exportData failed')
+    throw new Error('資料匯出失敗')
   }
 }

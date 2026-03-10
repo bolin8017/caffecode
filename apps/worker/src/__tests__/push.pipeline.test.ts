@@ -26,6 +26,7 @@ import {
   upsertHistoryBatch,
   stampLastPushDate,
   advanceListPositions,
+  resetChannelFailuresForUsers,
   type PushCandidate,
   type VerifiedChannel,
 } from '../repositories/push.repository.js'
@@ -39,6 +40,7 @@ const mockGetChannels = vi.mocked(getVerifiedChannelsBulk)
 const mockUpsertHistory = vi.mocked(upsertHistoryBatch)
 const mockStamp = vi.mocked(stampLastPushDate)
 const mockAdvance = vi.mocked(advanceListPositions)
+const mockResetFailures = vi.mocked(resetChannelFailuresForUsers)
 const mockSelectProblem = vi.mocked(selectProblemForUser)
 
 const db = {} as SupabaseClient
@@ -95,6 +97,7 @@ describe('buildPushJobs — pipeline orchestration', () => {
     mockUpsertHistory.mockResolvedValue(undefined)
     mockStamp.mockResolvedValue(undefined)
     mockAdvance.mockResolvedValue(undefined)
+    mockResetFailures.mockResolvedValue(undefined)
   })
 
   it('returns zero stats when no candidates exist', async () => {
@@ -221,5 +224,76 @@ describe('buildPushJobs — pipeline orchestration', () => {
     // Each call stamps exactly 100 users
     expect(mockStamp.mock.calls[0][1]).toHaveLength(100)
     expect(mockStamp.mock.calls[1][1]).toHaveLength(100)
+  })
+
+  it('stamps only users with at least one successful send (mixed results)', async () => {
+    const user1 = makeUser({ id: 'u1' })
+    const user2 = makeUser({ id: 'u2' })
+
+    mockGetAllCandidates.mockResolvedValueOnce([user1, user2])
+    mockSelectProblem
+      .mockResolvedValueOnce(makeProblem({ problem_id: 10 }))
+      .mockResolvedValueOnce(makeProblem({ problem_id: 20 }))
+    mockGetChannels.mockResolvedValueOnce([
+      makeChannel({ id: 'ch-1', user_id: 'u1', channel_type: 'telegram', channel_identifier: 'tg-u1' }),
+      makeChannel({ id: 'ch-2', user_id: 'u2', channel_type: 'telegram', channel_identifier: 'tg-u2' }),
+    ])
+
+    const registry: Record<string, NotificationChannel> = {
+      telegram: {
+        send: vi.fn().mockImplementation(async (identifier: string) => {
+          if (identifier === 'tg-u1') return { success: true }
+          return { success: false, shouldRetry: false, error: 'permanent failure' }
+        }),
+      },
+    }
+
+    const stats = await buildPushJobs(db, registry, noopLimit)
+
+    expect(stats.succeeded).toBe(1)
+    expect(stats.failed).toBe(1)
+    expect(mockStamp).toHaveBeenCalledWith(db, ['u1'])
+    expect(mockUpsertHistory).toHaveBeenCalledWith(db, [{ userId: 'u1', problemId: 10 }])
+    expect(mockResetFailures).toHaveBeenCalledWith(db, ['u1'])
+  })
+
+  it('does not stamp any users when all sends fail', async () => {
+    mockGetAllCandidates.mockResolvedValueOnce([makeUser({ id: 'u1' })])
+    mockSelectProblem.mockResolvedValueOnce(makeProblem())
+    mockGetChannels.mockResolvedValueOnce([makeChannel({ id: 'ch-1', user_id: 'u1' })])
+
+    const registry: Record<string, NotificationChannel> = {
+      telegram: {
+        send: vi.fn().mockResolvedValue({ success: false, shouldRetry: false, error: 'blocked' }),
+      },
+    }
+
+    const stats = await buildPushJobs(db, registry, noopLimit)
+
+    expect(stats.succeeded).toBe(0)
+    expect(stats.failed).toBe(1)
+    expect(mockStamp).not.toHaveBeenCalled()
+    expect(mockUpsertHistory).not.toHaveBeenCalled()
+    expect(mockResetFailures).not.toHaveBeenCalled()
+  })
+
+  it('handles selectProblemForUser throwing for one user without affecting others', async () => {
+    const user1 = makeUser({ id: 'u1' })
+    const user2 = makeUser({ id: 'u2' })
+
+    mockGetAllCandidates.mockResolvedValueOnce([user1, user2])
+    mockSelectProblem
+      .mockRejectedValueOnce(new Error('RPC timeout'))
+      .mockResolvedValueOnce(makeProblem({ problem_id: 20 }))
+    mockGetChannels.mockResolvedValueOnce([
+      makeChannel({ id: 'ch-2', user_id: 'u2' }),
+    ])
+
+    const stats = await buildPushJobs(db, makeChannelRegistry(), noopLimit)
+
+    // u1 failed selection (thrown), u2 succeeded
+    expect(stats.succeeded).toBe(1)
+    expect(mockStamp).toHaveBeenCalledWith(db, ['u2'])
+    expect(mockUpsertHistory).toHaveBeenCalledWith(db, [{ userId: 'u2', problemId: 20 }])
   })
 })

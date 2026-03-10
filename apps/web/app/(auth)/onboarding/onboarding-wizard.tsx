@@ -177,9 +177,10 @@ export function OnboardingWizard({ lists }: Props) {
           <p className="text-muted-foreground mb-6">每天幾點要收到題目？</p>
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium mb-1">時區</label>
+              <label htmlFor="tz-select" className="block text-sm font-medium mb-1">時區</label>
               <div className="flex gap-2">
                 <select
+                  id="tz-select"
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
                   className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
@@ -214,8 +215,9 @@ export function OnboardingWizard({ lists }: Props) {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">通知時間</label>
+              <label htmlFor="push-hour-select" className="block text-sm font-medium mb-1">通知時間</label>
               <select
+                id="push-hour-select"
                 value={pushHour}
                 onChange={(e) => setPushHour(Number(e.target.value))}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"

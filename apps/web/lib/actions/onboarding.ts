@@ -35,7 +35,11 @@ export async function completeOnboarding(data: {
     .select('onboarding_completed')
     .eq('id', user.id)
     .single()
-  if (fetchError) throw new Error(`Failed to fetch user: ${fetchError.message}`)
+  if (fetchError) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: fetchError, userId: user.id }, 'completeOnboarding: failed to fetch user')
+    throw new Error('無法載入使用者資料')
+  }
   if (profile?.onboarding_completed) {
     redirect('/garden')
   }
@@ -44,23 +48,29 @@ export async function completeOnboarding(data: {
 
   const push_hour_utc = toUtcHour(data.push_hour, data.timezone)
 
-  await updateUser(supabase, user.id, {
-    active_mode: data.mode,
-    difficulty_min: data.difficulty_min,
-    difficulty_max: data.difficulty_max,
-    timezone: data.timezone,
-    push_hour: data.push_hour,
-    push_hour_utc,
-    onboarding_completed: true,
-  })
-
-  if (data.mode === 'list' && data.list_id) {
-    await upsertListProgress(supabase, {
-      user_id: user.id,
-      list_id: data.list_id,
-      is_active: true,
-      current_position: 0,
+  try {
+    await updateUser(supabase, user.id, {
+      active_mode: data.mode,
+      difficulty_min: data.difficulty_min,
+      difficulty_max: data.difficulty_max,
+      timezone: data.timezone,
+      push_hour: data.push_hour,
+      push_hour_utc,
+      onboarding_completed: true,
     })
+
+    if (data.mode === 'list' && data.list_id) {
+      await upsertListProgress(supabase, {
+        user_id: user.id,
+        list_id: data.list_id,
+        is_active: true,
+        current_position: 0,
+      })
+    }
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: String(err), userId: user.id }, 'completeOnboarding failed')
+    throw new Error('新手引導完成失敗')
   }
 
   redirect('/garden')

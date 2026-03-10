@@ -199,7 +199,7 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
   const pLimit = (await import('p-limit')).default
   const limit = pLimit(10)
 
-  const userProblems = await Promise.all(
+  const settled = await Promise.allSettled(
     users.map(user => limit(async () => {
       const displayName = user.display_name ?? user.email ?? '—'
       const channels = (channelsByUser.get(user.id) ?? []).filter(
@@ -223,6 +223,12 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
       return { user, displayName, channels, problem }
     }))
   )
+  const userProblems = settled.map((r, idx) => {
+    if (r.status === 'fulfilled') return r.value
+    logger.error({ userId: users[idx].id, error: String(r.reason) }, 'forceNotifyAll: problem selection failed')
+    const u = users[idx]
+    return { user: u, displayName: u.display_name ?? u.email ?? '—', channels: [] as typeof allChannels, problem: null as Awaited<ReturnType<typeof selectProblemForUser>> }
+  })
 
   // Second pass: serial channel dispatch + result collection
   for (const { user, displayName, channels, problem } of userProblems) {

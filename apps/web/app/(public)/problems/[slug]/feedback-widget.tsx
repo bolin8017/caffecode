@@ -69,15 +69,29 @@ export function FeedbackWidget({ problemId, initialScore, initialDifficulty }: P
       <div className="flex items-center gap-1" role="radiogroup" aria-label="內容評分">
         {[1, 2, 3, 4, 5].map((s) => {
           const filled = displayScore !== undefined && s <= displayScore
+          const tabbable = score === s || (score === undefined && s === 1)
           return (
             <button
               key={s}
               role="radio"
               aria-checked={score === s}
+              tabIndex={tabbable ? 0 : -1}
               disabled={isPending}
               onClick={() => handleScore(s)}
               onMouseEnter={() => setHovered(s)}
               onMouseLeave={() => setHovered(undefined)}
+              onKeyDown={(e) => {
+                let next: number | undefined
+                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = Math.min(s + 1, 5)
+                else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = Math.max(s - 1, 1)
+                else if (e.key === ' ') { e.preventDefault(); handleScore(s); return }
+                if (next !== undefined) {
+                  e.preventDefault()
+                  const buttons = e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
+                  buttons?.[next - 1]?.focus()
+                  handleScore(next)
+                }
+              }}
               className={`text-2xl transition-all hover:scale-110 disabled:opacity-50 ${
                 filled
                   ? 'text-yellow-500 drop-shadow-[0_0_2px_rgba(234,179,8,0.3)]'

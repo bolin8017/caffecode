@@ -60,7 +60,11 @@ async function processBatch(
     users.map(user => limit(async () => {
       const problem = await selectProblemForUser({ ...user, mode: user.active_mode }, db)
       if (!problem) {
-        logger.warn({ userId: user.id, mode: user.active_mode }, 'No problem found for candidate')
+        if (user.active_mode === 'list') {
+          logger.warn({ userId: user.id, mode: user.active_mode }, 'List completed for user — no more problems in active list')
+        } else {
+          logger.warn({ userId: user.id, mode: user.active_mode, difficultyMin: user.difficulty_min, difficultyMax: user.difficulty_max }, 'No problem found for candidate')
+        }
       }
       return problem ? { user, problem } : null
     }))

@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/supabase/server'
+import { verifyAdminAccess } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import Link from 'next/link'
@@ -37,18 +37,9 @@ const NAV_GROUPS = [
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  // Fresh DB verification for is_admin — do not trust header for auth
-  const supabase = createServiceClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) redirect('/login')
-
-  const { data: dbProfile } = await supabase
-    .from('users')
-    .select('is_admin')
-    .eq('id', user.id)
-    .single()
-
-  if (!dbProfile?.is_admin) redirect('/dashboard')
+  const result = await verifyAdminAccess()
+  if (!result.authorized) redirect(result.redirectTo)
+  const user = result.user
 
   // Header is display-only (name/avatar in sidebar) — safe to use for UI
   const encoded = (await headers()).get('x-user-profile')

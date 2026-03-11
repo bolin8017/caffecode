@@ -17,6 +17,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# Test coverage reports
+coverage/
+
 # Node.js
 node_modules/
 .next/

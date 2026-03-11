@@ -80,6 +80,70 @@ describe('selectProblemForUser — filter mode', () => {
 
     await expect(selectProblemForUser(baseUser, fakeSupabase)).rejects.toThrow('RPC failed')
   })
+
+  it('selects randomly when multiple unsent problems available', async () => {
+    const mockRandom = vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    mockGetUnsentProblemIds.mockResolvedValue([10, 20, 30])
+    mockGetProblemById.mockResolvedValue(resolvedProblem)
+
+    await selectProblemForUser(baseUser, fakeSupabase)
+
+    // Math.floor(0.99 * 3) = 2 → selects index 2 → problem ID 30
+    expect(mockGetProblemById).toHaveBeenCalledWith(fakeSupabase, 30)
+    mockRandom.mockRestore()
+  })
+
+  it('returns null when getProblemById returns null', async () => {
+    mockGetUnsentProblemIds.mockResolvedValue([42])
+    mockGetProblemById.mockResolvedValue(null)
+
+    const result = await selectProblemForUser(baseUser, fakeSupabase)
+    expect(result).toBeNull()
+  })
+
+  it('passes topic_filter to getUnsentProblemIds', async () => {
+    const userWithTopics = { ...baseUser, topic_filter: ['array', 'string'] }
+    mockGetUnsentProblemIds.mockResolvedValue([])
+
+    await selectProblemForUser(userWithTopics, fakeSupabase)
+
+    expect(mockGetUnsentProblemIds).toHaveBeenCalledWith(
+      fakeSupabase,
+      userWithTopics.id,
+      userWithTopics.difficulty_min,
+      userWithTopics.difficulty_max,
+      ['array', 'string']
+    )
+  })
+
+  it('passes null topic_filter when not specified', async () => {
+    mockGetUnsentProblemIds.mockResolvedValue([])
+
+    await selectProblemForUser(baseUser, fakeSupabase)
+
+    expect(mockGetUnsentProblemIds).toHaveBeenCalledWith(
+      fakeSupabase,
+      baseUser.id,
+      baseUser.difficulty_min,
+      baseUser.difficulty_max,
+      null
+    )
+  })
+
+  it('passes difficulty_min and difficulty_max correctly', async () => {
+    const customUser = { ...baseUser, difficulty_min: 1500, difficulty_max: 2200 }
+    mockGetUnsentProblemIds.mockResolvedValue([])
+
+    await selectProblemForUser(customUser, fakeSupabase)
+
+    expect(mockGetUnsentProblemIds).toHaveBeenCalledWith(
+      fakeSupabase,
+      customUser.id,
+      1500,
+      2200,
+      null
+    )
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -115,5 +179,15 @@ describe('selectProblemForUser — list mode', () => {
 
     expect(mockGetProblemAtListPosition).toHaveBeenCalledWith(fakeSupabase, 7, 0)
     expect(result).toEqual(resolvedProblem)
+  })
+
+  it('passes correct list_id and current_position to getProblemAtListPosition', async () => {
+    const listUser2 = { ...baseUser, mode: 'list' as const }
+    mockGetListProblemAtPosition.mockResolvedValue({ list_id: 12, current_position: 8 })
+    mockGetProblemAtListPosition.mockResolvedValue(resolvedProblem)
+
+    await selectProblemForUser(listUser2, fakeSupabase)
+
+    expect(mockGetProblemAtListPosition).toHaveBeenCalledWith(fakeSupabase, 12, 8)
   })
 })

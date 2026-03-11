@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getRecentHistory, getSolvedProblemIds } from '@/lib/repositories/history.repository'
+import { getRecentHistory, getSolvedProblemIds, getStreakHistory } from '@/lib/repositories/history.repository'
 
 describe('getRecentHistory', () => {
   it('returns entries with problem_id and solved_at', async () => {
@@ -32,6 +32,19 @@ describe('getRecentHistory', () => {
     expect(result).toHaveLength(2)
     expect(result[0]).toMatchObject({ problem_id: 1, solved_at: expect.any(String) })
     expect(result[1]).toMatchObject({ problem_id: 2, solved_at: null })
+  })
+
+  it('returns empty array when no history exists', async () => {
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+      }),
+    }
+    const result = await getRecentHistory(mockSupabase as unknown as SupabaseClient, 'user-123', 7)
+    expect(result).toEqual([])
   })
 
   it('throws on Supabase error', async () => {
@@ -95,5 +108,89 @@ describe('getSolvedProblemIds', () => {
       }),
     }
     await expect(getSolvedProblemIds(mockSupabase as unknown as SupabaseClient, 'user-123', [1])).rejects.toThrow('Failed to fetch solved problem IDs')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getStreakHistory
+// ---------------------------------------------------------------------------
+describe('getStreakHistory', () => {
+  it('returns solved_at dates on success', async () => {
+    const data = [
+      { solved_at: '2026-03-07T11:00:00Z' },
+      { solved_at: '2026-03-06T10:30:00Z' },
+    ]
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        not: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data, error: null }),
+      }),
+    }
+    const result = await getStreakHistory(mockSupabase as unknown as SupabaseClient, 'user-1', 30)
+    expect(result).toEqual(data)
+  })
+
+  it('returns empty array when no solved problems', async () => {
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        not: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+      }),
+    }
+    const result = await getStreakHistory(mockSupabase as unknown as SupabaseClient, 'user-1', 30)
+    expect(result).toEqual([])
+  })
+
+  it('returns empty array when data is null', async () => {
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        not: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+    }
+    const result = await getStreakHistory(mockSupabase as unknown as SupabaseClient, 'user-1', 30)
+    expect(result).toEqual([])
+  })
+
+  it('throws on DB error', async () => {
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        not: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: null, error: { message: 'timeout' } }),
+      }),
+    }
+    await expect(
+      getStreakHistory(mockSupabase as unknown as SupabaseClient, 'user-1', 30)
+    ).rejects.toThrow('Failed to fetch streak history: timeout')
+  })
+
+  it('filters by solved_at IS NOT NULL and orders descending', async () => {
+    const fromReturn = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      not: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+    }
+    const mockSupabase = { from: vi.fn().mockReturnValue(fromReturn) }
+    await getStreakHistory(mockSupabase as unknown as SupabaseClient, 'user-1', 30)
+
+    expect(fromReturn.select).toHaveBeenCalledWith('solved_at')
+    expect(fromReturn.eq).toHaveBeenCalledWith('user_id', 'user-1')
+    expect(fromReturn.not).toHaveBeenCalledWith('solved_at', 'is', null)
+    expect(fromReturn.order).toHaveBeenCalledWith('solved_at', { ascending: false })
+    expect(fromReturn.limit).toHaveBeenCalledWith(30)
   })
 })

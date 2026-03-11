@@ -85,3 +85,111 @@ describe('getTopicProficiency', () => {
     expect(result.map(r => r.stage)).toEqual([4, 3, 2, 1, 0])
   })
 })
+
+// ---------------------------------------------------------------------------
+// getGardenSummary
+// ---------------------------------------------------------------------------
+describe('getGardenSummary', () => {
+  function makeCountMock(receivedCount: number | null, solvedCount: number | null, opts?: {
+    receivedError?: unknown
+    solvedError?: unknown
+  }) {
+    let callIndex = 0
+    const fromMock = vi.fn().mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) {
+        // First Promise.all branch: total received
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              count: receivedCount,
+              error: opts?.receivedError ?? null,
+            }),
+          }),
+        }
+      }
+      // Second: total solved
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            not: vi.fn().mockResolvedValue({
+              count: solvedCount,
+              error: opts?.solvedError ?? null,
+            }),
+          }),
+        }),
+      }
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { db: { from: fromMock } as any }
+  }
+
+  it('returns totalReceived and totalSolved on success', async () => {
+    const { db } = makeCountMock(20, 15)
+    const { getGardenSummary } = await import('../repositories/garden.repository')
+    const result = await getGardenSummary(db, 'user-1')
+    expect(result).toEqual({ totalReceived: 20, totalSolved: 15 })
+  })
+
+  it('returns 0/0 for a new user with no history', async () => {
+    const { db } = makeCountMock(0, 0)
+    const { getGardenSummary } = await import('../repositories/garden.repository')
+    const result = await getGardenSummary(db, 'user-1')
+    expect(result).toEqual({ totalReceived: 0, totalSolved: 0 })
+  })
+
+  it('treats null counts as 0', async () => {
+    const { db } = makeCountMock(null, null)
+    const { getGardenSummary } = await import('../repositories/garden.repository')
+    const result = await getGardenSummary(db, 'user-1')
+    expect(result).toEqual({ totalReceived: 0, totalSolved: 0 })
+  })
+
+  it('throws when received count query errors', async () => {
+    const { db } = makeCountMock(0, 0, { receivedError: { message: 'boom' } })
+    const { getGardenSummary } = await import('../repositories/garden.repository')
+    await expect(getGardenSummary(db, 'user-1')).rejects.toThrow('Failed to fetch garden summary')
+  })
+
+  it('throws when solved count query errors', async () => {
+    const { db } = makeCountMock(10, 0, { solvedError: { message: 'timeout' } })
+    const { getGardenSummary } = await import('../repositories/garden.repository')
+    await expect(getGardenSummary(db, 'user-1')).rejects.toThrow('Failed to fetch garden summary')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getTopicProficiency — alias normalization
+// ---------------------------------------------------------------------------
+describe('getTopicProficiency — alias normalization', () => {
+  it('normalizes bfs alias to breadth-first-search', async () => {
+    const mockData = [
+      { topic: 'bfs', solved_count: 3, total_received: 5 },
+      { topic: 'breadth-first-search', solved_count: 2, total_received: 3 },
+    ]
+    const rpcMock = vi.fn().mockResolvedValue({ data: mockData, error: null })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = { rpc: rpcMock } as any
+    const { getTopicProficiency } = await import('../repositories/garden.repository')
+    const result = await getTopicProficiency(db, 'user-1')
+    // bfs (3) + breadth-first-search (2) = 5 solved under canonical
+    expect(result).toHaveLength(1)
+    expect(result[0].topic).toBe('breadth-first-search')
+    expect(result[0].solvedCount).toBe(5)
+  })
+
+  it('computes correct level from merged counts', async () => {
+    const mockData = [
+      { topic: 'heap', solved_count: 4, total_received: 6 },     // alias → heap-priority-queue
+      { topic: 'heap-priority-queue', solved_count: 7, total_received: 10 },
+    ]
+    const rpcMock = vi.fn().mockResolvedValue({ data: mockData, error: null })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = { rpc: rpcMock } as any
+    const { getTopicProficiency, computeLevel } = await import('../repositories/garden.repository')
+    const result = await getTopicProficiency(db, 'user-1')
+    expect(result).toHaveLength(1)
+    // 4 + 7 = 11 solved → computeLevel(11) = 4
+    expect(result[0].level).toBe(computeLevel(11))
+  })
+})

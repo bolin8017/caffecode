@@ -81,7 +81,9 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 ## Development Notes
 
-**Tests**: 252 TypeScript (shared 68, worker 48, web 136) + 20 Python. TS: `pnpm exec vitest run` per package. Python: `cd scripts && python3 -m pytest tests/ -v`.
+**Tests**: 746 TypeScript vitest (shared 123, worker 76, web 547) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
+
+**Coverage**: `pnpm test:coverage` runs all packages with `@vitest/coverage-v8`. CI enforces thresholds (shared 95/90/95/95, worker 90/85/90/90, web 90/85/90/90 for stmts/branch/funcs/lines). Coverage scope: business logic only (`lib/`, `src/`, API routes); excludes components, pages, and infra singletons.
 
 **Next.js 16**: `proxy.ts` (not `middleware.ts`); export must be named `proxy`.
 

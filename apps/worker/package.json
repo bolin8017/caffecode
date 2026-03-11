@@ -6,7 +6,8 @@
     "dev": "NODE_OPTIONS='--require=../../scripts/ipv4-only.cjs' tsx watch --env-file .env src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest"
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@types/node": "^20",

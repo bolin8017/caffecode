@@ -83,6 +83,8 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 **Tests**: 713 TypeScript vitest (shared 123, worker 76, web 514) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
 
+**Coverage**: `pnpm test:coverage` runs all packages with `@vitest/coverage-v8`. CI enforces thresholds (shared 95/90/95/95, worker 90/85/90/90, web 90/85/90/90 for stmts/branch/funcs/lines). Coverage scope: business logic only (`lib/`, `src/`, API routes); excludes components, pages, and infra singletons.
+
 **Next.js 16**: `proxy.ts` (not `middleware.ts`); export must be named `proxy`.
 
 **No git worktrees**: `.env.local` not shared across worktrees. Use `git checkout <branch>`.

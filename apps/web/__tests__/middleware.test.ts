@@ -363,7 +363,7 @@ describe('updateSession', () => {
       // Override createServerClient to trigger setAll during construction
       vi.mocked(createServerClient).mockImplementationOnce((_url, _key, options) => {
         // Simulate Supabase refreshing cookies (calls setAll)
-        options.cookies.setAll([{ name: 'sb-token', value: 'refreshed', options: {} }])
+        options.cookies.setAll!([{ name: 'sb-token', value: 'refreshed', options: {} }])
         return {
           auth: { getUser: mockGetUser },
           from: mockFrom,

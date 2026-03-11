@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { verifyChannelByToken, getChannelsForUser, deleteChannel } from '../repositories/channel.repository.js'
+import { verifyChannelByToken, getChannelsForUser, deleteChannel, upsertChannel } from '../repositories/channel.repository.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** Build a self-referencing Supabase chain mock (update/eq/gt/select/single). */
@@ -57,6 +57,135 @@ describe('verifyChannelByToken', () => {
     await verifyChannelByToken(db, 'tok-abc', 'chat-id', 'telegram')
 
     expect(chain.eq).toHaveBeenCalledWith('channel_type', 'telegram')
+  })
+
+  it('does not filter by channel_type when not provided', async () => {
+    const { db, chain } = makeChainMock({ user_id: 'u-123' })
+
+    await verifyChannelByToken(db, 'tok-abc', 'chat-id')
+
+    // eq is called for link_token and is_verified, but NOT for channel_type
+    for (const call of chain.eq.mock.calls) {
+      expect(call[0]).not.toBe('channel_type')
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// upsertChannel
+// ---------------------------------------------------------------------------
+describe('upsertChannel', () => {
+  it('upserts unverified channel with link token', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null })
+    const fromMock = vi.fn().mockReturnValue({ upsert: upsertMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    const data = {
+      user_id: 'u-1',
+      channel_type: 'telegram',
+      channel_identifier: '',
+      display_label: 'My Telegram',
+      is_verified: false,
+      link_token: 'tok-abc',
+      link_token_expires_at: '2026-03-11T01:00:00Z',
+    }
+
+    await expect(upsertChannel(db, data)).resolves.toBeUndefined()
+    expect(fromMock).toHaveBeenCalledWith('notification_channels')
+    expect(upsertMock).toHaveBeenCalledWith(data, { onConflict: 'user_id,channel_type' })
+  })
+
+  it('upserts verified channel without link token', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null })
+    const fromMock = vi.fn().mockReturnValue({ upsert: upsertMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    const data = {
+      user_id: 'u-2',
+      channel_type: 'line',
+      channel_identifier: 'line-uid-456',
+      display_label: 'LINE Account',
+      is_verified: true,
+      link_token: null,
+    }
+
+    await expect(upsertChannel(db, data)).resolves.toBeUndefined()
+    expect(upsertMock).toHaveBeenCalledWith(data, { onConflict: 'user_id,channel_type' })
+  })
+
+  it('passes onConflict as user_id,channel_type', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null })
+    const fromMock = vi.fn().mockReturnValue({ upsert: upsertMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    await upsertChannel(db, {
+      user_id: 'u-3',
+      channel_type: 'email',
+      channel_identifier: 'a@b.com',
+      display_label: null,
+      is_verified: false,
+      link_token: 'tok-xyz',
+    })
+
+    const options = upsertMock.mock.calls[0][1]
+    expect(options).toEqual({ onConflict: 'user_id,channel_type' })
+  })
+
+  it('passes link_token and link_token_expires_at through', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null })
+    const fromMock = vi.fn().mockReturnValue({ upsert: upsertMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    const data = {
+      user_id: 'u-4',
+      channel_type: 'telegram',
+      channel_identifier: '',
+      display_label: null,
+      is_verified: false,
+      link_token: 'special-token',
+      link_token_expires_at: '2026-12-31T23:59:59Z',
+    }
+
+    await upsertChannel(db, data)
+
+    const passedData = upsertMock.mock.calls[0][0]
+    expect(passedData.link_token).toBe('special-token')
+    expect(passedData.link_token_expires_at).toBe('2026-12-31T23:59:59Z')
+  })
+
+  it('throws on Supabase error', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: { message: 'unique violation' } })
+    const fromMock = vi.fn().mockReturnValue({ upsert: upsertMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    await expect(
+      upsertChannel(db, {
+        user_id: 'u-5',
+        channel_type: 'telegram',
+        channel_identifier: 'chat-id',
+        display_label: null,
+        is_verified: false,
+        link_token: null,
+      })
+    ).rejects.toThrow('Failed to upsert channel: unique violation')
+  })
+
+  it('handles null display_label', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null })
+    const fromMock = vi.fn().mockReturnValue({ upsert: upsertMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    const data = {
+      user_id: 'u-6',
+      channel_type: 'email',
+      channel_identifier: 'test@example.com',
+      display_label: null,
+      is_verified: true,
+      link_token: null,
+    }
+
+    await expect(upsertChannel(db, data)).resolves.toBeUndefined()
+    expect(upsertMock.mock.calls[0][0].display_label).toBeNull()
   })
 })
 

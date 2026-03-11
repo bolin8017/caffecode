@@ -161,8 +161,8 @@ describe('Worker main() — all-failed guard', () => {
   })
 
   it('does NOT throw when some messages succeeded', () => {
-    const succeeded = 3
-    const totalCandidates = 5
+    const succeeded: number = 3
+    const totalCandidates: number = 5
 
     expect(() => {
       if (succeeded === 0 && totalCandidates > 0) {

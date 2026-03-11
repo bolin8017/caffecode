@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { topicLabel, topicToVariety, normalizeTopics } from '../topic-utils.js'
+import { topicLabel, topicToVariety, normalizeTopics, TOPIC_ALIASES } from '../topic-utils.js'
 
 // ---------------------------------------------------------------------------
 // topicLabel
@@ -16,6 +16,21 @@ describe('topicLabel', () => {
   it('handles single word topics', () => {
     expect(topicLabel('array')).toBe('Array')
   })
+
+  it('returns empty string for empty input', () => {
+    expect(topicLabel('')).toBe('')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// TOPIC_ALIASES consistency
+// ---------------------------------------------------------------------------
+describe('TOPIC_ALIASES', () => {
+  it('all alias values must map to a recognized topic (not Specialty)', () => {
+    for (const [alias, canonical] of Object.entries(TOPIC_ALIASES)) {
+      expect(topicToVariety(canonical), `alias "${alias}" -> "${canonical}" is not in VARIETY_MAP`).not.toBe('Specialty')
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -26,6 +41,14 @@ describe('topicToVariety', () => {
     expect(topicToVariety('dynamic-programming')).toBe('Jamaica Blue Mountain')
     expect(topicToVariety('array')).toBe('Brazil Sundried')
     expect(topicToVariety('graph')).toBe('Geisha')
+  })
+
+  it('maps additional canonical topics to their expected variety', () => {
+    expect(topicToVariety('hash-table')).toBe('Sumatra')
+    expect(topicToVariety('backtracking')).toBe('Costa Rica')
+    expect(topicToVariety('trie')).toBe('Vietnam Robusta')
+    expect(topicToVariety('sorting')).toBe('Hawaii Kona')
+    expect(topicToVariety('matrix')).toBe('Mocha')
   })
 
   it('returns "Specialty" for unknown topic', () => {

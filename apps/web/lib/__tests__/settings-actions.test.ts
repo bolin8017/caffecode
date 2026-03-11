@@ -490,7 +490,7 @@ describe('settings actions', () => {
 
   describe('deleteAccount', () => {
     it('deletes auth user, then DB row, then signs out and redirects', async () => {
-      const supabase = setupAuthUser()
+      setupAuthUser()
       mockServiceAuthAdminDeleteUser.mockResolvedValue({ error: null })
       const eqFn = vi.fn().mockResolvedValue({ error: null })
       mockServiceFrom.mockReturnValue({ delete: vi.fn().mockReturnValue({ eq: eqFn }) })

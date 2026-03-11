@@ -1,6 +1,6 @@
 // apps/web/__tests__/middleware.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 
 // --- Mock setup ---
 const mockGetUser = vi.fn()

@@ -9,7 +9,6 @@ const mockCookieFrom = vi.fn()
 const mockServiceFrom = vi.fn()
 const mockServiceRpc = vi.fn()
 const mockServiceAuthAdminDeleteUser = vi.fn()
-const mockServiceUpsert = vi.fn()
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({
@@ -34,7 +33,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }))
-vi.mock('p-limit', () => ({ default: () => (fn: Function) => fn() }))
+vi.mock('p-limit', () => ({ default: () => (fn: () => unknown) => fn() }))
 
 // ── Imports (after mocks) ──────────────────────────────────────
 
@@ -382,7 +381,6 @@ describe('admin actions', () => {
 
   describe('deleteUser', () => {
     const TARGET_UUID = '550e8400-e29b-41d4-a716-446655440001'
-    const ADMIN_UUID = 'admin-1'
 
     it('deletes auth user then DB user and revalidates', async () => {
       setupAdmin()
@@ -820,15 +818,6 @@ describe('admin actions', () => {
           }),
         }),
       })
-    }
-
-    function setupPostWriteSuccess() {
-      // history upsert
-      mockServiceFrom.mockReturnValueOnce({
-        upsert: vi.fn().mockResolvedValue({ error: null }),
-      })
-      // stamp_last_push_date
-      mockServiceRpc.mockResolvedValue({ error: null })
     }
 
     it('runs full happy path: select problem, dispatch, write history', async () => {

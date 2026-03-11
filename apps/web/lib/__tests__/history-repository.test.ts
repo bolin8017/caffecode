@@ -34,6 +34,19 @@ describe('getRecentHistory', () => {
     expect(result[1]).toMatchObject({ problem_id: 2, solved_at: null })
   })
 
+  it('returns empty array when no history exists', async () => {
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+      }),
+    }
+    const result = await getRecentHistory(mockSupabase as unknown as SupabaseClient, 'user-123', 7)
+    expect(result).toEqual([])
+  })
+
   it('throws on Supabase error', async () => {
     const mockSupabase = {
       from: vi.fn().mockReturnValue({

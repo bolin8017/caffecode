@@ -120,6 +120,12 @@ describe('getUserSettings', () => {
       'Failed to fetch user settings: db down'
     )
   })
+
+  it('returns null when user not found (data is null)', async () => {
+    const { db } = makeChainMock(null)
+    const result = await getUserSettings(db, 'nonexistent-user')
+    expect(result).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -230,6 +236,31 @@ describe('getSuggestedRange', () => {
 
     const result = await getSuggestedRange(db, 'user-1')
     expect(result).toBeNull()
+  })
+
+  it('returns a range when exactly 3 valid signals (boundary)', async () => {
+    const exactlyThreeRows = [
+      { difficulty: 'just_right', problems: { rating: 1500 } },
+      { difficulty: 'too_easy', problems: { rating: 1200 } },
+      { difficulty: 'too_hard', problems: { rating: 2000 } },
+    ]
+    const limitMock = vi.fn().mockResolvedValue({ data: exactlyThreeRows, error: null })
+    const orderMock = vi.fn().mockReturnValue({ limit: limitMock })
+    const notMock = vi.fn().mockReturnValue({ order: orderMock })
+    const eqMock = vi.fn().mockReturnValue({ not: notMock })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
+    const fromMock = vi.fn().mockReturnValue({ select: selectMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    mockComputeSuggestedRange.mockReturnValue({ min: 1300, max: 1800 })
+
+    const result = await getSuggestedRange(db, 'user-1')
+    expect(result).toEqual({ min: 1300, max: 1800 })
+    expect(mockComputeSuggestedRange).toHaveBeenCalledWith([
+      { difficulty: 'just_right', rating: 1500 },
+      { difficulty: 'too_easy', rating: 1200 },
+      { difficulty: 'too_hard', rating: 2000 },
+    ])
   })
 
   it('returns null when computeSuggestedRange returns null', async () => {

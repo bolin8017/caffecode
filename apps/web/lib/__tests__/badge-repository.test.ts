@@ -232,6 +232,34 @@ describe('getUserBadges', () => {
     expect(result).toEqual([])
   })
 
+  it('returns badges in earned_at DESC order', async () => {
+    const data = [
+      {
+        earned_at: '2026-03-10T00:00:00Z',
+        badges: { id: 2, slug: 'streak-3', name: '3-Day Streak', icon: '3', category: 'streak' },
+      },
+      {
+        earned_at: '2026-03-05T00:00:00Z',
+        badges: { id: 1, slug: 'first-solve', name: 'First Solve', icon: '1', category: 'milestone' },
+      },
+    ]
+    const orderMock = vi.fn().mockResolvedValue({ data, error: null })
+    const eqMock = vi.fn().mockReturnValue({ order: orderMock })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
+    const fromMock = vi.fn().mockReturnValue({ select: selectMock })
+    const db = { from: fromMock } as unknown as SupabaseClient
+
+    const result = await getUserBadges(db, 'user-1')
+    expect(result).toHaveLength(2)
+    expect(result[0].slug).toBe('streak-3')
+    expect(result[0].earned_at).toBe('2026-03-10T00:00:00Z')
+    expect(result[1].slug).toBe('first-solve')
+    expect(result[1].earned_at).toBe('2026-03-05T00:00:00Z')
+    // Verify order method was called with descending
+    expect(orderMock).toHaveBeenCalled()
+    expect(eqMock).toHaveBeenCalledWith('user_id', 'user-1')
+  })
+
   it('returns [] for empty badges array', async () => {
     const orderMock = vi.fn().mockResolvedValue({ data: [], error: null })
     const eqMock = vi.fn().mockReturnValue({ order: orderMock })

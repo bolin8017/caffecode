@@ -12,5 +12,21 @@ export default defineConfig({
     // Only run unit tests in __tests__/ — exclude Playwright e2e specs
     include: ['__tests__/**/*.{test,spec}.{ts,tsx}', 'lib/**/__tests__/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['e2e/**', 'node_modules/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      reportsDirectory: './coverage',
+      include: ['lib/**/*.ts', 'app/**/route.ts'],
+      exclude: [
+        'lib/**/__tests__/**', '**/*.test.*', '**/*.d.ts',
+        'lib/logger.ts',       // singleton Pino instance
+      ],
+      thresholds: {
+        statements: 90,
+        branches: 85,
+        functions: 90,
+        lines: 90,
+      },
+    },
   },
 })

@@ -10,9 +10,11 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "test": "turbo test",
+    "test:coverage": "turbo test:coverage",
     "lint": "turbo lint"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.18",
     "turbo": "^2.8.14",
     "typescript": "^5"
   },

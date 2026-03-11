@@ -15,24 +15,26 @@ async function ensureTestUser(
   password: string,
   opts?: { isAdmin?: boolean; onboardingCompleted?: boolean },
 ) {
-  // Try to find existing user
-  const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-  const existing = existingUsers?.users?.find(u => u.email === email)
-
+  // Try to create user first; if already exists, find and update
   let userId: string
 
-  if (existing) {
+  const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  })
+
+  if (created?.user) {
+    userId = created.user.id
+  } else if (createError?.message?.includes('already been registered')) {
+    // User exists — find by listing (with high perPage to avoid pagination issues)
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+    const existing = existingUsers?.users?.find(u => u.email === email)
+    if (!existing) throw new Error(`User ${email} exists but not found in listUsers`)
     userId = existing.id
-    // Update password to ensure it matches expected
     await supabaseAdmin.auth.admin.updateUserById(userId, { password })
   } else {
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    })
-    if (error) throw new Error(`Failed to create test user ${email}: ${error.message}`)
-    userId = data.user.id
+    throw new Error(`Failed to create test user ${email}: ${createError?.message}`)
   }
 
   // Set user profile flags
@@ -42,7 +44,8 @@ async function ensureTestUser(
     updates.onboarding_completed = opts.onboardingCompleted
 
   if (Object.keys(updates).length > 0) {
-    await supabaseAdmin.from('users').update(updates).eq('id', userId)
+    const { error: updateError } = await supabaseAdmin.from('users').update(updates).eq('id', userId)
+    if (updateError) throw new Error(`Failed to update profile for ${email}: ${updateError.message}`)
   }
 
   return userId

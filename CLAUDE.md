@@ -81,7 +81,7 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 ## Development Notes
 
-**Tests**: 676 TypeScript vitest (shared 120, worker 76, web 480) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
+**Tests**: 713 TypeScript vitest (shared 123, worker 76, web 514) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
 
 **Next.js 16**: `proxy.ts` (not `middleware.ts`); export must be named `proxy`.
 

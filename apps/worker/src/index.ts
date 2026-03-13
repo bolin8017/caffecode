@@ -47,8 +47,8 @@ async function main() {
     failed = stats.failed
     totalCandidates = stats.totalCandidates
 
-    if (succeeded === 0 && totalCandidates > 0) {
-      errorMsg = `All candidates processed but 0 messages delivered (${totalCandidates} candidates)`
+    if (succeeded === 0 && failed > 0) {
+      errorMsg = `All dispatches failed — 0 delivered, ${failed} failed (${totalCandidates} candidates)`
       throw new Error(errorMsg)
     }
   } catch (err) {

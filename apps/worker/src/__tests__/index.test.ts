@@ -125,7 +125,7 @@ describe('Worker main() — recordPushRun', () => {
   })
 
   it('records push run with error_msg on failure', async () => {
-    const errorMsg = 'All candidates processed but 0 messages delivered (3 candidates)'
+    const errorMsg = 'All dispatches failed — 0 delivered, 3 failed (3 candidates)'
     mockBuildPushJobs.mockResolvedValue({ totalCandidates: 3, succeeded: 0, failed: 3 })
 
     await mockRecordPushRun({} as SupabaseClient, {
@@ -148,24 +148,37 @@ describe('Worker main() — all-failed guard', () => {
     vi.clearAllMocks()
   })
 
-  it('throws when succeeded=0 and totalCandidates > 0', () => {
+  it('throws when succeeded=0 and failed > 0', () => {
     // This mirrors the guard in index.ts lines 50-53
     const succeeded = 0
+    const failed = 5
     const totalCandidates = 5
 
     expect(() => {
-      if (succeeded === 0 && totalCandidates > 0) {
-        throw new Error(`All candidates processed but 0 messages delivered (${totalCandidates} candidates)`)
+      if (succeeded === 0 && failed > 0) {
+        throw new Error(`All dispatches failed — 0 delivered, ${failed} failed (${totalCandidates} candidates)`)
       }
-    }).toThrow('All candidates processed but 0 messages delivered')
+    }).toThrow('All dispatches failed')
   })
 
   it('does NOT throw when some messages succeeded', () => {
     const succeeded: number = 3
-    const totalCandidates: number = 5
+    const failed: number = 2
 
     expect(() => {
-      if (succeeded === 0 && totalCandidates > 0) {
+      if (succeeded === 0 && failed > 0) {
+        throw new Error('should not reach')
+      }
+    }).not.toThrow()
+  })
+
+  it('does NOT throw when all candidates skipped (no problems to send)', () => {
+    // e.g. all users completed their active list — succeeded=0, failed=0
+    const succeeded = 0
+    const failed = 0
+
+    expect(() => {
+      if (succeeded === 0 && failed > 0) {
         throw new Error('should not reach')
       }
     }).not.toThrow()
@@ -173,10 +186,10 @@ describe('Worker main() — all-failed guard', () => {
 
   it('does NOT throw when totalCandidates is 0', () => {
     const succeeded = 0
-    const totalCandidates = 0
+    const failed = 0
 
     expect(() => {
-      if (succeeded === 0 && totalCandidates > 0) {
+      if (succeeded === 0 && failed > 0) {
         throw new Error('should not reach')
       }
     }).not.toThrow()

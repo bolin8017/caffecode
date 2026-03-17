@@ -147,6 +147,7 @@ CREATE TABLE history (
     problem_id INT NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
     sent_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     solved_at  TIMESTAMPTZ,          -- NULL = not yet marked solved; set by user action
+    skipped_at TIMESTAMPTZ,          -- NULL = not skipped; set by user to dismiss from queue
     UNIQUE (user_id, problem_id)
 );
 CREATE INDEX idx_history_user ON history(user_id);
@@ -332,7 +333,7 @@ CREATE TRIGGER trg_restrict_user_update
   FOR EACH ROW
   EXECUTE FUNCTION restrict_user_update();
 
--- Prevent users from modifying immutable history columns (only solved_at may change)
+-- Prevent users from modifying immutable history columns (only solved_at/skipped_at may change)
 CREATE OR REPLACE FUNCTION restrict_history_update()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -340,7 +341,7 @@ BEGIN
      NEW.problem_id IS DISTINCT FROM OLD.problem_id OR
      NEW.sent_at    IS DISTINCT FROM OLD.sent_at    OR
      NEW.id         IS DISTINCT FROM OLD.id THEN
-    RAISE EXCEPTION 'Only solved_at may be updated on history rows';
+    RAISE EXCEPTION 'Only solved_at and skipped_at may be updated on history rows';
   END IF;
   RETURN NEW;
 END;

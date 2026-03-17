@@ -8,6 +8,27 @@ import { type SolveResult, EMPTY_SOLVE_RESULT, buildSolveResult } from '@/lib/ut
 
 const problemIdSchema = z.number().int().positive()
 
+export async function skipProblem(problemId: number): Promise<void> {
+  problemIdSchema.parse(problemId)
+
+  const { supabase, user } = await getAuthUser()
+
+  const { error } = await supabase
+    .from('history')
+    .update({ skipped_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .eq('problem_id', problemId)
+    .is('skipped_at', null)
+    .is('solved_at', null)
+
+  if (error) {
+    logger.error({ error: error.message, problemId }, 'skipProblem update failed')
+    throw new Error('Failed to skip problem')
+  }
+
+  revalidatePath('/dashboard')
+}
+
 export async function markSolved(problemId: number): Promise<SolveResult> {
   problemIdSchema.parse(problemId)
 

@@ -46,7 +46,7 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 | `users` | Auth profile: timezone, push settings, push_hour_utc, difficulty range, topic filter, line_push_allowed |
 | `notification_channels` | channel_type, channel_identifier, is_verified, consecutive_send_failures, link_token_expires_at |
 | `user_list_progress` | Per-user list tracking (current_position, is_active); exactly one active list per user |
-| `history` | user_id × problem_id delivery record; UNIQUE constraint |
+| `history` | user_id × problem_id delivery record; UNIQUE constraint; skipped_at for dismissed items |
 | `push_runs` | Per-worker-run stats: candidates, succeeded, failed, duration_ms, error_msg |
 | `feedback` | Difficulty feeling + content_score (1-5) per user per problem |
 | `badges` | Badge definitions: slug, name, icon, category, requirement JSONB |
@@ -81,7 +81,7 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 ## Development Notes
 
-**Tests**: 746 TypeScript vitest (shared 123, worker 76, web 547) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
+**Tests**: 752 TypeScript vitest (shared 123, worker 77, web 552) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
 
 **Coverage**: `pnpm test:coverage` runs all packages with `@vitest/coverage-v8`. CI enforces thresholds (shared 95/90/95/95, worker 90/85/90/90, web 90/85/90/90 for stmts/branch/funcs/lines). Coverage scope: business logic only (`lib/`, `src/`, API routes); excludes components, pages, and infra singletons.
 

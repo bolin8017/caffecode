@@ -5,7 +5,7 @@
 - **Webhook rate limiting**: `lib/utils/rate-limiter.ts` — per-IP sliding window (120 req/min), module-level Map resets on Vercel cold start
 - **Link token expiration**: `link_token_expires_at` on `notification_channels` — 30 min expiry. Strict RFC 4122 UUID regex validation in webhook handlers.
 - **Timezone IANA validation**: `Intl.supportedValuesOf('timeZone')` whitelist via Zod schema in `lib/schemas/timezone.ts`
-- **DB triggers**: `trg_restrict_user_update` locks `is_admin`, `line_push_allowed`, `last_push_date`. `trg_restrict_history_update` locks all except `solved_at`. service_role bypasses.
+- **DB triggers**: `trg_restrict_user_update` locks `is_admin`, `line_push_allowed`, `last_push_date`. `trg_restrict_history_update` locks all except `solved_at` and `skipped_at`. service_role bypasses.
 - **Open redirect prevention**: `sanitizeRedirect()` validates redirect param (must start with `/[a-z0-9]`, no backslashes)
 - **PostgREST filter sanitization**: `sanitizeSearch()` strips commas, dots, parens, quotes from admin search input
 - **Input validation**: All admin Server Actions validate with Zod (int/uuid); difficulty capped at 3000 with min<=max; topic_filter limited to 50

@@ -55,11 +55,11 @@ export default async function DashboardPage() {
       getStreakHistory(supabase, user.id, 60),
     ])
 
-  const fourteenDaysAgo = new Date()
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
   const unsolvedItems = recentHistory
-    .filter((e) => !e.solved_at && new Date(e.sent_at) >= fourteenDaysAgo && e.problems)
+    .filter((e) => !e.solved_at && !e.skipped_at && new Date(e.sent_at) >= sevenDaysAgo && e.problems)
     .map((e) => ({
       problemId: e.problem_id,
       title: e.problems!.title,

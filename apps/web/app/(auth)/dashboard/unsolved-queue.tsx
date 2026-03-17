@@ -3,8 +3,9 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { X, ChevronDown } from 'lucide-react'
 import { SolveButton } from '@/components/solve-button'
-import { markSolved } from '@/lib/actions/history'
+import { markSolved, skipProblem } from '@/lib/actions/history'
 import { trackSolveMarked } from '@/lib/analytics'
 import { SolveFeedback } from '@/components/solve-feedback'
 import type { SolveResult } from '@/lib/utils/solve-result'
@@ -23,10 +24,13 @@ const DIFFICULTY_STYLE: Record<string, { text: string; bg: string; label: string
   Hard:   { text: 'text-rose-700 dark:text-rose-400',     bg: 'bg-rose-50 dark:bg-rose-950/60',     label: '困難' },
 }
 
+const VISIBLE_LIMIT = 3
+
 export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }) {
   const [items, setItems] = useState(initialItems)
   const [pendingId, setPendingId] = useState<number | null>(null)
   const [solveResult, setSolveResult] = useState<SolveResult | null>(null)
+  const [expanded, setExpanded] = useState(false)
   const [, startTransition] = useTransition()
 
   if (items.length === 0) {
@@ -37,9 +41,11 @@ export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }
     )
   }
 
+  const visibleItems = expanded ? items : items.slice(0, VISIBLE_LIMIT)
+  const remainingCount = items.length - VISIBLE_LIMIT
+
   const handleSolve = (problemId: number, sentAt: string) => {
     setPendingId(problemId)
-    // Optimistically remove the item; save snapshot so we can restore on error
     let removedItem: UnsolvedItem | undefined
     setItems((prev) => {
       removedItem = prev.find((item) => item.problemId === problemId)
@@ -54,7 +60,6 @@ export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }
         )
         trackSolveMarked({ problemId, source: 'dashboard', timeSinceSentSec })
       } catch {
-        // Restore the optimistically removed item
         if (removedItem) {
           setItems((prev) => [...prev, removedItem!].sort(
             (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
@@ -67,10 +72,30 @@ export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }
     })
   }
 
+  const handleSkip = (problemId: number) => {
+    let removedItem: UnsolvedItem | undefined
+    setItems((prev) => {
+      removedItem = prev.find((item) => item.problemId === problemId)
+      return prev.filter((item) => item.problemId !== problemId)
+    })
+    startTransition(async () => {
+      try {
+        await skipProblem(problemId)
+      } catch {
+        if (removedItem) {
+          setItems((prev) => [...prev, removedItem!].sort(
+            (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
+          ))
+        }
+        toast.error('跳過失敗，請再試一次')
+      }
+    })
+  }
+
   return (
     <>
     <ul className="divide-y">
-      {items.map((item) => {
+      {visibleItems.map((item) => {
         const style = DIFFICULTY_STYLE[item.difficulty]
         return (
           <li key={item.problemId} className="flex items-center justify-between py-3 gap-4 text-sm">
@@ -101,11 +126,29 @@ export function UnsolvedQueue({ items: initialItems }: { items: UnsolvedItem[] }
                   day: 'numeric',
                 })}
               </span>
+              <button
+                type="button"
+                onClick={() => handleSkip(item.problemId)}
+                title="跳過"
+                className="text-muted-foreground/50 hover:text-foreground transition-colors p-0.5 -mr-1"
+              >
+                <X className="size-3.5" />
+              </button>
             </div>
           </li>
         )
       })}
     </ul>
+    {remainingCount > 0 && !expanded && (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mt-2 mx-auto"
+      >
+        <ChevronDown className="size-3.5" />
+        還有 {remainingCount} 題
+      </button>
+    )}
     <SolveFeedback result={solveResult} onDismiss={() => setSolveResult(null)} />
     </>
   )

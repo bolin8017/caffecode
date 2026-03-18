@@ -12,6 +12,8 @@ import { FeedbackWidget } from './feedback-widget'
 import { ProblemActions } from './problem-actions'
 import { cn } from '@/lib/utils'
 import { cache } from 'react'
+import { JsonLd } from '@/components/seo/json-ld'
+import { breadcrumbSchema, learningResourceSchema } from '@/lib/seo/schemas'
 
 export const revalidate = 3600
 export const dynamicParams = true
@@ -49,14 +51,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params
   const data = await getProblemBySlug(slug)
 
-  if (!data) return { title: '找不到題目 — CaffeCode' }
+  if (!data) return { title: '找不到題目' }
 
+  const topics = data.topics as string[]
   return {
-    title: `${data.title} — CaffeCode`,
-    description: `${data.difficulty} | ${(data.topics as string[]).slice(0, 3).join(', ')}`,
+    title: data.title,
+    description: `${data.difficulty} 難度 — ${topics.slice(0, 5).join('、')}。含 AI 解題說明、複雜度分析與替代解法。`,
+    alternates: { canonical: `/problems/${slug}` },
     openGraph: {
       title: data.title,
-      description: `${data.difficulty} — 含 AI 解題說明`,
+      description: `${data.difficulty} — ${topics.slice(0, 3).join(', ')}`,
     },
   }
 }
@@ -113,6 +117,18 @@ export default async function ProblemPage({ params }: PageProps) {
       "mx-auto max-w-3xl px-6 py-10",
       user && historyEntry && !historyEntry.solved_at && "pb-28"
     )}>
+      <JsonLd data={learningResourceSchema({
+        title: problem.title,
+        slug: problem.slug,
+        difficulty: problem.difficulty,
+        topics: problem.topics as string[],
+        description: `${problem.difficulty} 難度 — ${(problem.topics as string[]).slice(0, 5).join('、')}`,
+      })} />
+      <JsonLd data={breadcrumbSchema([
+        { name: '首頁', url: 'https://caffecode.net' },
+        { name: '題庫', url: 'https://caffecode.net/problems' },
+        { name: problem.title, url: `https://caffecode.net/problems/${problem.slug}` },
+      ])} />
       {/* Header */}
       <div className="mb-6">
         <div className="flex flex-wrap items-center gap-2 mb-3">

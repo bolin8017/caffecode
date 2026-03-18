@@ -35,7 +35,7 @@ A daily LeetCode problem delivery platform with AI-generated C++ explanations in
 - **Coffee Garden** — `/garden` gamification page: each LeetCode topic maps to a coffee variety with uncapped leveling system (Lv. 0–4 stages, then +1 per 5 solves). Auto-awarded badges for milestones, streaks, skill mastery, and variety
 - **Streak tracking** — timezone-aware daily solve streak on dashboard
 - **Admin monitoring** — health dashboard, worker run history, per-channel test/reset
-- **SEO-optimized** — server-rendered public pages with dynamic sitemap
+- **SEO-optimized** — structured data (JSON-LD), dynamic OG images, canonical URLs, web manifest, and dynamic sitemap
 
 ## Architecture
 

@@ -75,6 +75,12 @@ paths:
 - `admin/channels/page.tsx` — Channel list with type/status filters, sortable columns
 - `admin/channels/channel-actions.tsx` — Per-channel Reset (failure counter) + Test (send diagnostic)
 
+**SEO**:
+- `components/seo/json-ld.tsx` — Shared JSON-LD script renderer (Server Component)
+- `lib/seo/schemas.ts` — Schema.org helpers (Organization, WebSite, BreadcrumbList, LearningResource, ItemList)
+- `app/(public)/problems/[slug]/opengraph-image.tsx` — Dynamic OG image (Node.js runtime, Satori)
+- `app/manifest.ts` — Web app manifest (MetadataRoute)
+
 **Components**:
 - `components/posthog-provider.tsx` — Client Component wrapping PostHog init
 - `components/nav.tsx` — Server Component, reads `userProfile` prop (no DB query)

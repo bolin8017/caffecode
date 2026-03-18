@@ -6,6 +6,8 @@ import type { Metadata } from 'next'
 import { ListSubscribeBar, StartFromHereButton } from './list-subscribe-bar'
 
 import { cache } from 'react'
+import { JsonLd } from '@/components/seo/json-ld'
+import { breadcrumbSchema, itemListSchema } from '@/lib/seo/schemas'
 
 export const revalidate = 3600
 export const dynamicParams = true
@@ -35,11 +37,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params
   const list = await getListBySlug(slug)
 
-  if (!list) return { title: '找不到清單 — CaffeCode' }
+  if (!list) return { title: '找不到清單' }
 
   return {
-    title: `${list.name} — CaffeCode`,
-    description: list.description ?? `${list.problem_count} 道精選題目`,
+    title: list.name,
+    description: list.description ?? `${list.name} — 包含 ${list.problem_count} 道題目的精選刷題清單。`,
+    alternates: { canonical: `/lists/${slug}` },
   }
 }
 
@@ -94,6 +97,17 @@ export default async function ListDetailPage({ params }: PageProps) {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
+      <JsonLd data={itemListSchema(
+        list.name,
+        (listProblems ?? [])
+          .map(lp => lp.problems as unknown as { title: string; slug: string } | null)
+          .filter((p): p is { title: string; slug: string } => p != null)
+      )} />
+      <JsonLd data={breadcrumbSchema([
+        { name: '首頁', url: 'https://caffecode.net' },
+        { name: '學習清單', url: 'https://caffecode.net/lists' },
+        { name: list.name, url: `https://caffecode.net/lists/${list.slug}` },
+      ])} />
       {/* Header */}
       <div className="mb-8">
         <Link href="/lists" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">

@@ -10,8 +10,9 @@ import { SearchInput, FilterChips, Pagination } from '@/components/data-table'
 export const revalidate = 3600
 
 export const metadata: Metadata = {
-  title: '題庫 — CaffeCode',
+  title: '題庫',
   description: '瀏覽所有資料結構與演算法題目，含 AI 解題說明',
+  alternates: { canonical: '/problems' },
 }
 
 const DIFFICULTY_COLORS: Record<string, string> = {

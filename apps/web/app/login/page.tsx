@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { LoginForm } from './login-form'
+import type { Metadata } from 'next'
 
-export const metadata = {
-  title: '登入 — CaffeCode',
+export const metadata: Metadata = {
+  title: '登入',
+  description: '登入 CaffeCode，開始你的刷題之旅。',
+  alternates: { canonical: '/login' },
 }
 
 export default async function LoginPage({

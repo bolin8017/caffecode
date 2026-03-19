@@ -8,8 +8,9 @@ import { FilterChips, Pagination } from '@/components/data-table'
 export const revalidate = 3600
 
 export const metadata: Metadata = {
-  title: '學習清單 — CaffeCode',
+  title: '學習清單',
   description: '45 份精選刷題清單，涵蓋演算法、資料結構與各大廠面試高頻題型',
+  alternates: { canonical: '/lists' },
 }
 
 const CATEGORY_OPTIONS = [

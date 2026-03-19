@@ -1,7 +1,5 @@
 import { ImageResponse } from 'next/og'
 import { createServiceClient } from '@/lib/supabase/server'
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 
 export const runtime = 'nodejs'
 export const alt = 'CaffeCode Problem'
@@ -45,26 +43,11 @@ export default async function OgImage({
   const topics = (data.topics as string[]).slice(0, 4)
   const diffColor = DIFFICULTY_COLORS[data.difficulty] ?? '#a1a1aa'
 
-  // Load font from filesystem (Node.js runtime)
-  let fontData: ArrayBuffer | null = null
-  try {
-    const fontPath = join(process.cwd(), 'public/fonts/NotoSansTC-Bold.subset.woff')
-    const buffer = await readFile(fontPath)
-    fontData = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
-  } catch {
-    // Font load failed; Satori will use fallback
-  }
-
-  const fonts = fontData
-    ? [{ name: 'NotoSansTC', data: fontData, style: 'normal' as const, weight: 700 as const }]
-    : []
-
   return new ImageResponse(
     <div style={{
       display: 'flex', flexDirection: 'column',
       width: '100%', height: '100%',
       backgroundColor: '#1a1a1a', padding: '60px 80px',
-      fontFamily: 'NotoSansTC, sans-serif',
     }}>
       {/* Top: Logo text */}
       <div style={{ display: 'flex', color: '#a1a1aa', fontSize: 24 }}>
@@ -106,6 +89,6 @@ export default async function OgImage({
         caffecode.net
       </div>
     </div>,
-    { ...size, fonts },
+    { ...size },
   )
 }

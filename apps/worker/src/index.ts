@@ -1,18 +1,10 @@
 import { config } from './lib/config.js'
-import * as Sentry from '@sentry/node'
 import pLimit from 'p-limit'
 import { logger } from './lib/logger.js'
 import { supabase } from './lib/supabase.js'
 import { channelRegistry } from './channels/registry.js'
 import { buildPushJobs } from './workers/push.logic.js'
 import { recordPushRun } from './repositories/push.repository.js'
-
-if (config.SENTRY_DSN) {
-  Sentry.init({
-    dsn: config.SENTRY_DSN,
-    environment: 'production',
-  })
-}
 
 const dispatchLimit = pLimit(5)
 
@@ -72,9 +64,5 @@ main()
   })
   .catch(async (err) => {
     logger.fatal({ err }, 'Push run failed')
-    if (config.SENTRY_DSN) {
-      Sentry.captureException(err)
-      await Sentry.flush(2000)
-    }
     process.exit(1)
   })

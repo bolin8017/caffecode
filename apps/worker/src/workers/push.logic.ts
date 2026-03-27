@@ -244,19 +244,6 @@ export async function buildPushJobs(
     logger.warn({ totalCandidates }, 'All candidates had no problem to send or all dispatches failed')
   }
 
-  if (failed > 0) {
-    try {
-      const Sentry = await import('@sentry/node')
-      Sentry.addBreadcrumb({
-        category: 'push',
-        message: `Push run: ${succeeded} succeeded, ${failed} failed of ${totalCandidates}`,
-        level: 'warning',
-      })
-    } catch {
-      // Sentry not available — no-op
-    }
-  }
-
   logger.info({ totalCandidates, succeeded, failed }, 'Push run complete')
   return { totalCandidates, succeeded, failed }
 }
@@ -284,16 +271,6 @@ export async function dispatchJob(
       { channelId: job.channelId, channelType: job.channelType, userId: job.userId },
       'Channel failure counter incremented (permanent failure)',
     )
-    try {
-      const Sentry = await import('@sentry/node')
-      Sentry.captureMessage(`Channel permanent failure: ${job.channelType}`, {
-        level: 'warning',
-        tags: { channelType: job.channelType, userId: job.userId },
-        extra: { error: result.error?.slice(0, 200) },
-      })
-    } catch {
-      // Sentry not available
-    }
   }
 
   return result

@@ -84,7 +84,7 @@ Two processes share the same Supabase database. `packages/shared` provides chann
 | Monorepo | pnpm workspaces + Turborepo |
 | Observability | Sentry (errors), PostHog (analytics), Pino (structured logging) |
 | Security | CSP headers, Zod validation, webhook HMAC verification |
-| Testing | Vitest (746 TS) + Playwright E2E (57) + pytest (54 Python) |
+| Testing | Vitest (762 TS) + Playwright E2E (57) + pytest (54 Python) |
 | CI/CD | GitHub Actions, Vercel (web + worker) |
 
 ## Project Structure
@@ -92,9 +92,9 @@ Two processes share the same Supabase database. `packages/shared` provides chann
 ```
 apps/
   web/              Next.js 16 — public pages, auth, dashboard, settings, admin
-  worker/           Push logic modules — used by /api/cron/push Vercel function
+  worker/           Standalone push worker entry point (uses shared push pipeline)
 packages/
-  shared/           Channel senders, problem selection, notification formatters
+  shared/           Channel senders, problem selection, push pipeline, formatters
 supabase/
   config.toml       Supabase CLI configuration
 docs/
@@ -169,8 +169,8 @@ pnpm dev            # start web dev server on localhost:3000
 pnpm test
 
 # Individually
-cd packages/shared && pnpm exec vitest run   # 123 tests
-cd apps/worker && pnpm exec vitest run       # 76 tests
+cd packages/shared && pnpm exec vitest run   # 185 tests
+cd apps/worker && pnpm exec vitest run       # 11 tests
 cd apps/web && pnpm exec vitest run          # 566 tests
 
 # E2E tests (requires dev server running)

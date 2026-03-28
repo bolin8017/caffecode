@@ -1,4 +1,3 @@
-// apps/worker/src/channels/email-template.tsx
 import {
   Html,
   Head,

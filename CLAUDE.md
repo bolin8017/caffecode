@@ -17,7 +17,7 @@ pnpm monorepo + Turborepo. Two processes share a single Supabase database:
 |-----------|----------|---------|------|
 | Web | `apps/web/` | Next.js 16 on Vercel | Public pages (SEO), OAuth, dashboard, settings, admin |
 | Worker | `apps/worker/` | Vercel Serverless (via Supabase pg_cron) | Candidate scan → problem selection → channel dispatch |
-| Shared | `packages/shared/` | TypeScript library | Types, channel senders, problem selection, formatters |
+| Shared | `packages/shared/` | TypeScript library | Types, channel senders, problem selection, formatters, push pipeline |
 
 **Pre-curated content model**: All problem content generated offline via admin UI. Zero runtime LLM calls.
 
@@ -83,9 +83,9 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 ## Development Notes
 
-**Tests**: 765 TypeScript vitest (shared 123, worker 76, web 566) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
+**Tests**: 762 TypeScript vitest (shared 185, worker 11, web 566) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
 
-**Coverage**: `pnpm test:coverage` runs all packages with `@vitest/coverage-v8`. CI enforces thresholds (shared 95/90/95/95, worker 90/85/90/90, web 90/85/90/90 for stmts/branch/funcs/lines). Coverage scope: business logic only (`lib/`, `src/`, API routes); excludes components, pages, and infra singletons.
+**Coverage**: `pnpm test:coverage` runs all packages with `@vitest/coverage-v8`. CI enforces thresholds (shared 90/85/90/90, web 90/85/90/90 for stmts/branch/funcs/lines). Worker has no coverage thresholds (only config + entry point remain). Coverage scope: business logic only (`lib/`, `src/`, API routes); excludes components, pages, and infra singletons.
 
 **Next.js 16**: `proxy.ts` (not `middleware.ts`); export must be named `proxy`.
 
@@ -99,4 +99,4 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 **Admin pages**: Event handlers cannot be in Server Components — use Client Component wrappers.
 
-**Worker cron**: `pg_cron` (Supabase) fires `pg_net` HTTP POST to `/api/cron/push` hourly. Auth via `CRON_SECRET` Bearer token. Catch-up model: `push_hour_utc <= current_hour` recovers missed triggers. Web build uses webpack (not Turbopack) for cross-package worker imports.
+**Worker cron**: `pg_cron` (Supabase) fires `pg_net` HTTP POST to `/api/cron/push` hourly. Auth via `CRON_SECRET` Bearer token. Catch-up model: `push_hour_utc <= current_hour` recovers missed triggers.

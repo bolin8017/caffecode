@@ -1,4 +1,5 @@
-import { sendLineMessage, type PushMessage, type SendResult } from '@caffecode/shared'
+import { sendLineMessage } from '../../channels/line.js'
+import type { PushMessage, SendResult } from '../../types/push.js'
 import type { NotificationChannel } from './interface.js'
 
 export class LineChannel implements NotificationChannel {

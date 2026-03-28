@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { PushMessage } from '@caffecode/shared'
+import type { PushMessage } from '../../types/push.js'
 
 // Mock @react-email/render to avoid rendering React Email components in tests
 vi.mock('@react-email/render', () => ({
@@ -8,8 +8,8 @@ vi.mock('@react-email/render', () => ({
 
 // Mock the shared sendEmailMessage to avoid real HTTP calls
 const sendEmailMock = vi.fn()
-vi.mock('@caffecode/shared', async () => {
-  const actual = await vi.importActual<typeof import('@caffecode/shared')>('@caffecode/shared')
+vi.mock('../../channels/email.js', async () => {
+  const actual = await vi.importActual<typeof import('../../channels/email.js')>('../../channels/email.js')
   return {
     ...actual,
     sendEmailMessage: (...args: unknown[]) => sendEmailMock(...args),

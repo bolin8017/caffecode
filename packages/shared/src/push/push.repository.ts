@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { logger } from '../lib/logger.js'
+import { logger } from './push.logger.js'
 
 export interface PushCandidate {
   id: string
@@ -47,8 +47,7 @@ export async function getVerifiedChannelsBulk(
     .eq('is_verified', true)
     .lt('consecutive_send_failures', 3)
   if (error) {
-    logger.error({ err: error }, 'getVerifiedChannelsBulk: query failed')
-    return []
+    throw new Error(`getVerifiedChannelsBulk: query failed: ${error.message}`)
   }
   return (data ?? []) as VerifiedChannel[]
 }

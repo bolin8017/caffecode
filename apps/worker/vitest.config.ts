@@ -14,20 +14,14 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       reportsDirectory: './coverage',
-      include: ['src/**/*.ts', 'src/**/*.tsx'],
+      include: ['src/**/*.ts'],
       exclude: [
         'src/**/__tests__/**', 'src/**/*.test.*', 'src/**/*.d.ts',
         'src/index.ts',            // entry-point orchestration (tested via index.test.ts mocks)
-        'src/channels/interface.ts', // pure type definitions
         'src/lib/config.ts',        // singleton re-export of parsed env
         'src/lib/supabase.ts',      // singleton Supabase client init
+        'src/lib/logger.ts',        // singleton pino logger
       ],
-      thresholds: {
-        statements: 90,
-        branches: 85,
-        functions: 90,
-        lines: 90,
-      },
     },
   },
 })

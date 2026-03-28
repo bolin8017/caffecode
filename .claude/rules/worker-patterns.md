@@ -1,6 +1,7 @@
 ---
 paths:
   - "apps/worker/**"
+  - "packages/shared/src/push/**"
 ---
 
 # Worker Patterns
@@ -26,10 +27,13 @@ paths:
 
 ## Key Files
 
-- `src/index.ts` — Entry point: Sentry init, buildPushJobs, Promise.allSettled dispatch, recordPushRun
-- `src/workers/push.logic.ts` — `buildPushJobs()` (pure, paginated), `dispatchJob()` (circuit-breaker)
-- `src/channels/` — `index.ts` (channel interface + registry), `telegram.ts`, `line.ts`, `email.ts`
-- `src/repositories/push.repository.ts` — `getAllCandidates`, `getVerifiedChannelsBulk`, `upsertHistoryBatch`, `stampLastPushDate`, `incrementChannelFailures`, `resetChannelFailuresForUsers`, `recordPushRun`
-- `src/lib/config.ts` + `config.schema.ts` — Zod-validated env; `config` exported everywhere
-- `src/lib/logger.ts` — Pino logger
-- `src/lib/supabase.ts` — service_role client
+Push pipeline lives in `packages/shared/src/push/` (shared between web API route and worker):
+- `push.logic.ts` — `buildPushJobs()` (pure, paginated), `dispatchJob()` (circuit-breaker)
+- `push.repository.ts` — `getAllCandidates`, `getVerifiedChannelsBulk`, `upsertHistoryBatch`, `stampLastPushDate`, `incrementChannelFailures`, `resetChannelFailuresForUsers`, `recordPushRun`
+- `channels/` — `interface.ts`, `telegram.ts`, `line.ts`, `email.ts`, `email-template.tsx`, `registry.ts` (`createChannelRegistry` factory)
+
+Worker entry point (`apps/worker/src/`):
+- `index.ts` — Entry point: imports `buildPushJobs`, `recordPushRun`, `createChannelRegistry` from `@caffecode/shared`
+- `lib/config.ts` + `config.schema.ts` — Zod-validated env
+- `lib/logger.ts` — Pino logger
+- `lib/supabase.ts` — service_role client

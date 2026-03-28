@@ -1,25 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { LimitFunction } from 'p-limit'
 
-vi.mock('../lib/config.js', () => ({
-  config: {
-    SUPABASE_URL: 'https://test.supabase.co',
-    SUPABASE_SERVICE_ROLE_KEY: 'test-key',
-    APP_URL: 'https://caffecode.net',
-    TELEGRAM_BOT_TOKEN: 'test-token',
-    LINE_CHANNEL_ACCESS_TOKEN: 'test-line-token',
-    RESEND_API_KEY: 're_test',
-    RESEND_FROM_EMAIL: 'CaffeCode <noreply@caffecode.net>',
-  },
+vi.mock('../push.repository.js')
+vi.mock('../../services/problem-selector.js', () => ({
+  selectProblemForUser: vi.fn(),
 }))
 
-vi.mock('../repositories/push.repository.js')
-vi.mock('@caffecode/shared', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@caffecode/shared')>()
-  return { ...actual, selectProblemForUser: vi.fn() }
-})
-
-import { buildPushJobs } from '../workers/push.logic.js'
+import { buildPushJobs } from '../push.logic.js'
 import {
   getAllCandidates,
   getVerifiedChannelsBulk,
@@ -29,10 +16,10 @@ import {
   resetChannelFailuresForUsers,
   type PushCandidate,
   type VerifiedChannel,
-} from '../repositories/push.repository.js'
-import { selectProblemForUser } from '@caffecode/shared'
+} from '../push.repository.js'
+import { selectProblemForUser } from '../../services/problem-selector.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { SelectedProblem } from '@caffecode/shared'
+import type { SelectedProblem } from '../../types/push.js'
 import type { NotificationChannel } from '../channels/interface.js'
 
 const mockGetAllCandidates = vi.mocked(getAllCandidates)

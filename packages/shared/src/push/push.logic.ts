@@ -142,6 +142,7 @@ export async function buildPushJobs(
   channelRegistryArg: Record<string, NotificationChannel>,
   dispatchLimit: LimitFunction,
 ): Promise<PushRunStats> {
+  const appUrl = process.env.APP_URL ?? 'https://caffecode.net'
   const allCandidates = await getAllCandidates(db)
 
   if (allCandidates.length === 0) {
@@ -174,14 +175,17 @@ export async function buildPushJobs(
     const results = await Promise.allSettled(
       batchJobs.map(job => {
         const channel = channelRegistryArg[job.channelType]
-        if (!channel) return Promise.resolve(null)
+        if (!channel) {
+          logger.warn({ channelType: job.channelType, userId: job.userId }, 'Unknown channel type — no handler registered')
+          return Promise.resolve({ success: false, error: `unknown channel type: ${job.channelType}`, shouldRetry: false } as SendResult)
+        }
         return dispatchLimit(async () => {
           // Check inside dispatchLimit so it's evaluated when the job
           // actually executes, not when the map synchronously builds promises.
           if (pausedChannels.has(job.channelId)) {
             return { success: false, error: 'channel paused mid-batch', shouldRetry: false } as SendResult
           }
-          const result = await dispatchJob(job, channel, db)
+          const result = await dispatchJob(job, channel, db, appUrl)
           if (!result.success && !result.shouldRetry) {
             pausedChannels.add(job.channelId)
           }
@@ -248,9 +252,9 @@ export async function buildPushJobs(
 export async function dispatchJob(
   job: PushJobData,
   channel: NotificationChannel,
-  db: SupabaseClient
+  db: SupabaseClient,
+  appUrl = process.env.APP_URL ?? 'https://caffecode.net',
 ): Promise<SendResult> {
-  const appUrl = process.env.APP_URL ?? 'https://caffecode.net'
   const msg: PushMessage = {
     title: job.title,
     difficulty: job.difficulty,

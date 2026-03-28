@@ -11,7 +11,7 @@ import {
 } from '../push.repository.js'
 
 describe('getVerifiedChannelsBulk — error handling', () => {
-  it('returns empty array on DB error (non-throwing)', async () => {
+  it('throws on DB error (critical-path operation)', async () => {
     const ltMock = vi.fn().mockResolvedValue({
       data: null,
       error: { message: 'connection refused' },
@@ -22,10 +22,9 @@ describe('getVerifiedChannelsBulk — error handling', () => {
     const fromMock = vi.fn().mockReturnValue({ select: selectMock })
     const db = { from: fromMock } as unknown as SupabaseClient
 
-    const result = await getVerifiedChannelsBulk(db, ['user-1'])
-
-    // Should return [] instead of throwing
-    expect(result).toEqual([])
+    await expect(getVerifiedChannelsBulk(db, ['user-1'])).rejects.toThrow(
+      'getVerifiedChannelsBulk: query failed: connection refused',
+    )
   })
 })
 

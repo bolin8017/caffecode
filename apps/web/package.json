@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "NODE_OPTIONS='--require=../../scripts/ipv4-only.cjs' next dev",
-    "build": "cd ../../apps/worker && npx tsc && cd ../../apps/web && next build --webpack",
+    "build": "npx tsc --project ../../apps/worker/tsconfig.json && next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",

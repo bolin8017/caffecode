@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { LimitFunction } from 'p-limit'
+import pLimit from 'p-limit'
 import { selectProblemForUser } from '../services/problem-selector.js'
 import type { NotificationChannel } from './channels/interface.js'
 import type { PushMessage, SendResult } from '../types/push.js'
@@ -51,9 +52,6 @@ async function processBatch(
   db: SupabaseClient,
   users: PushCandidate[],
 ): Promise<BatchResult> {
-  // Problem selection is per-user (different list position / filter criteria)
-  // Parallelized with concurrency limit to avoid overwhelming the DB
-  const pLimit = (await import('p-limit')).default
   const limit = pLimit(10)
   const settled = await Promise.allSettled(
     users.map(user => limit(async () => {

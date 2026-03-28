@@ -4,11 +4,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import {
   buildPushJobs,
   recordPushRun,
-  TelegramChannel,
-  LineChannel,
-  EmailChannel,
+  createChannelRegistry,
 } from '@caffecode/shared'
-import type { NotificationChannel } from '@caffecode/shared'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -43,18 +40,12 @@ export async function POST(request: Request) {
   let errorMsg: string | undefined
 
   try {
-    const channelRegistry: Record<string, NotificationChannel> = {
-      telegram: new TelegramChannel(process.env.TELEGRAM_BOT_TOKEN!),
-      line: new LineChannel(process.env.LINE_CHANNEL_ACCESS_TOKEN!),
-      ...(process.env.RESEND_API_KEY
-        ? {
-            email: new EmailChannel(
-              process.env.RESEND_API_KEY,
-              process.env.RESEND_FROM_EMAIL ?? 'CaffeCode <noreply@caffecode.net>',
-            ),
-          }
-        : {}),
-    }
+    const channelRegistry = createChannelRegistry({
+      telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
+      lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
+      resendApiKey: process.env.RESEND_API_KEY,
+      resendFromEmail: process.env.RESEND_FROM_EMAIL,
+    })
 
     const dispatchLimit = pLimit(5)
     const stats = await buildPushJobs(supabase, channelRegistry, dispatchLimit)
@@ -74,12 +65,11 @@ export async function POST(request: Request) {
     })
   }
 
-  const durationMs = Date.now() - startMs
   return Response.json({
     ok: !errorMsg,
     candidates: totalCandidates,
     succeeded,
     failed,
-    durationMs,
+    durationMs: Date.now() - startMs,
   })
 }

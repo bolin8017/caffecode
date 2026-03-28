@@ -1,4 +1,3 @@
-// Push pipeline — shared between web API route and worker
 export { buildPushJobs, dispatchJob } from './push.logic.js'
 export type { PushJobData, PushRunStats } from './push.logic.js'
 

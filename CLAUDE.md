@@ -16,7 +16,7 @@ pnpm monorepo + Turborepo. Two processes share a single Supabase database:
 | Component | Location | Runtime | Role |
 |-----------|----------|---------|------|
 | Web | `apps/web/` | Next.js 16 on Vercel | Public pages (SEO), OAuth, dashboard, settings, admin |
-| Worker | `apps/worker/` | Node.js on Railway Cron (hourly) | Candidate scan → problem selection → channel dispatch |
+| Worker | `apps/worker/` | Vercel Serverless (via Supabase pg_cron) | Candidate scan → problem selection → channel dispatch |
 | Shared | `packages/shared/` | TypeScript library | Types, channel senders, problem selection, formatters |
 
 **Pre-curated content model**: All problem content generated offline via admin UI. Zero runtime LLM calls.
@@ -58,11 +58,13 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 | Target | Platform | Deploy method |
 |--------|----------|---------------|
-| Web | Vercel | `git push origin main` (auto-deploy) |
-| Worker | Railway | `railway up --detach` (manual, after web is healthy) |
+| Web + Worker | Vercel | `git push origin main` (auto-deploy) |
 
-- DB migrations via `supabase db push` BEFORE deploying code that depends on them
+- DB migrations via Supabase MCP `apply_migration` BEFORE deploying code that depends on them
 - Never `vercel --prod` — deploy web via git push only
+- Worker cron: Supabase `pg_cron` fires `pg_net` HTTP POST to `/api/cron/push` every hour
+- Auth: `CRON_SECRET` Bearer token (Supabase Vault + Vercel env var)
+- Catch-up model: missed cron triggers recovered on the next successful run
 - Full checklist and cloud services in `.claude/rules/deployment.md`
 
 ## Notification Channels
@@ -81,7 +83,7 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 ## Development Notes
 
-**Tests**: 759 TypeScript vitest (shared 123, worker 76, web 560) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
+**Tests**: 765 TypeScript vitest (shared 123, worker 76, web 566) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
 
 **Coverage**: `pnpm test:coverage` runs all packages with `@vitest/coverage-v8`. CI enforces thresholds (shared 95/90/95/95, worker 90/85/90/90, web 90/85/90/90 for stmts/branch/funcs/lines). Coverage scope: business logic only (`lib/`, `src/`, API routes); excludes components, pages, and infra singletons.
 
@@ -96,3 +98,5 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 **Build order**: `packages/shared` must build before worker — `main: "dist/index.js"`.
 
 **Admin pages**: Event handlers cannot be in Server Components — use Client Component wrappers.
+
+**Worker cron**: `pg_cron` (Supabase) fires `pg_net` HTTP POST to `/api/cron/push` hourly. Auth via `CRON_SECRET` Bearer token. Catch-up model: `push_hour_utc <= current_hour` recovers missed triggers. Web build uses webpack (not Turbopack) for cross-package worker imports.

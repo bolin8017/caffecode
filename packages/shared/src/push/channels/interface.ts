@@ -1,4 +1,4 @@
-import type { PushMessage, SendResult } from '@caffecode/shared'
+import type { PushMessage, SendResult } from '../../types/push.js'
 
 export interface NotificationChannel {
   /** Send message to a specific recipient */

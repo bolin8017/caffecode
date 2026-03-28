@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { logger } from '../lib/logger.js'
+import { logger } from './push.logger.js'
 
 export interface PushCandidate {
   id: string

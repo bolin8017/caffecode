@@ -1,6 +1,14 @@
 import pLimit from 'p-limit'
 import { logger } from '@/lib/logger'
 import { createServiceClient } from '@/lib/supabase/server'
+import {
+  buildPushJobs,
+  recordPushRun,
+  TelegramChannel,
+  LineChannel,
+  EmailChannel,
+} from '@caffecode/shared'
+import type { NotificationChannel } from '@caffecode/shared'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -11,15 +19,6 @@ export async function POST(request: Request) {
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
-
-  // Dynamic imports — worker modules eagerly parse env vars at load time,
-  // which fails during Next.js build when env vars are absent. Importing
-  // inside the handler defers evaluation to runtime when vars are present.
-  const { buildPushJobs } = await import('@caffecode/worker/workers/push.logic')
-  const { recordPushRun } = await import('@caffecode/worker/repositories/push.repository')
-  const { TelegramChannel } = await import('@caffecode/worker/channels/telegram')
-  const { LineChannel } = await import('@caffecode/worker/channels/line')
-  const { EmailChannel } = await import('@caffecode/worker/channels/email')
 
   const supabase = createServiceClient()
 
@@ -44,7 +43,7 @@ export async function POST(request: Request) {
   let errorMsg: string | undefined
 
   try {
-    const channelRegistry: Record<string, { send: (id: string, msg: unknown) => Promise<unknown> }> = {
+    const channelRegistry: Record<string, NotificationChannel> = {
       telegram: new TelegramChannel(process.env.TELEGRAM_BOT_TOKEN!),
       line: new LineChannel(process.env.LINE_CHANNEL_ACCESS_TOKEN!),
       ...(process.env.RESEND_API_KEY

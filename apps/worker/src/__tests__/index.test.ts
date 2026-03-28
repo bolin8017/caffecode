@@ -18,29 +18,18 @@ vi.mock('../lib/supabase.js', () => ({
   supabase: {} as unknown as SupabaseClient,
 }))
 
-vi.mock('../channels/registry.js', () => ({
-  channelRegistry: {},
-}))
-
-// We mock buildPushJobs and recordPushRun to test main() orchestration
+// Mock shared push pipeline functions
 const mockBuildPushJobs = vi.fn()
-vi.mock('../workers/push.logic.js', () => ({
-  buildPushJobs: (...args: unknown[]) => mockBuildPushJobs(...args),
-}))
-
 const mockRecordPushRun = vi.fn()
-vi.mock('../repositories/push.repository.js', () => ({
-  recordPushRun: (...args: unknown[]) => mockRecordPushRun(...args),
-}))
-
-const mockSentryInit = vi.fn()
-const mockCaptureException = vi.fn()
-const mockFlush = vi.fn()
-vi.mock('@sentry/node', () => ({
-  init: (...args: unknown[]) => mockSentryInit(...args),
-  captureException: (...args: unknown[]) => mockCaptureException(...args),
-  flush: (...args: unknown[]) => mockFlush(...args),
-}))
+vi.mock('@caffecode/shared', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@caffecode/shared')>()
+  return {
+    ...actual,
+    buildPushJobs: (...args: unknown[]) => mockBuildPushJobs(...args),
+    recordPushRun: (...args: unknown[]) => mockRecordPushRun(...args),
+    createChannelRegistry: vi.fn().mockReturnValue({}),
+  }
+})
 
 // Helper: create a mock supabase that simulates the dedup guard query
 function makeDedupMock(recentRun: { id: string; created_at: string } | null) {
@@ -59,11 +48,8 @@ describe('Worker main() — dedup guard', () => {
   })
 
   it('skips run when a recent push_run exists within 10 minutes', async () => {
-    // The dedup guard queries push_runs for created_at >= 10 min ago
-    // When a recent run is found, main() returns early without calling buildPushJobs
     const db = makeDedupMock({ id: 'run-1', created_at: new Date().toISOString() })
 
-    // Simulate the guard logic inline (since main() is not directly importable)
     const { data: recentRun } = await db
       .from('push_runs')
       .select('id, created_at')
@@ -73,7 +59,6 @@ describe('Worker main() — dedup guard', () => {
       .maybeSingle()
 
     expect(recentRun).not.toBeNull()
-    // When recentRun exists, main() should NOT call buildPushJobs
     expect(mockBuildPushJobs).not.toHaveBeenCalled()
   })
 
@@ -89,7 +74,6 @@ describe('Worker main() — dedup guard', () => {
       .maybeSingle()
 
     expect(recentRun).toBeNull()
-    // Null means no recent run — main() should proceed to buildPushJobs
   })
 })
 
@@ -101,7 +85,6 @@ describe('Worker main() — recordPushRun', () => {
   it('records push run with correct stats on success', async () => {
     mockBuildPushJobs.mockResolvedValue({ totalCandidates: 5, succeeded: 5, failed: 0 })
 
-    // Simulate the main() flow
     const startMs = Date.now()
     const stats = await mockBuildPushJobs()
 
@@ -149,7 +132,6 @@ describe('Worker main() — all-failed guard', () => {
   })
 
   it('throws when succeeded=0 and totalCandidates > 0', () => {
-    // This mirrors the guard in index.ts lines 50-53
     const succeeded = 0
     const totalCandidates = 5
 
@@ -180,47 +162,5 @@ describe('Worker main() — all-failed guard', () => {
         throw new Error('should not reach')
       }
     }).not.toThrow()
-  })
-})
-
-describe('Worker main() — Sentry integration', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('calls Sentry.init when SENTRY_DSN is set', () => {
-    const dsn = 'https://examplePublicKey@o0.ingest.sentry.io/0'
-    // Simulate the conditional init from index.ts lines 10-15
-    if (dsn) {
-      mockSentryInit({ dsn, environment: 'production' })
-    }
-
-    expect(mockSentryInit).toHaveBeenCalledWith({
-      dsn,
-      environment: 'production',
-    })
-  })
-
-  it('does NOT call Sentry.init when SENTRY_DSN is not set', () => {
-    const dsn: string | undefined = undefined
-    if (dsn) {
-      mockSentryInit({ dsn, environment: 'production' })
-    }
-
-    expect(mockSentryInit).not.toHaveBeenCalled()
-  })
-
-  it('calls Sentry.captureException on failure when SENTRY_DSN is set', async () => {
-    const err = new Error('Push run failed')
-    const dsn = 'https://examplePublicKey@o0.ingest.sentry.io/0'
-
-    // Simulate the catch block in index.ts lines 73-79
-    if (dsn) {
-      mockCaptureException(err)
-      await mockFlush(2000)
-    }
-
-    expect(mockCaptureException).toHaveBeenCalledWith(err)
-    expect(mockFlush).toHaveBeenCalledWith(2000)
   })
 })

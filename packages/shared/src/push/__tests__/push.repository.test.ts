@@ -8,7 +8,7 @@ import {
   incrementChannelFailures,
   resetChannelFailuresForUsers,
   getAllCandidates,
-} from '../repositories/push.repository.js'
+} from '../push.repository.js'
 
 describe('getVerifiedChannelsBulk', () => {
   it('queries verified channels excluding those with >= 3 failures', async () => {

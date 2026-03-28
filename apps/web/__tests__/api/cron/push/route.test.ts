@@ -30,25 +30,20 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn() },
 }))
 
-vi.mock('@caffecode/worker/workers/push.logic', () => ({
-  buildPushJobs: vi.fn(),
-}))
+const mockBuildPushJobs = vi.fn()
+const mockRecordPushRun = vi.fn()
 
-vi.mock('@caffecode/worker/repositories/push.repository', () => ({
-  recordPushRun: vi.fn(),
-}))
-
-vi.mock('@caffecode/worker/channels/telegram', () => ({
-  TelegramChannel: vi.fn(),
-}))
-
-vi.mock('@caffecode/worker/channels/line', () => ({
-  LineChannel: vi.fn(),
-}))
-
-vi.mock('@caffecode/worker/channels/email', () => ({
-  EmailChannel: vi.fn(),
-}))
+vi.mock('@caffecode/shared', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@caffecode/shared')>()
+  return {
+    ...actual,
+    buildPushJobs: (...args: unknown[]) => mockBuildPushJobs(...args),
+    recordPushRun: (...args: unknown[]) => mockRecordPushRun(...args),
+    TelegramChannel: vi.fn(),
+    LineChannel: vi.fn(),
+    EmailChannel: vi.fn(),
+  }
+})
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,16 +66,6 @@ async function importRoute() {
 async function getCreateServiceClient() {
   const mod = await import('@/lib/supabase/server')
   return vi.mocked(mod.createServiceClient)
-}
-
-async function getBuildPushJobs() {
-  const mod = await import('@caffecode/worker/workers/push.logic')
-  return vi.mocked(mod.buildPushJobs)
-}
-
-async function getRecordPushRun() {
-  const mod = await import('@caffecode/worker/repositories/push.repository')
-  return vi.mocked(mod.recordPushRun)
 }
 
 // ---------------------------------------------------------------------------
@@ -143,26 +128,21 @@ describe('POST /api/cron/push', () => {
     const createServiceClient = await getCreateServiceClient()
     createServiceClient.mockReturnValue(makeSupabaseMock(recentRun) as never)
 
-    const buildPushJobs = await getBuildPushJobs()
-
     const { POST } = await importRoute()
     const res = await POST(makeRequest('Bearer test-secret'))
 
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body).toEqual({ skipped: true, reason: 'recent_run' })
-    expect(buildPushJobs).not.toHaveBeenCalled()
+    expect(mockBuildPushJobs).not.toHaveBeenCalled()
   })
 
   it('runs push pipeline and returns stats on success', async () => {
     const createServiceClient = await getCreateServiceClient()
     createServiceClient.mockReturnValue(makeSupabaseMock(null) as never)
 
-    const buildPushJobs = await getBuildPushJobs()
-    const recordPushRun = await getRecordPushRun()
-
-    buildPushJobs.mockResolvedValue({ succeeded: 8, failed: 2, totalCandidates: 10 })
-    recordPushRun.mockResolvedValue(undefined)
+    mockBuildPushJobs.mockResolvedValue({ succeeded: 8, failed: 2, totalCandidates: 10 })
+    mockRecordPushRun.mockResolvedValue(undefined)
 
     const { POST } = await importRoute()
     const res = await POST(makeRequest('Bearer test-secret'))
@@ -175,7 +155,7 @@ describe('POST /api/cron/push', () => {
     expect(body.failed).toBe(2)
     expect(typeof body.durationMs).toBe('number')
 
-    expect(recordPushRun).toHaveBeenCalledWith(
+    expect(mockRecordPushRun).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ candidates: 10, succeeded: 8, failed: 2 }),
     )
@@ -185,11 +165,8 @@ describe('POST /api/cron/push', () => {
     const createServiceClient = await getCreateServiceClient()
     createServiceClient.mockReturnValue(makeSupabaseMock(null) as never)
 
-    const buildPushJobs = await getBuildPushJobs()
-    const recordPushRun = await getRecordPushRun()
-
-    buildPushJobs.mockRejectedValue(new Error('DB connection lost'))
-    recordPushRun.mockResolvedValue(undefined)
+    mockBuildPushJobs.mockRejectedValue(new Error('DB connection lost'))
+    mockRecordPushRun.mockResolvedValue(undefined)
 
     const { POST } = await importRoute()
     const res = await POST(makeRequest('Bearer test-secret'))
@@ -198,7 +175,7 @@ describe('POST /api/cron/push', () => {
     const body = await res.json()
     expect(body.ok).toBe(false)
 
-    expect(recordPushRun).toHaveBeenCalledWith(
+    expect(mockRecordPushRun).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ errorMsg: 'Error: DB connection lost' }),
     )

@@ -1,4 +1,5 @@
-import { sendTelegramMessage, type PushMessage, type SendResult } from '@caffecode/shared'
+import { sendTelegramMessage } from '../../channels/telegram.js'
+import type { PushMessage, SendResult } from '../../types/push.js'
 import type { NotificationChannel } from './interface.js'
 
 export class TelegramChannel implements NotificationChannel {

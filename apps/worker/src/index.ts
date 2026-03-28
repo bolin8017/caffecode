@@ -2,10 +2,14 @@ import { config } from './lib/config.js'
 import pLimit from 'p-limit'
 import { logger } from './lib/logger.js'
 import { supabase } from './lib/supabase.js'
-import { channelRegistry } from './channels/registry.js'
-import { buildPushJobs } from './workers/push.logic.js'
-import { recordPushRun } from './repositories/push.repository.js'
+import { buildPushJobs, recordPushRun, createChannelRegistry } from '@caffecode/shared'
 
+const channelRegistry = createChannelRegistry({
+  telegramBotToken: config.TELEGRAM_BOT_TOKEN,
+  lineChannelAccessToken: config.LINE_CHANNEL_ACCESS_TOKEN,
+  resendApiKey: config.RESEND_API_KEY,
+  resendFromEmail: config.RESEND_FROM_EMAIL,
+})
 const dispatchLimit = pLimit(5)
 
 async function main() {

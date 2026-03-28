@@ -1,6 +1,7 @@
 import { render } from '@react-email/render'
 import { createElement } from 'react'
-import { sendEmailMessage, type PushMessage, type SendResult } from '@caffecode/shared'
+import { sendEmailMessage } from '../../channels/email.js'
+import type { PushMessage, SendResult } from '../../types/push.js'
 import type { NotificationChannel } from './interface.js'
 import { DailyProblemEmail } from './email-template.js'
 

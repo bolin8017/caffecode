@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { buildFlexBubble } from '@caffecode/shared'
+import { buildFlexBubble } from '../../utils/notification-formatters.js'
 import { LineChannel } from '../channels/line.js'
-import type { PushMessage } from '@caffecode/shared'
+import type { PushMessage } from '../../types/push.js'
 
 type FlexBubble = {
   type: string
@@ -35,7 +35,7 @@ describe('buildFlexBubble', () => {
   it('includes difficulty emoji and LeetCode number', () => {
     const bubble = buildFlexBubble(msg) as FlexBubble
     const bodyTexts = bubble.body.contents.map((c: { text: string }) => c.text)
-    expect(bodyTexts.some((t: string) => t.includes('🟢') && t.includes('#1'))).toBe(true)
+    expect(bodyTexts.some((t: string) => t.includes('\u{1F7E2}') && t.includes('#1'))).toBe(true)
   })
 
   it('footer button links to problem URL', () => {
@@ -44,4 +44,3 @@ describe('buildFlexBubble', () => {
     expect(button.action.uri).toBe('https://example.com/problems/two-sum')
   })
 })
-

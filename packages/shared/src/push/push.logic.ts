@@ -1,12 +1,12 @@
 /**
- * Pure push logic — no Redis or Supabase singletons imported here.
+ * Pure push logic — no config singletons imported here.
  * Accepts injected SupabaseClient for testability.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { LimitFunction } from 'p-limit'
-import { selectProblemForUser } from '@caffecode/shared'
-import type { NotificationChannel } from '../channels/interface.js'
-import type { PushMessage, SendResult } from '@caffecode/shared'
+import { selectProblemForUser } from '../services/problem-selector.js'
+import type { NotificationChannel } from './channels/interface.js'
+import type { PushMessage, SendResult } from '../types/push.js'
 import {
   getAllCandidates,
   stampLastPushDate,
@@ -17,9 +17,8 @@ import {
   resetChannelFailuresForUsers,
   type PushCandidate,
   type VerifiedChannel,
-} from '../repositories/push.repository.js'
-import { config } from '../lib/config.js'
-import { logger } from '../lib/logger.js'
+} from './push.repository.js'
+import { logger } from './push.logger.js'
 
 export interface PushJobData {
   userId: string
@@ -253,12 +252,13 @@ export async function dispatchJob(
   channel: NotificationChannel,
   db: SupabaseClient
 ): Promise<SendResult> {
+  const appUrl = process.env.APP_URL ?? 'https://caffecode.net'
   const msg: PushMessage = {
     title: job.title,
     difficulty: job.difficulty,
     leetcodeId: job.leetcodeId,
     explanation: job.explanation,
-    url: `${config.APP_URL}/problems/${job.problemSlug}`,
+    url: `${appUrl}/problems/${job.problemSlug}`,
     problemSlug: job.problemSlug,
     problemId: job.problemId,
   }

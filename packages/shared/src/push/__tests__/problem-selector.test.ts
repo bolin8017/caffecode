@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { selectProblemForUser } from '@caffecode/shared'
+import { selectProblemForUser } from '../../services/problem-selector.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // A fluent mock that always returns itself until `.single()` or `.rpc()` is called

@@ -1,11 +1,11 @@
-// apps/worker/src/__tests__/line-channel.test.ts
+// packages/shared/src/push/__tests__/line-channel.test.ts
 import { describe, it, expect, vi } from 'vitest'
-import type { PushMessage, SendResult } from '@caffecode/shared'
+import type { PushMessage, SendResult } from '../../types/push.js'
 
 // Mock the shared sendLineMessage
 const mockSendLineMessage = vi.fn()
-vi.mock('@caffecode/shared', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@caffecode/shared')>()
+vi.mock('../../channels/line.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../channels/line.js')>()
   return {
     ...actual,
     sendLineMessage: (...args: unknown[]) => mockSendLineMessage(...args),

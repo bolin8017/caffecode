@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import { TelegramChannel } from '../channels/telegram.js'
-import type { PushMessage } from '@caffecode/shared'
+import type { PushMessage } from '../../types/push.js'
 
 const sendMock = vi.fn()
-vi.mock('@caffecode/shared', async () => {
-  const actual = await vi.importActual<typeof import('@caffecode/shared')>('@caffecode/shared')
+vi.mock('../../channels/telegram.js', async () => {
+  const actual = await vi.importActual<typeof import('../../channels/telegram.js')>('../../channels/telegram.js')
   return {
     ...actual,
     sendTelegramMessage: (...args: unknown[]) => sendMock(...args),

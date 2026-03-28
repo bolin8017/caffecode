@@ -1,4 +1,4 @@
-// apps/worker/src/__tests__/email-template.test.tsx
+// packages/shared/src/push/__tests__/email-template.test.tsx
 import { describe, it, expect } from 'vitest'
 import { render } from '@react-email/render'
 import { createElement } from 'react'

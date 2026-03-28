@@ -1,38 +1,23 @@
-// apps/worker/src/__tests__/push.pipeline.paused.test.ts
+// packages/shared/src/push/__tests__/push.pipeline.paused.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { LimitFunction } from 'p-limit'
 import type { NotificationChannel } from '../channels/interface.js'
-import type { SendResult } from '@caffecode/shared'
-
-// Mock config
-vi.mock('../lib/config.js', () => ({
-  config: {
-    SUPABASE_URL: 'https://test.supabase.co',
-    SUPABASE_SERVICE_ROLE_KEY: 'test-key',
-    TELEGRAM_BOT_TOKEN: 'test-token',
-    LINE_CHANNEL_ACCESS_TOKEN: 'test-line-token',
-    APP_URL: 'https://caffecode.net',
-  },
-}))
+import type { SendResult } from '../../types/push.js'
 
 // Mock selectProblemForUser to return a problem for each candidate
-vi.mock('@caffecode/shared', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@caffecode/shared')>()
-  return {
-    ...actual,
-    selectProblemForUser: vi.fn().mockResolvedValue({
-      problem_id: 42,
-      leetcode_id: 1,
-      slug: 'two-sum',
-      title: 'Two Sum',
-      difficulty: 'Easy',
-      explanation: 'Use a hash map.',
-    }),
-  }
-})
+vi.mock('../../services/problem-selector.js', () => ({
+  selectProblemForUser: vi.fn().mockResolvedValue({
+    problem_id: 42,
+    leetcode_id: 1,
+    slug: 'two-sum',
+    title: 'Two Sum',
+    difficulty: 'Easy',
+    explanation: 'Use a hash map.',
+  }),
+}))
 
-import { buildPushJobs } from '../workers/push.logic.js'
+import { buildPushJobs } from '../push.logic.js'
 
 const noopLimit: LimitFunction = Object.assign(
   (fn: () => unknown) => Promise.resolve(fn()),

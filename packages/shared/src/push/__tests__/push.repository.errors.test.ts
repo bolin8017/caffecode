@@ -1,4 +1,4 @@
-// apps/worker/src/__tests__/push.repository.errors.test.ts
+// packages/shared/src/push/__tests__/push.repository.errors.test.ts
 import { describe, it, expect, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
@@ -8,7 +8,7 @@ import {
   recordPushRun,
   upsertHistoryBatch,
   stampLastPushDate,
-} from '../repositories/push.repository.js'
+} from '../push.repository.js'
 
 describe('getVerifiedChannelsBulk — error handling', () => {
   it('returns empty array on DB error (non-throwing)', async () => {

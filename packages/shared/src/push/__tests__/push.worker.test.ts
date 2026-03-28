@@ -1,21 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { LimitFunction } from 'p-limit'
 
-// Mock config before importing modules that depend on it
-vi.mock('../lib/config.js', () => ({
-  config: {
-    SUPABASE_URL: 'https://test.supabase.co',
-    SUPABASE_SERVICE_ROLE_KEY: 'test-key',
-    TELEGRAM_BOT_TOKEN: 'test-token',
-    LINE_CHANNEL_ACCESS_TOKEN: 'test-line-token',
-    APP_URL: 'https://caffecode.net',
-    RESEND_API_KEY: 're_test',
-    RESEND_FROM_EMAIL: 'CaffeCode <noreply@caffecode.net>',
-  },
-}))
-
-import { buildPushJobs, dispatchJob, type PushJobData } from '../workers/push.logic.js'
-import { recordPushRun } from '../repositories/push.repository.js'
+import { buildPushJobs, dispatchJob, type PushJobData } from '../push.logic.js'
+import { recordPushRun } from '../push.repository.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { NotificationChannel } from '../channels/interface.js'
 
@@ -23,6 +10,10 @@ const noopLimit = vi.fn((fn: () => unknown) => fn()) as unknown as LimitFunction
 
 // Test the pure logic of building push jobs — decoupled from BullMQ
 describe('buildPushJobs', () => {
+  beforeEach(() => {
+    process.env.APP_URL = 'https://caffecode.net'
+  })
+
   it('returns zero stats when no users due for push', async () => {
     const mockSupabase = {
       rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -78,6 +69,10 @@ describe('recordPushRun', () => {
 })
 
 describe('dispatchJob', () => {
+  beforeEach(() => {
+    process.env.APP_URL = 'https://caffecode.net'
+  })
+
   const makeJob = (): PushJobData => ({
     userId: 'user-1',
     channelId: 'ch-1',

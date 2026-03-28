@@ -20,13 +20,16 @@ async function main() {
   // completed in the last 10 minutes. This is a lightweight check —
   // truly simultaneous starts can still overlap, but stamp_last_push_date
   // + history UNIQUE constraint limit blast radius to duplicate messages.
-  const { data: recentRun } = await supabase
+  const { data: recentRun, error: overlapError } = await supabase
     .from('push_runs')
     .select('id, created_at')
     .gte('created_at', new Date(Date.now() - 10 * 60_000).toISOString())
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
+  if (overlapError) {
+    logger.error({ err: overlapError }, 'Overlap guard query failed — proceeding with push run')
+  }
   if (recentRun) {
     logger.warn({ recentRunId: recentRun.id, createdAt: recentRun.created_at }, 'Skipping push run — recent run within 10 minutes')
     return

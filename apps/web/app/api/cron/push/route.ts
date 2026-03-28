@@ -20,13 +20,17 @@ export async function POST(request: Request) {
   const supabase = createServiceClient()
 
   // 10-minute overlap guard (same logic as worker index.ts)
-  const { data: recentRun } = await supabase
+  const { data: recentRun, error: overlapError } = await supabase
     .from('push_runs')
     .select('id, created_at')
     .gte('created_at', new Date(Date.now() - 10 * 60_000).toISOString())
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
+
+  if (overlapError) {
+    logger.error({ err: overlapError }, 'Overlap guard query failed — proceeding with push run')
+  }
 
   if (recentRun) {
     logger.warn({ recentRunId: recentRun.id }, 'Skipping push run — recent run within 10 minutes')

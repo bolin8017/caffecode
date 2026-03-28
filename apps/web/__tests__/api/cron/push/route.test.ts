@@ -22,8 +22,8 @@ function makeSupabaseMock(recentRun: object | null = null) {
 // ---------------------------------------------------------------------------
 // Module mocks (hoisted — evaluated before any import)
 // ---------------------------------------------------------------------------
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: vi.fn(),
+vi.mock('@/lib/supabase/server', () => ({
+  createServiceClient: vi.fn(),
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -68,9 +68,9 @@ async function importRoute() {
   return import('../../../../app/api/cron/push/route')
 }
 
-async function getCreateClient() {
-  const mod = await import('@supabase/supabase-js')
-  return vi.mocked(mod.createClient)
+async function getCreateServiceClient() {
+  const mod = await import('@/lib/supabase/server')
+  return vi.mocked(mod.createServiceClient)
 }
 
 async function getBuildPushJobs() {
@@ -100,8 +100,8 @@ describe('POST /api/cron/push', () => {
   })
 
   it('returns 401 when Authorization header has wrong token', async () => {
-    const createClient = await getCreateClient()
-    createClient.mockReturnValue(makeSupabaseMock(null) as never)
+    const createServiceClient = await getCreateServiceClient()
+    createServiceClient.mockReturnValue(makeSupabaseMock(null) as never)
 
     const { POST } = await importRoute()
     const res = await POST(makeRequest('Bearer wrong-secret'))
@@ -112,8 +112,8 @@ describe('POST /api/cron/push', () => {
   })
 
   it('returns 401 when Authorization header is missing', async () => {
-    const createClient = await getCreateClient()
-    createClient.mockReturnValue(makeSupabaseMock(null) as never)
+    const createServiceClient = await getCreateServiceClient()
+    createServiceClient.mockReturnValue(makeSupabaseMock(null) as never)
 
     const { POST } = await importRoute()
     const res = await POST(makeRequest())
@@ -126,8 +126,8 @@ describe('POST /api/cron/push', () => {
   it('returns 401 when CRON_SECRET env var is undefined', async () => {
     delete process.env.CRON_SECRET
 
-    const createClient = await getCreateClient()
-    createClient.mockReturnValue(makeSupabaseMock(null) as never)
+    const createServiceClient = await getCreateServiceClient()
+    createServiceClient.mockReturnValue(makeSupabaseMock(null) as never)
 
     const { POST } = await importRoute()
     const res = await POST(makeRequest('Bearer test-secret'))
@@ -140,8 +140,8 @@ describe('POST /api/cron/push', () => {
   it('skips and returns skipped:true when a recent push run exists', async () => {
     const recentRun = { id: 'abc-123', created_at: new Date().toISOString() }
 
-    const createClient = await getCreateClient()
-    createClient.mockReturnValue(makeSupabaseMock(recentRun) as never)
+    const createServiceClient = await getCreateServiceClient()
+    createServiceClient.mockReturnValue(makeSupabaseMock(recentRun) as never)
 
     const buildPushJobs = await getBuildPushJobs()
 
@@ -155,8 +155,8 @@ describe('POST /api/cron/push', () => {
   })
 
   it('runs push pipeline and returns stats on success', async () => {
-    const createClient = await getCreateClient()
-    createClient.mockReturnValue(makeSupabaseMock(null) as never)
+    const createServiceClient = await getCreateServiceClient()
+    createServiceClient.mockReturnValue(makeSupabaseMock(null) as never)
 
     const buildPushJobs = await getBuildPushJobs()
     const recordPushRun = await getRecordPushRun()
@@ -182,8 +182,8 @@ describe('POST /api/cron/push', () => {
   })
 
   it('handles push pipeline errors gracefully and still calls recordPushRun', async () => {
-    const createClient = await getCreateClient()
-    createClient.mockReturnValue(makeSupabaseMock(null) as never)
+    const createServiceClient = await getCreateServiceClient()
+    createServiceClient.mockReturnValue(makeSupabaseMock(null) as never)
 
     const buildPushJobs = await getBuildPushJobs()
     const recordPushRun = await getRecordPushRun()

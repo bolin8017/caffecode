@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js",
+    "./package.json": "./package.json",
     "./workers/push.logic": "./dist/workers/push.logic.js",
     "./repositories/push.repository": "./dist/repositories/push.repository.js",
     "./channels/telegram": "./dist/channels/telegram.js",

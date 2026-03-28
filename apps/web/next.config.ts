@@ -1,8 +1,10 @@
 import { withSentryConfig } from '@sentry/nextjs'
 import type { NextConfig } from "next";
 import path from "path";
+import { fileURLToPath } from "url";
 
-const workerSrc = path.resolve(__dirname, "../../apps/worker/src");
+const __configDir = path.dirname(fileURLToPath(import.meta.url));
+const workerSrc = path.resolve(__configDir, "../../apps/worker/src");
 
 const nextConfig: NextConfig = {
   images: {
@@ -67,8 +69,8 @@ const nextConfig: NextConfig = {
       [workerSrc + '/channels/telegram.js']: workerSrc + '/channels/telegram.ts',
       // lib — config replaced with a stub that skips Zod parse at build time
       [workerSrc + '/lib/config.schema.js']: workerSrc + '/lib/config.schema.ts',
-      [workerSrc + '/lib/config.js']: path.resolve(__dirname, './lib/worker-stubs/config.ts'),
-      [workerSrc + '/lib/config.ts']: path.resolve(__dirname, './lib/worker-stubs/config.ts'),
+      [workerSrc + '/lib/config.js']: path.resolve(__configDir, './lib/worker-stubs/config.ts'),
+      [workerSrc + '/lib/config.ts']: path.resolve(__configDir, './lib/worker-stubs/config.ts'),
       [workerSrc + '/lib/logger.js']: workerSrc + '/lib/logger.ts',
       [workerSrc + '/lib/supabase.js']: workerSrc + '/lib/supabase.ts',
       // repositories

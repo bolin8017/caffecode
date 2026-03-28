@@ -12,6 +12,16 @@
     "./channels/email": "./dist/channels/email.js",
     "./channels/interface": "./dist/channels/interface.js"
   },
+  "typesVersions": {
+    "*": {
+      "workers/push.logic": ["dist/workers/push.logic.d.ts"],
+      "repositories/push.repository": ["dist/repositories/push.repository.d.ts"],
+      "channels/telegram": ["dist/channels/telegram.d.ts"],
+      "channels/line": ["dist/channels/line.d.ts"],
+      "channels/email": ["dist/channels/email.d.ts"],
+      "channels/interface": ["dist/channels/interface.d.ts"]
+    }
+  },
   "scripts": {
     "dev": "NODE_OPTIONS='--require=../../scripts/ipv4-only.cjs' tsx watch --env-file .env src/index.ts",
     "build": "tsc",

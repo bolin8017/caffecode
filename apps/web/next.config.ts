@@ -1,9 +1,5 @@
 import { withSentryConfig } from '@sentry/nextjs'
 import type { NextConfig } from "next";
-import path from "path";
-
-// process.cwd() is always apps/web/ (pnpm + Turbo set CWD to the package dir)
-const workerSrc = path.resolve(process.cwd(), "../../apps/worker/src");
 
 const nextConfig: NextConfig = {
   images: {
@@ -50,34 +46,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ]
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  webpack(config: any) {
-    // @worker alias mirrors tsconfig.json paths.
-    // Also map every worker .js import to its .ts/.tsx source so webpack can
-    // bundle worker modules that use NodeNext-style .js relative imports.
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@worker': workerSrc,
-      // channels
-      [workerSrc + '/channels/email-template.js']: workerSrc + '/channels/email-template.tsx',
-      [workerSrc + '/channels/email.js']: workerSrc + '/channels/email.ts',
-      [workerSrc + '/channels/interface.js']: workerSrc + '/channels/interface.ts',
-      [workerSrc + '/channels/line.js']: workerSrc + '/channels/line.ts',
-      [workerSrc + '/channels/registry.js']: workerSrc + '/channels/registry.ts',
-      [workerSrc + '/channels/telegram.js']: workerSrc + '/channels/telegram.ts',
-      // lib — config replaced with a stub that skips Zod parse at build time
-      [workerSrc + '/lib/config.schema.js']: workerSrc + '/lib/config.schema.ts',
-      [workerSrc + '/lib/config.js']: path.resolve(process.cwd(), './lib/worker-stubs/config.ts'),
-      [workerSrc + '/lib/config.ts']: path.resolve(process.cwd(), './lib/worker-stubs/config.ts'),
-      [workerSrc + '/lib/logger.js']: workerSrc + '/lib/logger.ts',
-      [workerSrc + '/lib/supabase.js']: workerSrc + '/lib/supabase.ts',
-      // repositories
-      [workerSrc + '/repositories/push.repository.js']: workerSrc + '/repositories/push.repository.ts',
-      // workers
-      [workerSrc + '/workers/push.logic.js']: workerSrc + '/workers/push.logic.ts',
-    }
-    return config
   },
 };
 

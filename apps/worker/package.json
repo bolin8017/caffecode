@@ -2,6 +2,16 @@
   "name": "@caffecode/worker",
   "private": true,
   "version": "0.0.1",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./workers/push.logic": "./dist/workers/push.logic.js",
+    "./repositories/push.repository": "./dist/repositories/push.repository.js",
+    "./channels/telegram": "./dist/channels/telegram.js",
+    "./channels/line": "./dist/channels/line.js",
+    "./channels/email": "./dist/channels/email.js",
+    "./channels/interface": "./dist/channels/interface.js"
+  },
   "scripts": {
     "dev": "NODE_OPTIONS='--require=../../scripts/ipv4-only.cjs' tsx watch --env-file .env src/index.ts",
     "build": "tsc",

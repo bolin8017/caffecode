@@ -30,23 +30,23 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn() },
 }))
 
-vi.mock('@worker/workers/push.logic', () => ({
+vi.mock('@caffecode/worker/workers/push.logic', () => ({
   buildPushJobs: vi.fn(),
 }))
 
-vi.mock('@worker/repositories/push.repository', () => ({
+vi.mock('@caffecode/worker/repositories/push.repository', () => ({
   recordPushRun: vi.fn(),
 }))
 
-vi.mock('@worker/channels/telegram', () => ({
+vi.mock('@caffecode/worker/channels/telegram', () => ({
   TelegramChannel: vi.fn(),
 }))
 
-vi.mock('@worker/channels/line', () => ({
+vi.mock('@caffecode/worker/channels/line', () => ({
   LineChannel: vi.fn(),
 }))
 
-vi.mock('@worker/channels/email', () => ({
+vi.mock('@caffecode/worker/channels/email', () => ({
   EmailChannel: vi.fn(),
 }))
 
@@ -74,12 +74,12 @@ async function getCreateClient() {
 }
 
 async function getBuildPushJobs() {
-  const mod = await import('@worker/workers/push.logic')
+  const mod = await import('@caffecode/worker/workers/push.logic')
   return vi.mocked(mod.buildPushJobs)
 }
 
 async function getRecordPushRun() {
-  const mod = await import('@worker/repositories/push.repository')
+  const mod = await import('@caffecode/worker/repositories/push.repository')
   return vi.mocked(mod.recordPushRun)
 }
 

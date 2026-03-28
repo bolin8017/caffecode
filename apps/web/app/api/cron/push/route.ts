@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   let errorMsg: string | undefined
 
   try {
-    const channelRegistry: Record<string, any> = {
+    const channelRegistry: Record<string, { send: (id: string, msg: unknown) => Promise<unknown> }> = {
       telegram: new TelegramChannel(process.env.TELEGRAM_BOT_TOKEN!),
       line: new LineChannel(process.env.LINE_CHANNEL_ACCESS_TOKEN!),
       ...(process.env.RESEND_API_KEY

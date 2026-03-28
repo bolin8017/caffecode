@@ -6,14 +6,9 @@
  * satisfy TypeScript's type checker during the Next.js build.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 declare module '@caffecode/worker/workers/push.logic' {
-  import type { SupabaseClient } from '@supabase/supabase-js'
-  import type { LimitFunction } from 'p-limit'
-
-  interface NotificationChannel {
-    send(channelIdentifier: string, msg: any): Promise<any>
-  }
-
   export interface PushRunStats {
     totalCandidates: number
     succeeded: number
@@ -21,17 +16,15 @@ declare module '@caffecode/worker/workers/push.logic' {
   }
 
   export function buildPushJobs(
-    db: SupabaseClient,
-    channelRegistry: Record<string, NotificationChannel>,
-    dispatchLimit: LimitFunction,
+    db: any,
+    channelRegistry: Record<string, any>,
+    dispatchLimit: any,
   ): Promise<PushRunStats>
 }
 
 declare module '@caffecode/worker/repositories/push.repository' {
-  import type { SupabaseClient } from '@supabase/supabase-js'
-
   export function recordPushRun(
-    db: SupabaseClient,
+    db: any,
     data: {
       candidates: number
       succeeded: number

@@ -48,8 +48,8 @@ A daily LeetCode problem delivery platform with AI-generated C++ explanations in
               ┌──────────┘          └──────────┐
               │                                │
    ┌──────────┴──────────┐          ┌──────────┴──────────┐
-   │   Next.js 16 Web    │          │   Railway Worker    │
-   │   (Vercel)          │          │   (Cron — hourly)   │
+   │   Next.js 16 Web    │          │   Vercel Worker     │
+   │   (Vercel)          │          │   (pg_cron hourly)  │
    │                     │          │                     │
    │  Public pages (SEO) │          │  Candidate scan     │
    │  OAuth (GitHub/     │          │  Problem selection  │
@@ -78,21 +78,21 @@ Two processes share the same Supabase database. `packages/shared` provides chann
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 |
 | Auth | Supabase Auth (GitHub + Google OAuth) |
 | Database | Supabase PostgreSQL — RLS, RPC functions, service_role access |
-| Worker | Node.js, Railway Cron (hourly) |
+| Worker | Vercel Serverless Function, Supabase pg_cron (hourly) |
 | Notifications | Telegram Bot API, LINE Messaging API, Resend (React Email) |
 | Shared | `@caffecode/shared` — channel senders, problem selection, formatters |
 | Monorepo | pnpm workspaces + Turborepo |
 | Observability | Sentry (errors), PostHog (analytics), Pino (structured logging) |
 | Security | CSP headers, Zod validation, webhook HMAC verification |
 | Testing | Vitest (746 TS) + Playwright E2E (57) + pytest (54 Python) |
-| CI/CD | GitHub Actions, Vercel (web), Railway (worker) |
+| CI/CD | GitHub Actions, Vercel (web + worker) |
 
 ## Project Structure
 
 ```
 apps/
   web/              Next.js 16 — public pages, auth, dashboard, settings, admin
-  worker/           Railway Cron — hourly push delivery with circuit-breaker
+  worker/           Push logic modules — used by /api/cron/push Vercel function
 packages/
   shared/           Channel senders, problem selection, notification formatters
 supabase/
@@ -169,9 +169,9 @@ pnpm dev            # start web dev server on localhost:3000
 pnpm test
 
 # Individually
-cd packages/shared && pnpm exec vitest run   # 120 tests
+cd packages/shared && pnpm exec vitest run   # 123 tests
 cd apps/worker && pnpm exec vitest run       # 76 tests
-cd apps/web && pnpm exec vitest run          # 480 tests
+cd apps/web && pnpm exec vitest run          # 566 tests
 
 # E2E tests (requires dev server running)
 cd apps/web && pnpm exec playwright test     # 57 tests
@@ -184,8 +184,8 @@ cd scripts && python3 -m pytest tests/ -v    # 54 tests
 
 | Target | Platform | Method | Config |
 |--------|----------|--------|--------|
-| Web | Vercel | `git push origin main` | GitHub integration |
-| Worker | Railway | `railway up --detach` | [`railway.toml`](railway.toml), cron `0 * * * *` |
+| Web + Worker | Vercel | `git push origin main` | GitHub integration |
+| Cron trigger | Supabase pg_cron | `pg_net` HTTP POST hourly | Vault secret + `CRON_SECRET` |
 
 Set environment variables from each `.env.example` in the respective platform dashboard.
 

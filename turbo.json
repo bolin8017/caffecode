@@ -19,7 +19,8 @@
         "RESEND_FROM_EMAIL",
         "SENTRY_DSN",
         "NEXT_PUBLIC_POSTHOG_KEY",
-        "NEXT_PUBLIC_POSTHOG_HOST"
+        "NEXT_PUBLIC_POSTHOG_HOST",
+        "CRON_SECRET"
       ]
     },
     "dev": {

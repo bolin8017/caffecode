@@ -2,6 +2,26 @@
   "name": "@caffecode/worker",
   "private": true,
   "version": "0.0.1",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./workers/push.logic": "./dist/workers/push.logic.js",
+    "./repositories/push.repository": "./dist/repositories/push.repository.js",
+    "./channels/telegram": "./dist/channels/telegram.js",
+    "./channels/line": "./dist/channels/line.js",
+    "./channels/email": "./dist/channels/email.js",
+    "./channels/interface": "./dist/channels/interface.js"
+  },
+  "typesVersions": {
+    "*": {
+      "workers/push.logic": ["dist/workers/push.logic.d.ts"],
+      "repositories/push.repository": ["dist/repositories/push.repository.d.ts"],
+      "channels/telegram": ["dist/channels/telegram.d.ts"],
+      "channels/line": ["dist/channels/line.d.ts"],
+      "channels/email": ["dist/channels/email.d.ts"],
+      "channels/interface": ["dist/channels/interface.d.ts"]
+    }
+  },
   "scripts": {
     "dev": "NODE_OPTIONS='--require=../../scripts/ipv4-only.cjs' tsx watch --env-file .env src/index.ts",
     "build": "tsc",
@@ -21,7 +41,6 @@
     "@caffecode/shared": "workspace:*",
     "@react-email/components": "^1.0.8",
     "@react-email/render": "^2.0.4",
-    "@sentry/node": "^10.40.0",
     "@supabase/supabase-js": "^2.97.0",
     "p-limit": "^7.3.0",
     "pino": "^10.3.1",

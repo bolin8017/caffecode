@@ -6,6 +6,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, '.'),
       '@caffecode/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),
+      '@caffecode/worker/(.*)': path.resolve(__dirname, '../../apps/worker/src/$1'),
     },
   },
   test: {

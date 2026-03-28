@@ -1,11 +1,8 @@
 import { withSentryConfig } from '@sentry/nextjs'
 import type { NextConfig } from "next";
-import path from "path";
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: path.resolve(__dirname, "../../"),
-  },
+  serverExternalPackages: ['@caffecode/worker'],
   images: {
     remotePatterns: [
       {
@@ -50,6 +47,16 @@ const nextConfig: NextConfig = {
         ],
       },
     ]
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  webpack(config: any, { isServer }: { isServer: boolean }) {
+    if (isServer) {
+      // Mark @caffecode/worker as external so webpack skips bundling.
+      // Node.js resolves it at runtime via package.json exports field.
+      config.externals = config.externals || []
+      config.externals.push(/^@caffecode\/worker/)
+    }
+    return config
   },
 };
 

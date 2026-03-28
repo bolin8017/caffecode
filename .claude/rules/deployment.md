@@ -6,9 +6,8 @@ All deployments follow this sequence. No exceptions.
 
 1. Feature branch passes CI (build + lint + test)
 2. PR reviewed and squash-merged into main
-3. Web: Vercel auto-deploys from main (no manual action)
-4. Worker: manually deploy via `railway up --detach` after verifying web is healthy
-5. DB: migrations applied via Supabase CLI before deploying code that depends on them
+3. Web + Worker: Vercel auto-deploys from main (no manual action)
+4. DB: migrations applied via Supabase CLI before deploying code that depends on them
 
 ## Deploy Checklist (for every production release)
 
@@ -17,24 +16,30 @@ All deployments follow this sequence. No exceptions.
 - PR squash-merged into `main` (never direct push)
 - **DB migrations first**: apply via `supabase db push` BEFORE deploying app code
 - **Web**: Verify Vercel deployment succeeded (check deployment URL)
-- **Worker**: Deploy with `railway up --detach`, then check `railway logs`
 - **Post-deploy**: Verify `/api/health` returns OK; check admin dashboard for worker status
 
 ## Deploy Rules
 
 - **Never** use `vercel --prod` — deploy web via git push only
-- **Never** deploy worker before DB migrations are applied
+- **Never** deploy code that depends on new DB migrations before migrations are applied
 - **Never** deploy directly from a feature branch to production
-- **Railway env**: `APP_URL` must be `https://caffecode.net` (not Vercel preview URL)
-- **Rollback**: Vercel instant rollback via dashboard; Railway via `railway up` with previous commit
+- **Rollback**: Vercel instant rollback via dashboard
+
+## Worker Cron
+
+Push worker runs as a Vercel serverless function at `/api/cron/push`, triggered hourly by Supabase `pg_cron` + `pg_net`.
+
+- Auth: `CRON_SECRET` Bearer token (Supabase Vault + Vercel env var)
+- Catch-up model: `push_hour_utc <= current_hour` recovers missed triggers
+- 10-minute overlap guard prevents duplicate runs
+- Monitor: admin push dashboard shows `push_runs` history
 
 ## Cloud Services
 
 | Service | Purpose | Required |
 |---------|---------|----------|
-| Vercel | Web hosting (Next.js) | Yes |
-| Railway | Worker cron hosting | Yes |
-| Supabase | PostgreSQL + Auth + RLS | Yes |
+| Vercel | Web + worker hosting (Next.js) | Yes |
+| Supabase | PostgreSQL + Auth + RLS + pg_cron | Yes |
 | GitHub | Repo + CI (Actions) | Yes |
 | Telegram Bot API | Push notifications | Yes |
 | LINE Messaging API | Push notifications | Yes |

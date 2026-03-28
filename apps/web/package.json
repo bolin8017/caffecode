@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "NODE_OPTIONS='--require=../../scripts/ipv4-only.cjs' next dev",
-    "build": "pnpm --filter @caffecode/worker run build && next build --webpack",
+    "build": "cd ../../apps/worker && npx tsc && cd ../../apps/web && next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",

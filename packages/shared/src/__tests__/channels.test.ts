@@ -31,7 +31,7 @@ describe('sendTelegramMessage', () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true })
     const { sendTelegramMessage } = await import('../channels/telegram.js')
     const result = await sendTelegramMessage('bot-token', '12345', msg)
-    expect(result).toEqual({ success: true, shouldRetry: false })
+    expect(result).toEqual({ success: true })
   })
 
   it('sends correct request body to Telegram API', async () => {
@@ -60,7 +60,9 @@ describe('sendTelegramMessage', () => {
     const { sendTelegramMessage } = await import('../channels/telegram.js')
     const result = await sendTelegramMessage('bot-token', '12345', msg)
     expect(result.success).toBe(false)
-    expect(result.shouldRetry).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+    }
   })
 
   it('returns shouldRetry:false for 400 Bad Request', async () => {
@@ -69,7 +71,10 @@ describe('sendTelegramMessage', () => {
     })
     const { sendTelegramMessage } = await import('../channels/telegram.js')
     const result = await sendTelegramMessage('bot-token', '12345', msg)
-    expect(result.shouldRetry).toBe(false)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+    }
   })
 
   it('returns shouldRetry:true for 500 Server Error', async () => {
@@ -78,7 +83,10 @@ describe('sendTelegramMessage', () => {
     })
     const { sendTelegramMessage } = await import('../channels/telegram.js')
     const result = await sendTelegramMessage('bot-token', '12345', msg)
-    expect(result.shouldRetry).toBe(true)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(true)
+    }
   })
 
   it('returns shouldRetry:true on network error', async () => {
@@ -86,7 +94,9 @@ describe('sendTelegramMessage', () => {
     const { sendTelegramMessage } = await import('../channels/telegram.js')
     const result = await sendTelegramMessage('bot-token', '12345', msg)
     expect(result.success).toBe(false)
-    expect(result.shouldRetry).toBe(true)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(true)
+    }
   })
 
   it('truncates long error body to at most 200 chars in SendResult.error', async () => {
@@ -99,13 +109,13 @@ describe('sendTelegramMessage', () => {
     const { sendTelegramMessage } = await import('../channels/telegram.js')
     const result = await sendTelegramMessage('bot-token', '12345', msg)
     expect(result.success).toBe(false)
-    // The error field is "HTTP 429: <body slice(0,200)>" — total length may exceed 200
-    // but the body portion must not exceed 200 chars.
-    const errorStr = result.error ?? ''
-    // Strip the "HTTP 429: " prefix (10 chars) to isolate the body portion
-    const bodyPortion = errorStr.replace(/^HTTP \d+: /, '')
-    expect(bodyPortion.length).toBeLessThanOrEqual(200)
-    expect(bodyPortion).not.toBe(longBody)
+    if (!result.success) {
+      // The error field is "HTTP 429: <body slice(0,200)>" — total length may exceed 200
+      // but the body portion must not exceed 200 chars.
+      const bodyPortion = result.error.replace(/^HTTP \d+: /, '')
+      expect(bodyPortion.length).toBeLessThanOrEqual(200)
+      expect(bodyPortion).not.toBe(longBody)
+    }
   })
 
   it('returns shouldRetry:false for 401 Unauthorized', async () => {
@@ -114,7 +124,10 @@ describe('sendTelegramMessage', () => {
     })
     const { sendTelegramMessage } = await import('../channels/telegram.js')
     const result = await sendTelegramMessage('bot-token', '12345', msg)
-    expect(result.shouldRetry).toBe(false)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+    }
   })
 
   it('returns shouldRetry:true for 429 Too Many Requests', async () => {
@@ -123,7 +136,10 @@ describe('sendTelegramMessage', () => {
     })
     const { sendTelegramMessage } = await import('../channels/telegram.js')
     const result = await sendTelegramMessage('bot-token', '12345', msg)
-    expect(result.shouldRetry).toBe(true)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(true)
+    }
   })
 
   it('uses 15s timeout via AbortSignal', async () => {
@@ -145,7 +161,7 @@ describe('sendLineMessage', () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true })
     const { sendLineMessage } = await import('../channels/line.js')
     const result = await sendLineMessage('line-token', 'U1234', msg)
-    expect(result).toEqual({ success: true, shouldRetry: false })
+    expect(result).toEqual({ success: true })
   })
 
   it('sends correct auth header and flex message', async () => {
@@ -173,7 +189,10 @@ describe('sendLineMessage', () => {
     })
     const { sendLineMessage } = await import('../channels/line.js')
     const result = await sendLineMessage('line-token', 'U1234', msg)
-    expect(result.shouldRetry).toBe(false)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+    }
   })
 
   it('returns shouldRetry:false for 403', async () => {
@@ -182,7 +201,10 @@ describe('sendLineMessage', () => {
     })
     const { sendLineMessage } = await import('../channels/line.js')
     const result = await sendLineMessage('line-token', 'U1234', msg)
-    expect(result.shouldRetry).toBe(false)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+    }
   })
 
   it('returns shouldRetry:true for 500', async () => {
@@ -191,7 +213,10 @@ describe('sendLineMessage', () => {
     })
     const { sendLineMessage } = await import('../channels/line.js')
     const result = await sendLineMessage('line-token', 'U1234', msg)
-    expect(result.shouldRetry).toBe(true)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(true)
+    }
   })
 
   it('returns shouldRetry:true on network error', async () => {
@@ -199,7 +224,9 @@ describe('sendLineMessage', () => {
     const { sendLineMessage } = await import('../channels/line.js')
     const result = await sendLineMessage('line-token', 'U1234', msg)
     expect(result.success).toBe(false)
-    expect(result.shouldRetry).toBe(true)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(true)
+    }
   })
 
   it('returns shouldRetry:false for 401 Unauthorized', async () => {
@@ -208,7 +235,10 @@ describe('sendLineMessage', () => {
     })
     const { sendLineMessage } = await import('../channels/line.js')
     const result = await sendLineMessage('line-token', 'U1234', msg)
-    expect(result.shouldRetry).toBe(false)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+    }
   })
 
   it('uses 15s timeout via AbortSignal', async () => {
@@ -240,8 +270,11 @@ describe('sendLineMessage', () => {
     })
     const { sendLineMessage } = await import('../channels/line.js')
     const result = await sendLineMessage('line-token', 'U1234', msg)
-    const bodyPortion = (result.error ?? '').replace(/^HTTP \d+: /, '')
-    expect(bodyPortion.length).toBeLessThanOrEqual(200)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const bodyPortion = result.error.replace(/^HTTP \d+: /, '')
+      expect(bodyPortion.length).toBeLessThanOrEqual(200)
+    }
   })
 })
 
@@ -253,7 +286,7 @@ describe('sendEmailMessage', () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true })
     const { sendEmailMessage } = await import('../channels/email.js')
     const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
-    expect(result).toEqual({ success: true, shouldRetry: false })
+    expect(result).toEqual({ success: true })
   })
 
   it('sends plain text payload when no html option', async () => {
@@ -300,7 +333,10 @@ describe('sendEmailMessage', () => {
     })
     const { sendEmailMessage } = await import('../channels/email.js')
     const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
-    expect(result.shouldRetry).toBe(false)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+    }
   })
 
   it('returns shouldRetry:true for 500', async () => {
@@ -309,7 +345,10 @@ describe('sendEmailMessage', () => {
     })
     const { sendEmailMessage } = await import('../channels/email.js')
     const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
-    expect(result.shouldRetry).toBe(true)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(true)
+    }
   })
 
   it('returns shouldRetry:false for 401 Unauthorized', async () => {
@@ -318,7 +357,10 @@ describe('sendEmailMessage', () => {
     })
     const { sendEmailMessage } = await import('../channels/email.js')
     const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
-    expect(result.shouldRetry).toBe(false)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+    }
   })
 
   it('returns shouldRetry:true for 429 Too Many Requests', async () => {
@@ -327,7 +369,10 @@ describe('sendEmailMessage', () => {
     })
     const { sendEmailMessage } = await import('../channels/email.js')
     const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
-    expect(result.shouldRetry).toBe(true)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(true)
+    }
   })
 
   it('truncates long error body to 200 chars', async () => {
@@ -337,8 +382,11 @@ describe('sendEmailMessage', () => {
     })
     const { sendEmailMessage } = await import('../channels/email.js')
     const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
-    const bodyPortion = (result.error ?? '').replace(/^HTTP \d+: /, '')
-    expect(bodyPortion.length).toBeLessThanOrEqual(200)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const bodyPortion = result.error.replace(/^HTTP \d+: /, '')
+      expect(bodyPortion.length).toBeLessThanOrEqual(200)
+    }
   })
 
   it('returns shouldRetry:true on network error', async () => {
@@ -346,7 +394,9 @@ describe('sendEmailMessage', () => {
     const { sendEmailMessage } = await import('../channels/email.js')
     const result = await sendEmailMessage('re_key', 'from@test.com', 'to@test.com', msg)
     expect(result.success).toBe(false)
-    expect(result.shouldRetry).toBe(true)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(true)
+    }
   })
 
   it('includes URL in plain text fallback', async () => {

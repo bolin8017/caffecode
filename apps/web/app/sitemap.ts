@@ -1,12 +1,14 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import type { MetadataRoute } from 'next'
 
+export const revalidate = 3600
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceClient()
 
   const [problemsRes, listsRes] = await Promise.all([
-    supabase.from('problems').select('slug').not('slug', 'is', null),
-    supabase.from('curated_lists').select('slug'),
+    supabase.from('problems').select('slug').not('slug', 'is', null).limit(5000),
+    supabase.from('curated_lists').select('slug').limit(1000),
   ])
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://caffecode.net'

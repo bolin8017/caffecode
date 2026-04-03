@@ -9,6 +9,7 @@ export const serverEnvSchema = z.object({
   LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1),
   LINE_CHANNEL_SECRET: z.string().min(1),
   TELEGRAM_BOT_USERNAME: z.string().min(1),
+  CRON_SECRET: z.string().min(1),
   // Optional
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),

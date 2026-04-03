@@ -26,7 +26,9 @@ export async function createClient() {
   )
 }
 
-// Admin client using service_role — for public pages and admin operations
+// service_role client — bypasses RLS for server-side operations
+// (public page queries, cron jobs, webhooks, admin CRUD).
+// Synchronous: no cookies needed since service_role bypasses RLS without user context.
 export function createServiceClient() {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

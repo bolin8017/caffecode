@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { flagForRegeneration, unflagRegeneration } from '@/lib/actions/admin'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
@@ -41,7 +42,10 @@ export default async function AdminContentPage({
   }
 
   if (params.problem_id) {
-    query = query.eq('problem_id', parseInt(params.problem_id))
+    const parsed = z.coerce.number().int().positive().safeParse(params.problem_id)
+    if (parsed.success) {
+      query = query.eq('problem_id', parsed.data)
+    }
   }
 
   const { data: contents, count } = await query

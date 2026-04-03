@@ -11,6 +11,7 @@ import {
   selectProblemForUser,
   type PushMessage,
   type SendResult,
+  type LearningMode,
 } from '@caffecode/shared'
 
 async function requireAdmin() {
@@ -192,7 +193,11 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
     .select('id, display_name, email, active_mode, difficulty_min, difficulty_max, topic_filter, line_push_allowed')
     .eq('push_enabled', true)
 
-  if (usersError || !users?.length) return { results: [], summary: { sent: 0, failed: 0, skipped: 0 } }
+  if (usersError) {
+    logger.error({ error: usersError.message }, 'forceNotifyAll: failed to fetch push-enabled users')
+    return { results: [], summary: { sent: 0, failed: 0, skipped: 0 } }
+  }
+  if (!users?.length) return { results: [], summary: { sent: 0, failed: 0, skipped: 0 } }
 
   const { data: allChannels, error: channelsError } = await db
     .from('notification_channels')
@@ -201,7 +206,10 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
     .eq('is_verified', true)
     .lt('consecutive_send_failures', 3)
 
-  if (channelsError) return { results: [], summary: { sent: 0, failed: 0, skipped: 0 } }
+  if (channelsError) {
+    logger.error({ error: channelsError.message }, 'forceNotifyAll: failed to fetch notification channels')
+    return { results: [], summary: { sent: 0, failed: 0, skipped: 0 } }
+  }
 
   const channelsByUser = new Map<string, Array<{ id: string; channel_type: string; channel_identifier: string }>>()
   for (const ch of allChannels ?? []) {
@@ -233,7 +241,7 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
       const problem = await selectProblemForUser(
         {
           id: user.id,
-          mode: user.active_mode as 'list' | 'filter',
+          mode: user.active_mode as LearningMode,
           difficulty_min: user.difficulty_min,
           difficulty_max: user.difficulty_max,
           topic_filter: user.topic_filter ?? null,
@@ -280,11 +288,11 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
       channelResults.push({
         type: ch.channel_type,
         success: result.success,
-        error: result.error,
+        error: result.success ? undefined : result.error?.slice(0, 200),
       })
       if (result.success) {
         anySent = true
-      } else if (!result.shouldRetry) {
+      } else if (!result.success && !result.shouldRetry) {
         const { error: rpcErr } = await db.rpc('increment_channel_failures', { p_channel_id: ch.id })
         if (rpcErr) logger.warn({ channelId: ch.id, error: rpcErr.message }, 'Failed to increment channel failures')
       }
@@ -401,7 +409,7 @@ export async function testNotifyChannel(channelId: string): Promise<TestNotifyRe
     problem = await selectProblemForUser(
       {
         id: user.id,
-        mode: user.active_mode as 'list' | 'filter',
+        mode: user.active_mode as LearningMode,
         difficulty_min: user.difficulty_min,
         difficulty_max: user.difficulty_max,
         topic_filter: user.topic_filter ?? null,
@@ -440,6 +448,6 @@ export async function testNotifyChannel(channelId: string): Promise<TestNotifyRe
   return {
     success: result.success,
     latencyMs,
-    error: result.error?.slice(0, 200),
+    error: result.success ? undefined : result.error?.slice(0, 200),
   }
 }

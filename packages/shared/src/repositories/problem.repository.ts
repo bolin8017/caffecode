@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { SelectedProblem } from '../types/push.js'
+import type { Difficulty, SelectedProblem } from '../types/push.js'
 
 export async function getListProblemAtPosition(
   db: SupabaseClient,
@@ -11,7 +11,11 @@ export async function getListProblemAtPosition(
     .eq('user_id', userId)
     .eq('is_active', true)
     .single()
-  if (error || !data) return null
+  // PGRST116 = "no rows returned" — legitimate for users with no active list
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`getListProblemAtPosition: query failed: ${error.message}`)
+  }
+  if (!data) return null
   return data
 }
 
@@ -31,12 +35,16 @@ export async function getProblemAtListPosition(
     .eq('sequence_number', nextSeq)
     .single()
 
-  if (error || !listProblem) return null
+  // PGRST116 = "no rows returned" — list completed (no more problems at this position)
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`getProblemAtListPosition: query failed: ${error.message}`)
+  }
+  if (!listProblem) return null
 
   const problem = listProblem.problems as unknown as {
     slug: string
     title: string
-    difficulty: string
+    difficulty: Difficulty
     leetcode_id: number
     problem_content: { explanation: string } | null
   } | null
@@ -85,7 +93,11 @@ export async function getProblemById(
     .eq('id', problemId)
     .single()
 
-  if (error || !row) return null
+  // PGRST116 = "no rows returned" — problem not found
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`getProblemById: query failed: ${error.message}`)
+  }
+  if (!row) return null
 
   const content = row.problem_content as unknown as { explanation: string } | null
   if (!content) return null
@@ -95,7 +107,7 @@ export async function getProblemById(
     leetcode_id: row.leetcode_id,
     slug: row.slug,
     title: row.title,
-    difficulty: row.difficulty,
+    difficulty: row.difficulty as Difficulty,
     explanation: content.explanation,
   }
 }

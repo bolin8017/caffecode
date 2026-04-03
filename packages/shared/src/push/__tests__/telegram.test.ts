@@ -25,7 +25,7 @@ describe('TelegramChannel.send', () => {
   const channel = new TelegramChannel('fake-token')
 
   it('delegates to sendTelegramMessage', async () => {
-    sendMock.mockResolvedValue({ success: true, shouldRetry: false })
+    sendMock.mockResolvedValue({ success: true })
     const result = await channel.send('12345', msg)
     expect(sendMock).toHaveBeenCalledWith('fake-token', '12345', msg)
     expect(result.success).toBe(true)

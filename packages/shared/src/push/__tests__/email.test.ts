@@ -31,7 +31,7 @@ const msg: PushMessage = {
 describe('EmailChannel', () => {
   beforeEach(() => {
     sendEmailMock.mockReset()
-    sendEmailMock.mockResolvedValue({ success: true, shouldRetry: false })
+    sendEmailMock.mockResolvedValue({ success: true })
   })
 
   it('can be instantiated with apiKey and from', () => {
@@ -55,7 +55,7 @@ describe('EmailChannel', () => {
     expect(typeof opts.html).toBe('string')
     expect(opts.html).toBe('<html>mocked email</html>')
 
-    expect(result).toEqual({ success: true, shouldRetry: false })
+    expect(result).toEqual({ success: true })
   })
 
   it('send propagates failure result from sendEmailMessage', async () => {
@@ -65,6 +65,8 @@ describe('EmailChannel', () => {
     const result = await channel.send('user@example.com', msg)
 
     expect(result.success).toBe(false)
-    expect(result.shouldRetry).toBe(false)
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+    }
   })
 })

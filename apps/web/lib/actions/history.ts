@@ -54,8 +54,8 @@ export async function markSolved(problemId: number): Promise<SolveResult> {
   try {
     const { getTopicProficiency } = await import('@/lib/repositories/garden.repository')
     beforeTopics = await getTopicProficiency(supabase, user.id)
-  } catch {
-    // Non-blocking: feedback will just show empty if this fails
+  } catch (err) {
+    logger.warn({ error: String(err), userId: user.id }, 'markSolved: pre-solve proficiency fetch failed')
   }
 
   // Atomic update with TOCTOU guard
@@ -117,8 +117,8 @@ export async function markSolved(problemId: number): Promise<SolveResult> {
       ...buildSolveResult(beforeTopics, problemTopics, newBadges),
       firstSolve: isFirstSolve,
     }
-  } catch {
-    // Badge/feedback failure should never block the solve action
+  } catch (err) {
+    logger.warn({ error: String(err), userId: user.id, problemId }, 'markSolved: badge/feedback evaluation failed')
   }
 
   revalidatePath(`/problems/[slug]`, 'page')

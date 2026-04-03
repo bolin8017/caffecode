@@ -46,11 +46,15 @@ export async function updateSession(request: NextRequest) {
 
   // For all authenticated users: single query for all user data
   if (user) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('users')
       .select('onboarding_completed, is_admin, display_name, avatar_url')
       .eq('id', user.id)
       .single()
+
+    if (profileError) {
+      console.error('[proxy] profile query failed:', profileError.message)
+    }
 
     // Onboarding check (only for auth routes, not onboarding itself or API)
     if (isAuthRoute && !pathname.startsWith('/onboarding') && !pathname.startsWith('/api')) {

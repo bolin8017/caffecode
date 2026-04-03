@@ -21,14 +21,21 @@ export async function checkAndAwardBadges(
     .from('badges')
     .select('id, slug, name, icon, category, requirement')
 
-  if (badgeErr || !allBadges) return []
+  if (badgeErr) {
+    logger.error({ error: badgeErr.message, userId }, 'checkAndAwardBadges: failed to fetch badge definitions')
+    return []
+  }
+  if (!allBadges) return []
 
   const { data: earned, error: earnedErr } = await supabase
     .from('user_badges')
     .select('badge_id')
     .eq('user_id', userId)
 
-  if (earnedErr) return []
+  if (earnedErr) {
+    logger.error({ error: earnedErr.message, userId }, 'checkAndAwardBadges: failed to fetch earned badges')
+    return []
+  }
 
   const earnedIds = new Set((earned ?? []).map(e => e.badge_id))
   const unearned = allBadges.filter(b => !earnedIds.has(b.id))
@@ -65,7 +72,11 @@ export async function getUserBadges(
     .eq('user_id', userId)
     .order('earned_at', { ascending: false })
 
-  if (error || !data) return []
+  if (error) {
+    logger.error({ error: error.message, userId }, 'getUserBadges: query failed')
+    return []
+  }
+  if (!data) return []
 
   return data.map(row => {
     const b = row.badges as unknown as Badge

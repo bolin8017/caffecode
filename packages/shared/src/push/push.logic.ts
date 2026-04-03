@@ -7,7 +7,7 @@ import type { LimitFunction } from 'p-limit'
 import pLimit from 'p-limit'
 import { selectProblemForUser } from '../services/problem-selector.js'
 import type { NotificationChannel } from './channels/interface.js'
-import type { PushMessage, SendResult } from '../types/push.js'
+import type { ChannelType, Difficulty, PushMessage, SendResult } from '../types/push.js'
 import {
   getAllCandidates,
   stampLastPushDate,
@@ -24,11 +24,11 @@ import { logger } from './push.logger.js'
 export interface PushJobData {
   userId: string
   channelId: string
-  channelType: string
+  channelType: ChannelType
   channelIdentifier: string
   problemId: number
   title: string
-  difficulty: string
+  difficulty: Difficulty
   leetcodeId: number
   explanation: string
   problemSlug: string
@@ -177,13 +177,13 @@ export async function buildPushJobs(
         const channel = channelRegistryArg[job.channelType]
         if (!channel) {
           logger.warn({ channelType: job.channelType, userId: job.userId }, 'Unknown channel type — no handler registered')
-          return Promise.resolve({ success: false, error: `unknown channel type: ${job.channelType}`, shouldRetry: false } as SendResult)
+          return Promise.resolve<SendResult>({ success: false, error: `unknown channel type: ${job.channelType}`, shouldRetry: false })
         }
         return dispatchLimit(async () => {
           // Check inside dispatchLimit so it's evaluated when the job
           // actually executes, not when the map synchronously builds promises.
           if (pausedChannels.has(job.channelId)) {
-            return { success: false, error: 'channel paused mid-batch', shouldRetry: false } as SendResult
+            return { success: false, error: 'channel paused mid-batch', shouldRetry: false } satisfies SendResult
           }
           const result = await dispatchJob(job, channel, db, appUrl)
           if (!result.success && !result.shouldRetry) {
@@ -224,12 +224,18 @@ export async function buildPushJobs(
         })
         .filter((u): u is { userId: string; listId: number; sequenceNumber: number } => u !== null)
 
-      await Promise.all([
+      const writeResults = await Promise.allSettled([
         upsertHistoryBatch(db, historyEntries),
         stampLastPushDate(db, deliveredUserIds),
         advanceListPositions(db, listPositionUpdates),
         resetChannelFailuresForUsers(db, deliveredUserIds),
       ])
+      const writeErrors = writeResults
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .map(r => String(r.reason))
+      if (writeErrors.length > 0) {
+        logger.error({ batchNumber: Math.floor(i / BATCH_SIZE) + 1, writeErrors }, 'Post-dispatch writes partially failed')
+      }
     }
 
     const errors = results

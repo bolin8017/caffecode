@@ -29,13 +29,18 @@ export async function verifyAdminAccess(): Promise<AdminGuardResult> {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { authorized: false, redirectTo: '/login' }
 
+  // Uses cookie-aware client for auth (verifies identity), then service_role for DB (bypasses RLS)
   const serviceClient = createServiceClient()
-  const { data: dbProfile } = await serviceClient
+  const { data: dbProfile, error: profileError } = await serviceClient
     .from('users')
     .select('is_admin')
     .eq('id', user.id)
     .single()
 
+  if (profileError) {
+    logger.error({ error: profileError.message, userId: user.id }, 'verifyAdminAccess: profile query failed')
+    return { authorized: false, redirectTo: '/dashboard' }
+  }
   if (!dbProfile?.is_admin) return { authorized: false, redirectTo: '/dashboard' }
   return { authorized: true, user }
 }

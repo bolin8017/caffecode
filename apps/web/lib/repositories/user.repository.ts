@@ -1,9 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { LearningMode } from '@caffecode/shared'
 import { computeSuggestedRange } from '@/lib/utils/rating-calibration'
 
 export interface UserDashboard {
   display_name: string | null
-  active_mode: 'list' | 'filter'
+  active_mode: LearningMode
   push_enabled: boolean
   push_hour: number
   difficulty_min: number
@@ -49,7 +50,7 @@ export type UserUpdateData = Partial<{
   push_hour: number
   push_hour_utc: number
   timezone: string
-  active_mode: 'list' | 'filter'
+  active_mode: LearningMode
   difficulty_min: number
   difficulty_max: number
   topic_filter: string[] | null
@@ -77,7 +78,12 @@ export async function getSuggestedRange(
     .order('created_at', { ascending: false })
     .limit(20)
 
-  if (error || !data) return null
+  if (error) {
+    const { logger } = await import('@/lib/logger')
+    logger.error({ error: error.message, userId }, 'getSuggestedRange: feedback query failed')
+    return null
+  }
+  if (!data) return null
 
   const signals = data
     .map((row) => {

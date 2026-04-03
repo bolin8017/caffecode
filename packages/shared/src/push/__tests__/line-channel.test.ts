@@ -26,7 +26,7 @@ const sampleMsg: PushMessage = {
 
 describe('LineChannel', () => {
   it('delegates to shared sendLineMessage with correct args', async () => {
-    const expectedResult: SendResult = { success: true, shouldRetry: false }
+    const expectedResult: SendResult = { success: true }
     mockSendLineMessage.mockResolvedValue(expectedResult)
 
     const channel = new LineChannel('test-line-token')
@@ -52,7 +52,9 @@ describe('LineChannel', () => {
     const result = await channel.send('line-user-456', sampleMsg)
 
     expect(result.success).toBe(false)
-    expect(result.shouldRetry).toBe(false)
-    expect(result.error).toBe('HTTP 403: bot blocked')
+    if (!result.success) {
+      expect(result.shouldRetry).toBe(false)
+      expect(result.error).toBe('HTTP 403: bot blocked')
+    }
   })
 })

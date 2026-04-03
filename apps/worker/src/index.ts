@@ -16,10 +16,10 @@ async function main() {
   const startMs = Date.now()
   logger.info('Push run started')
 
-  // Guard against overlapping Railway cron triggers: skip if a run
-  // completed in the last 10 minutes. This is a lightweight check —
-  // truly simultaneous starts can still overlap, but stamp_last_push_date
-  // + history UNIQUE constraint limit blast radius to duplicate messages.
+  // Guard against overlapping cron triggers: skip if a run completed in
+  // the last 10 minutes. This is a lightweight check — truly simultaneous
+  // starts can still overlap, but stamp_last_push_date + history UNIQUE
+  // constraint limit blast radius to duplicate messages.
   const { data: recentRun, error: overlapError } = await supabase
     .from('push_runs')
     .select('id, created_at')

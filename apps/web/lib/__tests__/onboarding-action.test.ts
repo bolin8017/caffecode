@@ -120,13 +120,13 @@ describe('completeOnboarding', () => {
     })
   })
 
-  it('skips upsertListProgress when list_id is null in list mode', async () => {
+  it('rejects list mode with null list_id (discriminated union validation)', async () => {
     const { completeOnboarding } = await import('@/lib/actions/onboarding')
     await expect(
       completeOnboarding({ ...validListData, list_id: null })
-    ).rejects.toThrow('NEXT_REDIRECT')
+    ).rejects.toThrow()
 
-    expect(updateUser).toHaveBeenCalled()
+    expect(updateUser).not.toHaveBeenCalled()
     expect(upsertListProgress).not.toHaveBeenCalled()
   })
 

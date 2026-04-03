@@ -44,9 +44,14 @@ export async function POST(request: Request) {
   let errorMsg: string | undefined
 
   try {
+    const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN
+    const lineChannelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN
+    if (!telegramBotToken || !lineChannelAccessToken) {
+      throw new Error('Missing required env vars: TELEGRAM_BOT_TOKEN or LINE_CHANNEL_ACCESS_TOKEN')
+    }
     const channelRegistry = createChannelRegistry({
-      telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
-      lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
+      telegramBotToken,
+      lineChannelAccessToken,
       resendApiKey: process.env.RESEND_API_KEY,
       resendFromEmail: process.env.RESEND_FROM_EMAIL,
     })

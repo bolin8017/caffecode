@@ -1,10 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { ChannelType, LearningMode } from '../types/push.js'
 import { logger } from './push.logger.js'
 
 export interface PushCandidate {
   id: string
   timezone: string
-  active_mode: 'list' | 'filter'
+  active_mode: LearningMode
   difficulty_min: number
   difficulty_max: number
   topic_filter: string[] | null
@@ -14,7 +15,7 @@ export interface PushCandidate {
 export interface VerifiedChannel {
   id: string
   user_id: string
-  channel_type: string
+  channel_type: ChannelType
   channel_identifier: string
 }
 

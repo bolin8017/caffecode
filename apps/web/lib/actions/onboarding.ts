@@ -8,16 +8,29 @@ import { upsertListProgress } from '@/lib/repositories/list.repository'
 import { toUtcHour } from '@/lib/utils/timezone'
 import { timezoneSchema } from '@/lib/schemas/timezone'
 
-const onboardingSchema = z.object({
-  mode: z.enum(['list', 'filter']),
-  list_id: z.number().int().positive().nullable(),
-  difficulty_min: z.number().int().min(0).max(3000),
-  difficulty_max: z.number().int().min(0).max(3000),
+const baseFields = {
   timezone: timezoneSchema,
   push_hour: z.number().int().min(0).max(23),
-}).refine(d => d.difficulty_min <= d.difficulty_max, {
-  message: 'difficulty_min must be <= difficulty_max',
-})
+}
+
+const onboardingSchema = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('list'),
+    list_id: z.number().int().positive(),
+    difficulty_min: z.number().int().min(0).max(3000),
+    difficulty_max: z.number().int().min(0).max(3000),
+    ...baseFields,
+  }),
+  z.object({
+    mode: z.literal('filter'),
+    list_id: z.null(),
+    difficulty_min: z.number().int().min(0).max(3000),
+    difficulty_max: z.number().int().min(0).max(3000),
+    ...baseFields,
+  }).refine(d => d.difficulty_min <= d.difficulty_max, {
+    message: 'difficulty_min must be <= difficulty_max',
+  }),
+])
 
 export async function completeOnboarding(data: {
   mode: 'list' | 'filter'

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { SelectedProblem } from '../types/push.js'
+import type { LearningMode, SelectedProblem } from '../types/push.js'
 import {
   getListProblemAtPosition,
   getProblemAtListPosition,
@@ -9,7 +9,7 @@ import {
 
 interface ProblemSelectionContext {
   id: string
-  mode: 'list' | 'filter'
+  mode: LearningMode
   difficulty_min: number
   difficulty_max: number
   topic_filter?: string[] | null

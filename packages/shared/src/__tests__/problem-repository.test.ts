@@ -41,10 +41,16 @@ describe('getListProblemAtPosition', () => {
     expect(result).toEqual({ list_id: 7, current_position: 3 })
   })
 
-  it('returns null on DB error', async () => {
-    const { db } = makeChainMock(null, { message: 'PGRST116' })
+  it('returns null on PGRST116 (no rows)', async () => {
+    const { db } = makeChainMock(null, { code: 'PGRST116', message: 'no rows' })
     const result = await getListProblemAtPosition(db, 'user-1')
     expect(result).toBeNull()
+  })
+
+  it('throws on non-PGRST116 DB error', async () => {
+    const { db } = makeChainMock(null, { code: 'PGRST000', message: 'connection refused' })
+    await expect(getListProblemAtPosition(db, 'user-1'))
+      .rejects.toThrow('getListProblemAtPosition: query failed: connection refused')
   })
 
   it('returns null when data is null', async () => {
@@ -103,10 +109,16 @@ describe('getProblemAtListPosition', () => {
     expect(chain.eq).toHaveBeenCalledWith('list_id', 7)
   })
 
-  it('returns null when no data', async () => {
-    const { db } = makeChainMock(null, { message: 'no rows' })
+  it('returns null on PGRST116 (list completed)', async () => {
+    const { db } = makeChainMock(null, { code: 'PGRST116', message: 'no rows' })
     const result = await getProblemAtListPosition(db, 7, 75)
     expect(result).toBeNull()
+  })
+
+  it('throws on non-PGRST116 DB error', async () => {
+    const { db } = makeChainMock(null, { code: 'PGRST000', message: 'connection timeout' })
+    await expect(getProblemAtListPosition(db, 7, 75))
+      .rejects.toThrow('getProblemAtListPosition: query failed: connection timeout')
   })
 
   it('returns null when problem_content is missing', async () => {
@@ -204,10 +216,16 @@ describe('getProblemById', () => {
     })
   })
 
-  it('returns null when no data', async () => {
-    const { db } = makeChainMock(null, { message: 'PGRST116' })
+  it('returns null on PGRST116 (not found)', async () => {
+    const { db } = makeChainMock(null, { code: 'PGRST116', message: 'no rows' })
     const result = await getProblemById(db, 999)
     expect(result).toBeNull()
+  })
+
+  it('throws on non-PGRST116 DB error', async () => {
+    const { db } = makeChainMock(null, { code: 'PGRST000', message: 'connection refused' })
+    await expect(getProblemById(db, 999))
+      .rejects.toThrow('getProblemById: query failed: connection refused')
   })
 
   it('returns null when problem_content is null', async () => {

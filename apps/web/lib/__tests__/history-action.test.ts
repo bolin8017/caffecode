@@ -412,3 +412,78 @@ describe('markSolved', () => {
     expect(result).toBeDefined()
   })
 })
+
+// ---------------------------------------------------------------------------
+// skipProblem
+// ---------------------------------------------------------------------------
+describe('skipProblem', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    setupAuth()
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return mockUsersChain
+      return mockHistoryChain
+    })
+  })
+
+  it('calls update with correct filters (skipped_at IS NULL, solved_at IS NULL)', async () => {
+    mockUpdateChain.is.mockReturnThis()
+    mockUpdateChain.eq.mockReturnThis()
+    // No select() call for skipProblem — update returns { error }
+    const mockUpdateTerminal = vi.fn().mockReturnValue(mockUpdateChain)
+    mockHistoryChain.update = mockUpdateTerminal
+
+    // Make the final chained call resolve to { error: null }
+    mockUpdateChain.is.mockImplementation(function (this: typeof mockUpdateChain) {
+      return { ...this, error: null } as unknown as typeof mockUpdateChain
+    })
+
+    // Simulate a successful update with no error
+    const updateResult = { error: null }
+    mockHistoryChain.update = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          is: vi.fn().mockReturnValue({
+            is: vi.fn().mockResolvedValue(updateResult),
+          }),
+        }),
+      }),
+    })
+
+    const { skipProblem } = await import('@/lib/actions/history')
+    await skipProblem(42)
+    expect(revalidatePath).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('throws on non-positive problemId (Zod validation)', async () => {
+    const { skipProblem } = await import('@/lib/actions/history')
+    await expect(skipProblem(0)).rejects.toThrow()
+    await expect(skipProblem(-1)).rejects.toThrow()
+  })
+
+  it('throws on non-integer problemId (Zod validation)', async () => {
+    const { skipProblem } = await import('@/lib/actions/history')
+    await expect(skipProblem(1.5)).rejects.toThrow()
+  })
+
+  it('throws when unauthenticated', async () => {
+    vi.mocked(getAuthUser).mockRejectedValueOnce(new Error('Unauthenticated'))
+    const { skipProblem } = await import('@/lib/actions/history')
+    await expect(skipProblem(42)).rejects.toThrow('Unauthenticated')
+  })
+
+  it('throws on DB update error', async () => {
+    mockHistoryChain.update = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          is: vi.fn().mockReturnValue({
+            is: vi.fn().mockResolvedValue({ error: { message: 'DB failure' } }),
+          }),
+        }),
+      }),
+    })
+
+    const { skipProblem } = await import('@/lib/actions/history')
+    await expect(skipProblem(42)).rejects.toThrow('Failed to skip problem')
+  })
+})

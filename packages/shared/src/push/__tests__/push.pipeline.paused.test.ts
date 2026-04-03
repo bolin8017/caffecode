@@ -106,7 +106,7 @@ describe('buildPushJobs — channel pausing', () => {
           return { success: false, shouldRetry: false, error: '403 Forbidden' } as SendResult
         }
         // This should not be reached if pausing works
-        return { success: true, shouldRetry: false } as SendResult
+        return { success: true } as SendResult
       }),
     }
 

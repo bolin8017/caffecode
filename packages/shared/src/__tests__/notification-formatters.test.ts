@@ -5,7 +5,7 @@ import {
   formatEmailSubject,
   buildTelegramReplyMarkup,
 } from '../utils/notification-formatters.js'
-import type { PushMessage } from '../types/push.js'
+import type { PushMessage, Difficulty } from '../types/push.js'
 
 const msg: PushMessage = {
   title: 'Two Sum',
@@ -38,17 +38,17 @@ describe('formatTelegramMessage', () => {
   })
 
   it('uses yellow emoji for Medium difficulty', () => {
-    const medium = { ...msg, difficulty: 'Medium' }
+    const medium = { ...msg, difficulty: 'Medium' } satisfies PushMessage
     expect(formatTelegramMessage(medium)).toContain('🟡')
   })
 
   it('uses red emoji for Hard difficulty', () => {
-    const hard = { ...msg, difficulty: 'Hard' }
+    const hard = { ...msg, difficulty: 'Hard' } satisfies PushMessage
     expect(formatTelegramMessage(hard)).toContain('🔴')
   })
 
   it('falls back to white emoji for unknown difficulty', () => {
-    const unknown = { ...msg, difficulty: 'Unknown' }
+    const unknown = { ...msg, difficulty: 'Unknown' as Difficulty }
     expect(formatTelegramMessage(unknown)).toContain('⚪')
   })
 
@@ -103,7 +103,7 @@ describe('buildFlexBubble', () => {
   })
 
   it('uses yellow emoji for Medium in body text', () => {
-    const medium = { ...msg, difficulty: 'Medium' }
+    const medium = { ...msg, difficulty: 'Medium' } satisfies PushMessage
     const bubble = buildFlexBubble(medium) as {
       body: { contents: { text: string }[] }
     }
@@ -126,7 +126,7 @@ describe('formatEmailSubject', () => {
   })
 
   it('varies by difficulty', () => {
-    const hard = { ...msg, difficulty: 'Hard' }
+    const hard = { ...msg, difficulty: 'Hard' } satisfies PushMessage
     expect(formatEmailSubject(hard)).toContain('Hard')
     expect(formatEmailSubject(hard)).not.toContain('Easy')
   })
@@ -217,19 +217,19 @@ describe('buildTelegramReplyMarkup', () => {
 // ---------------------------------------------------------------------------
 describe('formatTelegramMessage — edge cases', () => {
   it('escapes HTML entities in difficulty field', () => {
-    const m: PushMessage = { ...msg, difficulty: '<script>Hard</script>' }
+    const m: PushMessage = { ...msg, difficulty: '<script>Hard</script>' as Difficulty }
     const output = formatTelegramMessage(m)
     expect(output).not.toContain('<script>')
     expect(output).toContain('&lt;script&gt;')
   })
 
   it('uses red emoji for Hard difficulty', () => {
-    const m: PushMessage = { ...msg, difficulty: 'Hard' }
+    const m = { ...msg, difficulty: 'Hard' } satisfies PushMessage
     expect(formatTelegramMessage(m)).toContain('🔴')
   })
 
   it('uses white circle for unknown difficulty', () => {
-    const m: PushMessage = { ...msg, difficulty: 'Expert' }
+    const m: PushMessage = { ...msg, difficulty: 'Expert' as Difficulty }
     expect(formatTelegramMessage(m)).toContain('⚪')
   })
 })

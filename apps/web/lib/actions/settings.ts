@@ -86,10 +86,9 @@ export async function updateLearningMode(
 
   try {
     if (data.mode === 'list') {
-      await Promise.all([
-        updateUser(supabase, user.id, { active_mode: 'list' }),
-        deactivateAllLists(supabase, user.id),
-      ])
+      // Sequential: deactivate first to ensure "exactly one active list" invariant
+      await deactivateAllLists(supabase, user.id)
+      await updateUser(supabase, user.id, { active_mode: 'list' })
       await upsertListProgress(supabase, {
         user_id: user.id,
         list_id: data.list_id,
@@ -125,10 +124,9 @@ export async function subscribeToList(listId: number, startPosition?: number) {
   subscribeSchema.parse({ listId, startPosition })
 
   try {
-    await Promise.all([
-      updateUser(supabase, user.id, { active_mode: 'list' }),
-      deactivateAllLists(supabase, user.id),
-    ])
+    // Sequential: deactivate first to ensure "exactly one active list" invariant
+    await deactivateAllLists(supabase, user.id)
+    await updateUser(supabase, user.id, { active_mode: 'list' })
 
     const progressData: {
       user_id: string

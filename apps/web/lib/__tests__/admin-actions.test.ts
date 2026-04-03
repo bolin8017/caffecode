@@ -551,7 +551,7 @@ describe('admin actions', () => {
 
     const baseProblem = {
       title: 'Two Sum',
-      difficulty: 'Easy',
+      difficulty: 'Easy' as const,
       leetcode_id: 1,
       explanation: 'Use a hash map.',
       slug: 'two-sum',
@@ -596,7 +596,7 @@ describe('admin actions', () => {
       setupAdmin()
       setupChannelLookup(baseChannel)
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
 
       const { testNotifyChannel } = await import('@/lib/actions/admin')
       const result = await testNotifyChannel(CHANNEL_UUID)
@@ -612,7 +612,7 @@ describe('admin actions', () => {
       setupChannelLookup(lineChannel)
       setupLinePushLookup(true)
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
-      vi.mocked(sendLineMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendLineMessage).mockResolvedValue({ success: true })
 
       const { testNotifyChannel } = await import('@/lib/actions/admin')
       const result = await testNotifyChannel(CHANNEL_UUID)
@@ -626,7 +626,7 @@ describe('admin actions', () => {
       const emailChannel = { ...baseChannel, channel_type: 'email', channel_identifier: 'a@b.com' }
       setupChannelLookup(emailChannel)
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
-      vi.mocked(sendEmailMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendEmailMessage).mockResolvedValue({ success: true })
 
       const { testNotifyChannel } = await import('@/lib/actions/admin')
       const result = await testNotifyChannel(CHANNEL_UUID)
@@ -720,7 +720,7 @@ describe('admin actions', () => {
       setupAdmin()
       setupChannelLookup(baseChannel)
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
 
       const { testNotifyChannel } = await import('@/lib/actions/admin')
       await testNotifyChannel(CHANNEL_UUID)
@@ -736,7 +736,7 @@ describe('admin actions', () => {
       setupChannelLookup(baseChannel)
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
       vi.mocked(sendTelegramMessage).mockImplementation(async () => {
-        return { success: true, shouldRetry: false }
+        return { success: true }
       })
 
       const { testNotifyChannel } = await import('@/lib/actions/admin')
@@ -785,7 +785,7 @@ describe('admin actions', () => {
 
     const baseProblem = {
       title: 'Two Sum',
-      difficulty: 'Easy',
+      difficulty: 'Easy' as const,
       leetcode_id: 1,
       explanation: 'hash map',
       slug: 'two-sum',
@@ -825,7 +825,7 @@ describe('admin actions', () => {
       setupUsersQuery([USER_A])
       setupChannelsQuery([CHANNEL_TG])
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
       // Post-write: history upsert + stamp
       const upsertFn = vi.fn().mockResolvedValue({ error: null })
       mockServiceFrom.mockReturnValueOnce({ upsert: upsertFn })
@@ -933,7 +933,7 @@ describe('admin actions', () => {
       setupUsersQuery([USER_A])
       setupChannelsQuery([CHANNEL_TG, CHANNEL_EMAIL])
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
       vi.mocked(sendEmailMessage).mockResolvedValue({ success: false, error: 'fail', shouldRetry: true })
 
       // Post-write for 1 successful delivery
@@ -983,7 +983,7 @@ describe('admin actions', () => {
       setupUsersQuery([USER_A])
       setupChannelsQuery([CHANNEL_TG])
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
 
       // Post-write fails
       const upsertFn = vi.fn().mockResolvedValue({ error: { message: 'history fail' } })
@@ -1006,7 +1006,7 @@ describe('admin actions', () => {
       setupUsersQuery([USER_A])
       setupChannelsQuery([CHANNEL_TG])
       vi.mocked(selectProblemForUser).mockResolvedValue(listProblem)
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
 
       // Post-write: history + stamp + advance_list_positions
       const upsertFn = vi.fn().mockResolvedValue({ error: null })
@@ -1030,7 +1030,7 @@ describe('admin actions', () => {
       vi.mocked(selectProblemForUser)
         .mockRejectedValueOnce(new Error('boom'))
         .mockResolvedValueOnce(baseProblem)
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
 
       // Post-write for the one successful user
       const upsertFn = vi.fn().mockResolvedValue({ error: null })
@@ -1050,7 +1050,7 @@ describe('admin actions', () => {
       setupUsersQuery([USER_A])
       setupChannelsQuery([CHANNEL_TG])
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
 
       const upsertFn = vi.fn().mockResolvedValue({ error: null })
       mockServiceFrom.mockReturnValueOnce({ upsert: upsertFn })
@@ -1075,7 +1075,7 @@ describe('admin actions', () => {
         .mockResolvedValueOnce(baseProblem)  // Alice
         .mockResolvedValueOnce(baseProblem)  // Charlie (Bob skipped — no channels after LINE filter)
       vi.mocked(sendTelegramMessage)
-        .mockResolvedValueOnce({ success: true, shouldRetry: false })   // Alice
+        .mockResolvedValueOnce({ success: true })   // Alice
         .mockResolvedValueOnce({ success: false, error: 'err', shouldRetry: true })  // Charlie
 
       // Post-write for Alice
@@ -1097,7 +1097,7 @@ describe('admin actions', () => {
       setupUsersQuery([USER_A])
       setupChannelsQuery([CHANNEL_TG])
       vi.mocked(selectProblemForUser).mockResolvedValue(baseProblem)
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
 
       const upsertFn = vi.fn().mockResolvedValue({ error: null })
       mockServiceFrom.mockReturnValueOnce({ upsert: upsertFn })
@@ -1128,7 +1128,7 @@ describe('admin actions', () => {
 
     const baseProblem = {
       title: 'Two Sum',
-      difficulty: 'Easy',
+      difficulty: 'Easy' as const,
       leetcode_id: 1,
       explanation: 'hash map',
       slug: 'two-sum',
@@ -1157,7 +1157,7 @@ describe('admin actions', () => {
 
     it('routes telegram to sendTelegramMessage', async () => {
       setupChannelAndProblem('telegram', '12345')
-      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendTelegramMessage).mockResolvedValue({ success: true })
 
       const { testNotifyChannel } = await import('@/lib/actions/admin')
       const result = await testNotifyChannel(CHANNEL_UUID)
@@ -1175,7 +1175,7 @@ describe('admin actions', () => {
           eq: vi.fn().mockReturnValue({ single: singleFn }),
         }),
       })
-      vi.mocked(sendLineMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendLineMessage).mockResolvedValue({ success: true })
 
       const { testNotifyChannel } = await import('@/lib/actions/admin')
       const result = await testNotifyChannel(CHANNEL_UUID)
@@ -1186,7 +1186,7 @@ describe('admin actions', () => {
 
     it('routes email to sendEmailMessage', async () => {
       setupChannelAndProblem('email', 'user@example.com')
-      vi.mocked(sendEmailMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendEmailMessage).mockResolvedValue({ success: true })
 
       const { testNotifyChannel } = await import('@/lib/actions/admin')
       const result = await testNotifyChannel(CHANNEL_UUID)
@@ -1253,7 +1253,7 @@ describe('admin actions', () => {
     it('uses default RESEND_FROM_EMAIL when env not set', async () => {
       delete process.env.RESEND_FROM_EMAIL
       setupChannelAndProblem('email', 'user@example.com')
-      vi.mocked(sendEmailMessage).mockResolvedValue({ success: true, shouldRetry: false })
+      vi.mocked(sendEmailMessage).mockResolvedValue({ success: true })
 
       const { testNotifyChannel } = await import('@/lib/actions/admin')
       await testNotifyChannel(CHANNEL_UUID)

@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
 import { updatePushSettings, updateTimezone } from '@/lib/actions/settings'
 
 interface Props {
@@ -82,12 +81,30 @@ export function PushSettingsForm({ pushEnabled: initialEnabled, pushHour: initia
       <section>
         <h2 className="text-base font-semibold mb-4">時區</h2>
         <div className="flex items-center gap-3">
-          <Input
+          <select
             value={timezone}
             onChange={(e) => setTimezone(e.target.value)}
-            placeholder="Asia/Taipei"
-            className="max-w-xs"
-          />
+            className="h-9 flex-1 max-w-xs rounded-md border border-input bg-background px-3 text-sm"
+          >
+            {(() => {
+              const zones = Intl.supportedValuesOf('timeZone')
+              const grouped: Record<string, string[]> = {}
+              for (const tz of zones) {
+                const slash = tz.indexOf('/')
+                const region = slash === -1 ? 'Other' : tz.slice(0, slash)
+                ;(grouped[region] ??= []).push(tz)
+              }
+              return Object.entries(grouped)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([region, tzs]) => (
+                  <optgroup key={region} label={region}>
+                    {tzs.map((tz) => (
+                      <option key={tz} value={tz}>{tz}</option>
+                    ))}
+                  </optgroup>
+                ))
+            })()}
+          </select>
           <Button
             variant="outline"
             size="sm"
@@ -105,7 +122,6 @@ export function PushSettingsForm({ pushEnabled: initialEnabled, pushHour: initia
             儲存
           </Button>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">IANA 時區名稱，例如 Asia/Taipei、America/New_York</p>
       </section>
     </div>
   )

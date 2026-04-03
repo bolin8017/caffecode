@@ -12,6 +12,7 @@ describe('serverEnvSchema', () => {
       LINE_CHANNEL_ACCESS_TOKEN: 'test-token',
       LINE_CHANNEL_SECRET: 'test-secret',
       TELEGRAM_BOT_USERNAME: 'CaffeCodeBot',
+      CRON_SECRET: 'test-cron-secret',
     })
     expect(result.success).toBe(true)
   })
@@ -31,6 +32,7 @@ describe('serverEnvSchema', () => {
       LINE_CHANNEL_ACCESS_TOKEN: 'test-token',
       LINE_CHANNEL_SECRET: 'test-secret',
       TELEGRAM_BOT_USERNAME: 'CaffeCodeBot',
+      CRON_SECRET: 'test-cron-secret',
       RESEND_API_KEY: 're_test',
       SENTRY_DSN: 'https://test@sentry.io/123',
     })

@@ -35,7 +35,7 @@ export async function sendLineMessage(
       return { success: false, error: `HTTP ${res.status}: ${body.slice(0, 200)}`, shouldRetry }
     }
 
-    return { success: true, shouldRetry: false }
+    return { success: true }
   } catch (err) {
     return { success: false, error: String(err), shouldRetry: true }
   }

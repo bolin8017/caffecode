@@ -19,7 +19,8 @@ export async function GET() {
     }
 
     return Response.json({ status: 'ok', timestamp: new Date().toISOString() })
-  } catch {
+  } catch (err) {
+    console.error('[health] Health check failed:', err)
     return Response.json(
       { status: 'error', message: 'Health check failed' },
       { status: 503 }

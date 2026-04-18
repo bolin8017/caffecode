@@ -19,6 +19,7 @@
  */
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
+import { logger } from '@/lib/logger'
 
 const DEFAULT_LIMIT = 120
 const WINDOW_MS = 60_000
@@ -31,7 +32,21 @@ const hasUpstashEnv =
   && typeof process.env.UPSTASH_REDIS_REST_TOKEN === 'string'
   && process.env.UPSTASH_REDIS_REST_TOKEN.length > 0
 
-const upstashRedis = hasUpstashEnv ? Redis.fromEnv() : null
+// `Redis.fromEnv()` throws on malformed values (e.g. a typo when running
+// `vercel env add`). Catch at module load so the route keeps working on the
+// in-memory fallback instead of crashing every cold start.
+let upstashRedis: Redis | null = null
+if (hasUpstashEnv) {
+  try {
+    upstashRedis = Redis.fromEnv()
+  } catch (err) {
+    logger.error(
+      { err },
+      'rate-limiter: Upstash env vars are set but Redis.fromEnv() failed; falling back to in-memory',
+    )
+    upstashRedis = null
+  }
+}
 
 // Cache ratelimit instances by limit-per-minute so the `checkRateLimit(ip, 30)`
 // variant (auth callback) doesn't share state with the default webhook limit.
@@ -97,8 +112,10 @@ export async function checkRateLimit(ip: string, limitPerMinute = DEFAULT_LIMIT)
     try {
       const { success } = await rl.limit(ip)
       return success
-    } catch {
-      // Upstash unreachable — fall through to in-memory so webhooks keep flowing.
+    } catch (err) {
+      // Upstash unreachable — log once per request and fall through to
+      // in-memory so webhooks keep flowing through the incident.
+      logger.warn({ err, ip }, 'rate-limiter: Upstash call failed, falling back to in-memory')
     }
   }
   return checkInMemory(ip, limitPerMinute)

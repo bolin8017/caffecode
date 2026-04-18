@@ -33,7 +33,7 @@ Follows [Conventional Commits 1.0.0](https://www.conventionalcommits.org/) (Goog
 | Element | Rule |
 |---------|------|
 | **type** | Required. One of: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`, `style` |
-| **scope** | Optional but recommended. One of: `web`, `worker`, `shared`, `db`, `ci`. Omit only for cross-cutting changes |
+| **scope** | Optional but recommended. One of: `web`, `shared`, `db`, `ci`. Omit only for cross-cutting changes. (`worker` was retired when the push worker merged into `apps/web/app/api/cron/push` in PR #33.) |
 | **subject** | Required. Imperative mood. Lowercase. No period. Max 50 chars (hard limit 72) |
 
 **Type definitions**:
@@ -67,7 +67,7 @@ Closes #42
 ```
 
 ```
-fix(worker): prevent duplicate push when worker crashes mid-batch
+fix(web): prevent duplicate push when cron route crashes mid-batch
 
 stamp_last_push_date() now runs before dispatch instead of after,
 ensuring at-most-once delivery even on crash.

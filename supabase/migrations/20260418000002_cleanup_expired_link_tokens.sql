@@ -10,6 +10,17 @@
 -- whole channel row — the user may still complete a fresh verification
 -- flow, and some channels have `channel_identifier` populated already.
 
+-- Unschedule any prior registration with the same name so re-applying
+-- this migration is idempotent. cron.schedule is insert-only; without
+-- this guard a re-apply would create a duplicate job.
+DO $mig$
+BEGIN
+  PERFORM cron.unschedule(jobid)
+  FROM cron.job
+  WHERE jobname = 'cleanup-expired-link-tokens';
+END;
+$mig$;
+
 SELECT cron.schedule(
   'cleanup-expired-link-tokens',
   '0 3 * * *',  -- daily at 03:00 UTC

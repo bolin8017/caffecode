@@ -36,7 +36,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 **Types**: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`, `style`
 
-**Scopes**: `web`, `worker`, `shared`, `db`, `ci` (omit for cross-cutting changes)
+**Scopes**: `web`, `shared`, `db`, `ci` (omit for cross-cutting changes)
 
 **Rules**:
 - Subject: imperative mood, lowercase, no period, max 72 characters
@@ -45,7 +45,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 **Examples**:
 ```
 feat(web): add dark mode toggle to settings page
-fix(worker): prevent duplicate push on crash recovery
+fix(shared): prevent duplicate push on crash recovery
 refactor(shared): extract channel send logic to shared package
 docs: add CONTRIBUTING.md
 ```
@@ -68,8 +68,7 @@ docs: add CONTRIBUTING.md
 
 | Directory | Purpose |
 |-----------|---------|
-| `apps/web/` | Next.js 16 web application |
-| `apps/worker/` | Standalone push worker entry point (fallback) |
+| `apps/web/` | Next.js 16 web application (includes `/api/cron/push` hourly endpoint) |
 | `packages/shared/` | Shared library (push pipeline, channel senders, problem selection, formatters) |
 | `supabase/migrations/` | Database migration files |
 | `scripts/` | Utility scripts |

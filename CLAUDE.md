@@ -11,13 +11,14 @@
 
 ## Architecture
 
-pnpm monorepo + Turborepo. Two processes share a single Supabase database:
+pnpm monorepo + Turborepo. Single Next.js app + shared library share a Supabase database:
 
 | Component | Location | Runtime | Role |
 |-----------|----------|---------|------|
-| Web | `apps/web/` | Next.js 16 on Vercel | Public pages (SEO), OAuth, dashboard, settings, admin |
-| Worker | `apps/worker/` | Vercel Serverless (via Supabase pg_cron) | Candidate scan → problem selection → channel dispatch |
+| Web | `apps/web/` | Next.js 16 on Vercel | Public pages (SEO), OAuth, dashboard, settings, admin, cron push route |
 | Shared | `packages/shared/` | TypeScript library | Types, channel senders, problem selection, formatters, push pipeline |
+
+**Push cron**: `apps/web/app/api/cron/push/route.ts` is the live cron entry. Supabase `pg_cron` + `pg_net` POST hourly with `Authorization: Bearer <CRON_SECRET>`.
 
 **Pre-curated content model**: All problem content generated offline via admin UI. Zero runtime LLM calls.
 
@@ -83,9 +84,9 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 ## Development Notes
 
-**Tests**: 762 TypeScript vitest (shared 185, worker 11, web 566) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
+**Tests**: 751 TypeScript vitest (shared 185, web 566) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
 
-**Coverage**: `pnpm test:coverage` runs all packages with `@vitest/coverage-v8`. CI enforces thresholds (shared 90/85/90/90, web 90/85/90/90 for stmts/branch/funcs/lines). Worker has no coverage thresholds (only config + entry point remain). Coverage scope: business logic only (`lib/`, `src/`, API routes); excludes components, pages, and infra singletons.
+**Coverage**: `pnpm test:coverage` runs all packages with `@vitest/coverage-v8`. CI enforces thresholds (shared 95/90/95/95, web 90/85/90/90 for stmts/branch/funcs/lines). Coverage scope: business logic only (`lib/`, `src/`, API routes); excludes components, pages, and infra singletons.
 
 **Next.js 16**: `proxy.ts` (not `middleware.ts`); export must be named `proxy`.
 
@@ -95,8 +96,8 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 **vitest**: `apps/web` tests outside `src/` need explicit include in `vitest.config.ts`.
 
-**Build order**: `packages/shared` must build before worker — `main: "dist/index.js"`.
+**Build order**: `packages/shared` must build before `apps/web` — `main: "dist/index.js"`.
 
 **Admin pages**: Event handlers cannot be in Server Components — use Client Component wrappers.
 
-**Worker cron**: `pg_cron` (Supabase) fires `pg_net` HTTP POST to `/api/cron/push` hourly. Auth via `CRON_SECRET` Bearer token. Catch-up model: `push_hour_utc <= current_hour` recovers missed triggers.
+**Cron push**: `pg_cron` (Supabase) fires `pg_net` HTTP POST to `/api/cron/push` hourly. Auth via `CRON_SECRET` Bearer token, verified with `timingSafeEqual`. Exact-hour model: `push_hour_utc = current_hour`.

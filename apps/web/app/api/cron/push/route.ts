@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto'
 import pLimit from 'p-limit'
 import { logger } from '@/lib/logger'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -10,10 +11,17 @@ import {
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
+function isValidCronSecret(authHeader: string | null, cronSecret: string | undefined): boolean {
+  if (!cronSecret || !authHeader) return false
+  const expected = `Bearer ${cronSecret}`
+  const headerBuf = Buffer.from(authHeader)
+  const expectedBuf = Buffer.from(expected)
+  if (headerBuf.length !== expectedBuf.length) return false
+  return timingSafeEqual(headerBuf, expectedBuf)
+}
+
 export async function POST(request: Request) {
-  const cronSecret = process.env.CRON_SECRET
-  const authHeader = request.headers.get('Authorization')
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isValidCronSecret(request.headers.get('Authorization'), process.env.CRON_SECRET)) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

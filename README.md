@@ -43,33 +43,34 @@ A daily LeetCode problem delivery platform with AI-generated C++ explanations in
                   ┌──────────────────────────┐
                   │   Supabase (PostgreSQL)  │
                   │   Auth · RLS · RPC       │
-                  └──────┬──────────┬────────┘
-                         │          │
-              ┌──────────┘          └──────────┐
-              │                                │
-   ┌──────────┴──────────┐          ┌──────────┴──────────┐
-   │   Next.js 16 Web    │          │   Vercel Worker     │
-   │   (Vercel)          │          │   (pg_cron hourly)  │
-   │                     │          │                     │
-   │  Public pages (SEO) │          │  Candidate scan     │
-   │  OAuth (GitHub/     │          │  Problem selection  │
-   │    Google)          │          │  Channel dispatch   │
-   │  Dashboard/Settings │          │  Circuit-breaker    │
-   │  Admin monitoring   │          │                     │
-   └─────────────────────┘          └─────────────────────┘
-              │                                │
-              └────────────┬───────────────────┘
-                           │
-                ┌──────────┴──────────┐
-                │  packages/shared    │
-                │                     │
-                │  Channel senders    │
-                │  Problem selection  │
-                │  Notification fmt   │
-                └─────────────────────┘
+                  │   pg_cron · pg_net       │
+                  └───────────┬──────────────┘
+                              │
+                   hourly HTTP POST
+                   (Bearer CRON_SECRET)
+                              │
+                  ┌───────────┴──────────────┐
+                  │   Next.js 16 (Vercel)    │
+                  │                          │
+                  │  Public pages (SEO)      │
+                  │  OAuth (GitHub/Google)   │
+                  │  Dashboard/Settings      │
+                  │  Admin monitoring        │
+                  │  /api/cron/push          │ ← pg_cron target
+                  │  /api/{telegram,line}/webhook
+                  └───────────┬──────────────┘
+                              │
+                   ┌──────────┴──────────┐
+                   │  packages/shared    │
+                   │                     │
+                   │  Push pipeline      │
+                   │  Channel senders    │
+                   │  Problem selection  │
+                   │  Notification fmt   │
+                   └─────────────────────┘
 ```
 
-Two processes share the same Supabase database. `packages/shared` provides channel send functions, problem selection logic, and notification formatters used by both.
+One Next.js deployment on Vercel hosts both the site and the hourly cron endpoint. `packages/shared` provides the push pipeline, channel senders, problem selection, and formatters.
 
 ## Tech Stack
 
@@ -78,25 +79,25 @@ Two processes share the same Supabase database. `packages/shared` provides chann
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 |
 | Auth | Supabase Auth (GitHub + Google OAuth) |
 | Database | Supabase PostgreSQL — RLS, RPC functions, service_role access |
-| Worker | Vercel Serverless Function, Supabase pg_cron (hourly) |
+| Cron | Supabase `pg_cron` + `pg_net` → `/api/cron/push` (hourly) |
 | Notifications | Telegram Bot API, LINE Messaging API, Resend (React Email) |
-| Shared | `@caffecode/shared` — channel senders, problem selection, formatters |
+| Shared | `@caffecode/shared` — push pipeline, channel senders, problem selection, formatters |
 | Monorepo | pnpm workspaces + Turborepo |
 | Observability | Sentry (errors), PostHog (analytics), Pino (structured logging) |
-| Security | CSP headers, Zod validation, webhook HMAC verification |
-| Testing | Vitest (762 TS) + Playwright E2E (57) + pytest (54 Python) |
-| CI/CD | GitHub Actions, Vercel (web + worker) |
+| Security | CSP headers, Zod validation, webhook HMAC verification, `timingSafeEqual` auth |
+| Testing | Vitest (751 TS) + Playwright E2E (57) + pytest (54 Python) |
+| CI/CD | GitHub Actions, Vercel |
 
 ## Project Structure
 
 ```
 apps/
-  web/              Next.js 16 — public pages, auth, dashboard, settings, admin
-  worker/           Standalone push worker entry point (uses shared push pipeline)
+  web/              Next.js 16 — public pages, auth, dashboard, settings, admin, cron route
 packages/
-  shared/           Channel senders, problem selection, push pipeline, formatters
+  shared/           Push pipeline, channel senders, problem selection, formatters
 supabase/
   config.toml       Supabase CLI configuration
+  migrations/       Versioned SQL migrations (applied via Supabase CLI or MCP)
 docs/
   supabase-schema.sql   Full schema reference
   staging-setup.md      Staging environment guide
@@ -126,14 +127,13 @@ pnpm install
 
 ### Environment Variables
 
-Copy and fill in the env files:
+Copy and fill in the env file:
 
 ```bash
 cp apps/web/.env.example apps/web/.env.local
-cp apps/worker/.env.example apps/worker/.env
 ```
 
-See each `.env.example` for required variables. `SUPABASE_SERVICE_ROLE_KEY` must be the **service_role** key — anon is denied by RLS.
+See `apps/web/.env.example` for required variables. `SUPABASE_SERVICE_ROLE_KEY` must be the **service_role** key — anon is denied by RLS.
 
 ### Database Setup
 
@@ -156,7 +156,7 @@ python3 scripts/build_database.py --list all       # all lists
 ### Development
 
 ```bash
-pnpm build          # shared → worker → web (Turborepo manages order)
+pnpm build          # shared → web (Turborepo manages order)
 pnpm dev            # start web dev server on localhost:3000
 ```
 
@@ -170,7 +170,6 @@ pnpm test
 
 # Individually
 cd packages/shared && pnpm exec vitest run   # 185 tests
-cd apps/worker && pnpm exec vitest run       # 11 tests
 cd apps/web && pnpm exec vitest run          # 566 tests
 
 # E2E tests (requires dev server running)
@@ -184,8 +183,8 @@ cd scripts && python3 -m pytest tests/ -v    # 54 tests
 
 | Target | Platform | Method | Config |
 |--------|----------|--------|--------|
-| Web + Worker | Vercel | `git push origin main` | GitHub integration |
-| Cron trigger | Supabase pg_cron | `pg_net` HTTP POST hourly | Vault secret + `CRON_SECRET` |
+| Web | Vercel | `git push origin main` | GitHub integration |
+| Cron trigger | Supabase pg_cron | `pg_net` HTTP POST hourly to `/api/cron/push` | Vault secret + `CRON_SECRET` |
 
 Set environment variables from each `.env.example` in the respective platform dashboard.
 

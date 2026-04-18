@@ -66,7 +66,7 @@ type LineEvent = LineFollowEvent | LineMessageEvent | { type: string }
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req.headers)
-  if (!checkRateLimit(ip)) {
+  if (!(await checkRateLimit(ip))) {
     logger.warn({ ip }, 'LINE webhook: rate limit exceeded')
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 })
   }

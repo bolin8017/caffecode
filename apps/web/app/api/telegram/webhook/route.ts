@@ -40,7 +40,7 @@ async function sendTelegramMessage(chatId: number, text: string) {
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req.headers)
-  if (!checkRateLimit(ip)) {
+  if (!(await checkRateLimit(ip))) {
     logger.warn({ ip }, 'Telegram webhook: rate limit exceeded')
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 })
   }

@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
   const ip = getClientIp(request.headers)
-  if (!checkRateLimit(ip, 30)) {
+  if (!(await checkRateLimit(ip, 30))) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
 

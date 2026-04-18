@@ -1,6 +1,46 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Difficulty, SelectedProblem } from '../types/push.js'
 
+// Shape returned when a problem row is joined with problem_content via
+// Supabase's relational select. Narrowed from `unknown` by `toProblemRow`
+// so schema drift surfaces at the repository boundary, not deep in
+// problem-selector logic.
+interface JoinedProblemRow {
+  slug: string
+  title: string
+  difficulty: Difficulty
+  leetcode_id: number
+  problem_content: { explanation: string } | null
+}
+
+function isDifficulty(value: unknown): value is Difficulty {
+  return value === 'Easy' || value === 'Medium' || value === 'Hard'
+}
+
+function toProblemRow(value: unknown): JoinedProblemRow | null {
+  if (typeof value !== 'object' || value === null) return null
+  const v = value as Record<string, unknown>
+  if (typeof v.slug !== 'string' || typeof v.title !== 'string') return null
+  if (typeof v.leetcode_id !== 'number' || !isDifficulty(v.difficulty)) return null
+
+  // problem_content is either null (no content row) or { explanation: string }
+  let content: JoinedProblemRow['problem_content'] = null
+  if (v.problem_content != null) {
+    if (typeof v.problem_content !== 'object') return null
+    const c = v.problem_content as Record<string, unknown>
+    if (typeof c.explanation !== 'string') return null
+    content = { explanation: c.explanation }
+  }
+
+  return {
+    slug: v.slug,
+    title: v.title,
+    difficulty: v.difficulty,
+    leetcode_id: v.leetcode_id,
+    problem_content: content,
+  }
+}
+
 export async function getListProblemAtPosition(
   db: SupabaseClient,
   userId: string
@@ -41,14 +81,7 @@ export async function getProblemAtListPosition(
   }
   if (!listProblem) return null
 
-  const problem = listProblem.problems as unknown as {
-    slug: string
-    title: string
-    difficulty: Difficulty
-    leetcode_id: number
-    problem_content: { explanation: string } | null
-  } | null
-
+  const problem = toProblemRow(listProblem.problems)
   if (!problem || !problem.problem_content) return null
 
   return {
@@ -99,15 +132,24 @@ export async function getProblemById(
   }
   if (!row) return null
 
-  const content = row.problem_content as unknown as { explanation: string } | null
-  if (!content) return null
+  // Reuse toProblemRow but `problems.id` is the primary key, so the joined
+  // shape differs slightly — inline a minimal check here.
+  if (!isDifficulty(row.difficulty)) return null
+  const content = toProblemRow({
+    slug: row.slug,
+    title: row.title,
+    difficulty: row.difficulty,
+    leetcode_id: row.leetcode_id,
+    problem_content: row.problem_content,
+  })
+  if (!content || !content.problem_content) return null
 
   return {
     problem_id: row.id,
-    leetcode_id: row.leetcode_id,
-    slug: row.slug,
-    title: row.title,
-    difficulty: row.difficulty as Difficulty,
-    explanation: content.explanation,
+    leetcode_id: content.leetcode_id,
+    slug: content.slug,
+    title: content.title,
+    difficulty: content.difficulty,
+    explanation: content.problem_content.explanation,
   }
 }

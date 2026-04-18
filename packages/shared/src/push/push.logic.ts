@@ -42,6 +42,18 @@ export interface PushRunStats {
 
 const BATCH_SIZE = 100
 
+/**
+ * Concurrency for problem selection per batch. Caps parallel DB reads when
+ * picking problems for the current 100-user batch. Overridable via
+ * PUSH_SELECT_CONCURRENCY env var (integer 1–50).
+ */
+function getSelectConcurrency(): number {
+  const raw = process.env.PUSH_SELECT_CONCURRENCY
+  if (!raw) return 10
+  const n = Number.parseInt(raw, 10)
+  return Number.isInteger(n) && n >= 1 && n <= 50 ? n : 10
+}
+
 interface BatchResult {
   jobs: PushJobData[]
   userProblemMap: Map<string, { problemId: number; listId?: number; sequenceNumber?: number }>
@@ -52,7 +64,7 @@ async function processBatch(
   db: SupabaseClient,
   users: PushCandidate[],
 ): Promise<BatchResult> {
-  const limit = pLimit(10)
+  const limit = pLimit(getSelectConcurrency())
   const settled = await Promise.allSettled(
     users.map(user => limit(async () => {
       const problem = await selectProblemForUser({ ...user, mode: user.active_mode }, db)

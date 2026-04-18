@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { buildFlexBubble } from '../../utils/notification-formatters.js'
-import { LineChannel } from '../channels/line.js'
 import type { PushMessage } from '../../types/push.js'
 
 type FlexBubble = {

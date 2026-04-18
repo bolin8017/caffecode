@@ -38,8 +38,8 @@ The push pipeline lives in `packages/shared/src/push/`. It is invoked by `apps/w
 
 Push pipeline (`packages/shared/src/push/`):
 - `push.logic.ts` — `buildPushJobs()` (pure, paginated), `dispatchJob()` (circuit-breaker)
-- `push.repository.ts` — `getAllCandidates`, `getVerifiedChannelsBulk`, `upsertHistoryBatch`, `stampLastPushDate`, `incrementChannelFailures`, `resetChannelFailuresForUsers`, `recordPushRun`
-- `channels/` — `interface.ts`, `telegram.ts`, `line.ts`, `email.ts`, `email-template.tsx`, `registry.ts` (`createChannelRegistry` factory)
+- `push.repository.ts` — `getAllCandidates`, `getVerifiedChannelsBulk`, `upsertHistoryBatch`, `stampLastPushDate`, `incrementChannelFailures`, `resetChannelFailures`, `recordPushRun`
+- `channels/` — `email-template.tsx`, `registry.ts` (defines `NotificationChannel` as a function type and `createChannelRegistry` that builds closures over `sendTelegramMessage` / `sendLineMessage` / `sendEmailMessage`)
 
 Web cron endpoint (`apps/web/`):
 - `app/api/cron/push/route.ts` — POST handler; auth; overlap guard; invokes shared pipeline

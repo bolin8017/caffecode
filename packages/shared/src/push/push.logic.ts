@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { LimitFunction } from 'p-limit'
 import pLimit from 'p-limit'
 import { selectProblemForUser } from '../services/problem-selector.js'
-import type { NotificationChannel } from './channels/interface.js'
+import type { NotificationChannel } from './channels/registry.js'
 import type { ChannelType, Difficulty, PushMessage, SendResult } from '../types/push.js'
 import {
   getAllCandidates,
@@ -289,7 +289,7 @@ export async function dispatchJob(
     problemId: job.problemId,
   }
 
-  const result = await channel.send(job.channelIdentifier, msg)
+  const result = await channel(job.channelIdentifier, msg)
 
   if (!result.success && !result.shouldRetry) {
     await incrementChannelFailures(db, job.channelId)

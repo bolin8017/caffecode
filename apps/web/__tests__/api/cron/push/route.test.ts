@@ -39,9 +39,10 @@ vi.mock('@caffecode/shared', async (importOriginal) => {
     ...actual,
     buildPushJobs: (...args: unknown[]) => mockBuildPushJobs(...args),
     recordPushRun: (...args: unknown[]) => mockRecordPushRun(...args),
-    TelegramChannel: vi.fn(),
-    LineChannel: vi.fn(),
-    EmailChannel: vi.fn(),
+    createChannelRegistry: vi.fn().mockReturnValue({
+      telegram: vi.fn(),
+      line: vi.fn(),
+    }),
   }
 })
 

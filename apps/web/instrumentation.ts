@@ -7,7 +7,11 @@ export async function register() {
     const { serverEnvSchema } = await import('@/lib/env')
     const result = serverEnvSchema.safeParse(process.env)
     if (!result.success) {
-      console.error('Missing or invalid environment variables:', result.error.flatten().fieldErrors)
+      const { logger } = await import('@/lib/logger')
+      logger.warn(
+        { fieldErrors: result.error.flatten().fieldErrors },
+        'Missing or invalid environment variables — some features may be unavailable',
+      )
       // Don't crash — some vars may only be needed for specific routes
     }
   }

@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { logger } from '@/lib/logger'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -53,7 +54,7 @@ export async function updateSession(request: NextRequest) {
       .single()
 
     if (profileError) {
-      console.error('[proxy] profile query failed:', profileError.message)
+      logger.error({ err: profileError, userId: user.id }, '[proxy] profile query failed')
     }
 
     // Onboarding check (only for auth routes, not onboarding itself or API)

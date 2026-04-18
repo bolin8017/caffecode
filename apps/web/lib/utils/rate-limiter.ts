@@ -1,9 +1,16 @@
 /**
- * Simple per-Vercel-instance rate limiter.
+ * Simple per-instance rate limiter for webhook endpoints.
  *
- * State resets on cold starts (acceptable — provides DoS protection
- * within a single function instance lifetime). Does NOT require external
- * storage (Redis, KV) and works in serverless environments.
+ * State resets on cold starts and does not share across Vercel function
+ * instances — it's best-effort protection, not a hard guarantee. In practice
+ * that's fine here because the real authentication for each webhook is
+ * HMAC-based (Telegram `x-telegram-bot-api-secret-token` / LINE `X-Line-Signature`),
+ * verified with `timingSafeEqual`. The rate limiter is a second line of defense:
+ * it cheaply absorbs bursts before we spend CPU on signature verification or DB.
+ *
+ * If webhook traffic grows beyond the single-instance budget, swap the
+ * `_windows` Map for a shared store (Upstash Redis, Vercel Runtime Cache).
+ * Keep the function signature identical so call sites don't change.
  *
  * Usage: place the check BEFORE expensive auth/DB operations.
  */

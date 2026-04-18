@@ -68,8 +68,7 @@ docs: add CONTRIBUTING.md
 
 | Directory | Purpose |
 |-----------|---------|
-| `apps/web/` | Next.js 16 web application |
-| `apps/worker/` | Standalone push worker entry point (fallback) |
+| `apps/web/` | Next.js 16 web application (includes `/api/cron/push` hourly endpoint) |
 | `packages/shared/` | Shared library (push pipeline, channel senders, problem selection, formatters) |
 | `supabase/migrations/` | Database migration files |
 | `scripts/` | Utility scripts |

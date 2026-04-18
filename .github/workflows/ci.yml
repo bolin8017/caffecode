@@ -39,16 +39,13 @@ jobs:
           LINE_BOT_BASIC_ID: placeholder
 
       - name: Type check
-        run: pnpm --filter @caffecode/shared --filter @caffecode/worker --filter @caffecode/web exec tsc --noEmit
+        run: pnpm --filter @caffecode/shared --filter @caffecode/web exec tsc --noEmit
 
       - name: Lint
         run: pnpm --filter @caffecode/web lint
 
       - name: Test shared (with coverage)
         run: pnpm --filter @caffecode/shared test:coverage
-
-      - name: Test worker (with coverage)
-        run: pnpm --filter @caffecode/worker test:coverage
 
       - name: Test web (with coverage)
         run: pnpm --filter @caffecode/web test:coverage
@@ -61,12 +58,10 @@ jobs:
             const fs = require('fs');
             const thresholds = {
               shared: { stmts: 95, branch: 90, funcs: 95, lines: 95 },
-              worker: { stmts: 90, branch: 85, funcs: 90, lines: 90 },
               web:    { stmts: 90, branch: 85, funcs: 90, lines: 90 },
             };
             const paths = [
               ['shared', 'packages/shared/coverage/coverage-summary.json'],
-              ['worker', 'apps/worker/coverage/coverage-summary.json'],
               ['web',    'apps/web/coverage/coverage-summary.json'],
             ];
             function fmt(pct, min) {

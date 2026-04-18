@@ -1,7 +1,0 @@
-[build]
-buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @caffecode/worker... build"
-
-[deploy]
-startCommand = "node apps/worker/dist/index.js"
-cronSchedule = "0 * * * *"
-region = "us-west1"

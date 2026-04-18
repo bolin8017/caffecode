@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { LimitFunction } from 'p-limit'
-import type { NotificationChannel } from '../channels/interface.js'
+import type { NotificationChannel } from '../channels/registry.js'
 import type { SendResult } from '../../types/push.js'
 
 // Mock selectProblemForUser to return a problem for each candidate
@@ -99,16 +99,14 @@ describe('buildPushJobs — channel pausing', () => {
 
     // First call: permanent failure. Second call: should be skipped (paused)
     let callCount = 0
-    const channel: NotificationChannel = {
-      send: vi.fn().mockImplementation(async () => {
-        callCount++
-        if (callCount === 1) {
-          return { success: false, shouldRetry: false, error: '403 Forbidden' } as SendResult
-        }
-        // This should not be reached if pausing works
-        return { success: true } as SendResult
-      }),
-    }
+    const channel: NotificationChannel = vi.fn().mockImplementation(async () => {
+      callCount++
+      if (callCount === 1) {
+        return { success: false, shouldRetry: false, error: '403 Forbidden' } as SendResult
+      }
+      // This should not be reached if pausing works
+      return { success: true } as SendResult
+    })
 
     // Both users share the same channel ID by making the mock return same channel_id
     const fromMock = vi.fn().mockImplementation((table: string) => {
@@ -161,20 +159,18 @@ describe('buildPushJobs — channel pausing', () => {
     const users = [makeCandidate('user-1')]
     const db = makeSupabaseMock(users)
 
-    const channel: NotificationChannel = {
-      send: vi.fn().mockResolvedValue({
-        success: false,
-        shouldRetry: true,
-        error: '500 Server Error',
-      } as SendResult),
-    }
+    const channel: NotificationChannel = vi.fn().mockResolvedValue({
+      success: false,
+      shouldRetry: true,
+      error: '500 Server Error',
+    } as SendResult)
 
     const stats = await buildPushJobs(db, { telegram: channel }, noopLimit)
 
     // Job fails but channel should NOT be paused (shouldRetry=true)
     expect(stats.failed).toBe(1)
-    // channel.send should have been called (not skipped)
-    expect(channel.send).toHaveBeenCalled()
+    // channel should have been called (not skipped)
+    expect(channel).toHaveBeenCalled()
   })
 
   it('pausing one channel does not affect other channels for the same user', async () => {
@@ -214,19 +210,15 @@ describe('buildPushJobs — channel pausing', () => {
 
     const db = { from: fromMock, rpc: rpcMock } as unknown as SupabaseClient
 
-    const telegramChannel: NotificationChannel = {
-      send: vi.fn().mockResolvedValue({
-        success: false,
-        shouldRetry: false,
-        error: '403 Forbidden',
-      } as SendResult),
-    }
-    const lineChannel: NotificationChannel = {
-      send: vi.fn().mockResolvedValue({
-        success: true,
-        shouldRetry: false,
-      } as SendResult),
-    }
+    const telegramChannel: NotificationChannel = vi.fn().mockResolvedValue({
+      success: false,
+      shouldRetry: false,
+      error: '403 Forbidden',
+    } as SendResult)
+    const lineChannel: NotificationChannel = vi.fn().mockResolvedValue({
+      success: true,
+      shouldRetry: false,
+    } as SendResult)
 
     const stats = await buildPushJobs(
       db,
@@ -235,7 +227,7 @@ describe('buildPushJobs — channel pausing', () => {
     )
 
     // Telegram failed permanently, but LINE should still succeed
-    expect(lineChannel.send).toHaveBeenCalled()
+    expect(lineChannel).toHaveBeenCalled()
     expect(stats.succeeded).toBeGreaterThanOrEqual(1)
   })
 })

@@ -7,8 +7,8 @@ paths:
 
 ## Structure
 
-- `src/channels/` — `sendTelegramMessage`, `sendLineMessage`, `sendEmailMessage` return `SendResult` with `shouldRetry`. Push channel classes delegate here; admin `forceNotifyAll` calls directly.
-- `src/push/` — Full push pipeline: `buildPushJobs()`, `dispatchJob()`, `recordPushRun()`, repository functions, channel classes (`TelegramChannel`, `LineChannel`, `EmailChannel`), `createChannelRegistry()` factory. Invoked from `apps/web/app/api/cron/push/route.ts` (the hourly cron target).
+- `src/channels/` — `sendTelegramMessage`, `sendLineMessage`, `sendEmailMessage` return `SendResult` with `shouldRetry`. Shared by the push pipeline (via `createChannelRegistry`) and admin `forceNotifyAll`.
+- `src/push/` — Full push pipeline: `buildPushJobs()`, `dispatchJob()`, `recordPushRun()`, repository functions. `createChannelRegistry()` returns a `Record<string, NotificationChannel>` where each `NotificationChannel` is a function `(identifier, msg) => Promise<SendResult>` that wraps one of the raw channel senders. Invoked from `apps/web/app/api/cron/push/route.ts` (the hourly cron target).
 - `src/services/problem-selector.ts` — `selectProblemForUser()` single source of truth for cron push and admin force-notify.
 - `src/services/badge-checker.ts` — `evaluateBadgeCondition()` evaluates badge requirement JSONB against user context.
 - `src/utils/notification-formatters.ts` — `formatTelegramMessage`, `buildFlexBubble`, `formatEmailSubject`, `buildTelegramReplyMarkup`.

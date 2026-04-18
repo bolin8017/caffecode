@@ -4,7 +4,7 @@ import type { LimitFunction } from 'p-limit'
 import { buildPushJobs, dispatchJob, type PushJobData } from '../push.logic.js'
 import { recordPushRun } from '../push.repository.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { NotificationChannel } from '../channels/interface.js'
+import type { NotificationChannel } from '../channels/registry.js'
 
 const noopLimit = vi.fn((fn: () => unknown) => fn()) as unknown as LimitFunction
 
@@ -99,10 +99,9 @@ describe('dispatchJob', () => {
 
   it('increments failure counter via RPC on permanent send failure', async () => {
     const { mock, rpcMock } = makeSupabaseMock()
-    const channel: NotificationChannel = {
-
-      send: vi.fn().mockResolvedValue({ success: false, shouldRetry: false, error: '403 Forbidden' }),
-    }
+    const channel: NotificationChannel = vi.fn().mockResolvedValue({
+      success: false, shouldRetry: false, error: '403 Forbidden',
+    })
 
     await dispatchJob(makeJob(), channel, mock)
 
@@ -111,10 +110,7 @@ describe('dispatchJob', () => {
 
   it('does not reset failure counter per-channel on successful send (bulk reset handles this)', async () => {
     const { mock, fromMock, rpcMock } = makeSupabaseMock()
-    const channel: NotificationChannel = {
-
-      send: vi.fn().mockResolvedValue({ success: true }),
-    }
+    const channel: NotificationChannel = vi.fn().mockResolvedValue({ success: true })
 
     await dispatchJob(makeJob(), channel, mock)
 
@@ -127,10 +123,9 @@ describe('dispatchJob', () => {
     const fromMock = vi.fn()
     const rpcMock = vi.fn()
     const mock = { from: fromMock, rpc: rpcMock } as unknown as SupabaseClient
-    const channel: NotificationChannel = {
-
-      send: vi.fn().mockResolvedValue({ success: false, shouldRetry: true, error: '500 Server Error' }),
-    }
+    const channel: NotificationChannel = vi.fn().mockResolvedValue({
+      success: false, shouldRetry: true, error: '500 Server Error',
+    })
 
     await dispatchJob(makeJob(), channel, mock)
 
@@ -142,9 +137,9 @@ describe('dispatchJob', () => {
 
   it('retryable failure does NOT call incrementChannelFailures', async () => {
     const { mock, rpcMock } = makeSupabaseMock()
-    const channel: NotificationChannel = {
-      send: vi.fn().mockResolvedValue({ success: false, shouldRetry: true, error: '429 Too Many Requests' }),
-    }
+    const channel: NotificationChannel = vi.fn().mockResolvedValue({
+      success: false, shouldRetry: true, error: '429 Too Many Requests',
+    })
 
     await dispatchJob(makeJob(), channel, mock)
 
@@ -159,9 +154,7 @@ describe('dispatchJob', () => {
     const job = makeJob()
 
     // Simulate successful send — per-channel reset removed; bulk resetChannelFailures in buildPushJobs handles it
-    const channel: NotificationChannel = {
-      send: vi.fn().mockResolvedValue({ success: true }),
-    }
+    const channel: NotificationChannel = vi.fn().mockResolvedValue({ success: true })
 
     await dispatchJob(job, channel, mock)
 
@@ -171,9 +164,9 @@ describe('dispatchJob', () => {
 
   it('three sequential permanent failures each call incrementChannelFailures once', async () => {
     const { mock, rpcMock } = makeSupabaseMock()
-    const channel: NotificationChannel = {
-      send: vi.fn().mockResolvedValue({ success: false, shouldRetry: false, error: '403 Forbidden' }),
-    }
+    const channel: NotificationChannel = vi.fn().mockResolvedValue({
+      success: false, shouldRetry: false, error: '403 Forbidden',
+    })
 
     await dispatchJob(makeJob(), channel, mock)
     await dispatchJob(makeJob(), channel, mock)
@@ -190,11 +183,9 @@ describe('dispatchJob', () => {
 
   it('retryable failure then permanent failure increments counter exactly once', async () => {
     const { mock, rpcMock } = makeSupabaseMock()
-    const channel: NotificationChannel = {
-      send: vi.fn()
-        .mockResolvedValueOnce({ success: false, shouldRetry: true, error: '503 Service Unavailable' })
-        .mockResolvedValueOnce({ success: false, shouldRetry: false, error: '403 Forbidden' }),
-    }
+    const channel: NotificationChannel = vi.fn()
+      .mockResolvedValueOnce({ success: false, shouldRetry: true, error: '503 Service Unavailable' })
+      .mockResolvedValueOnce({ success: false, shouldRetry: false, error: '403 Forbidden' })
 
     await dispatchJob(makeJob(), channel, mock)   // retryable — no increment
     await dispatchJob(makeJob(), channel, mock)   // permanent — increment once

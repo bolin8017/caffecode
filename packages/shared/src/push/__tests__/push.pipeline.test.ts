@@ -20,7 +20,7 @@ import {
 import { selectProblemForUser } from '../../services/problem-selector.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SelectedProblem } from '../../types/push.js'
-import type { NotificationChannel } from '../channels/interface.js'
+import type { NotificationChannel } from '../channels/registry.js'
 
 const mockGetAllCandidates = vi.mocked(getAllCandidates)
 const mockGetChannels = vi.mocked(getVerifiedChannelsBulk)
@@ -72,9 +72,7 @@ function makeChannel(overrides: Partial<VerifiedChannel> = {}): VerifiedChannel 
 
 // Channel registry stub: dispatches succeed without real HTTP calls
 function makeChannelRegistry(channelTypes = ['telegram', 'email', 'line']): Record<string, NotificationChannel> {
-  const channel: NotificationChannel = {
-    send: vi.fn().mockResolvedValue({ success: true }),
-  }
+  const channel: NotificationChannel = vi.fn().mockResolvedValue({ success: true })
   return Object.fromEntries(channelTypes.map(t => [t, channel]))
 }
 
@@ -227,12 +225,10 @@ describe('buildPushJobs — pipeline orchestration', () => {
     ])
 
     const registry: Record<string, NotificationChannel> = {
-      telegram: {
-        send: vi.fn().mockImplementation(async (identifier: string) => {
-          if (identifier === 'tg-u1') return { success: true }
-          return { success: false, shouldRetry: false, error: 'permanent failure' }
-        }),
-      },
+      telegram: vi.fn().mockImplementation(async (identifier: string) => {
+        if (identifier === 'tg-u1') return { success: true }
+        return { success: false, shouldRetry: false, error: 'permanent failure' }
+      }),
     }
 
     const stats = await buildPushJobs(db, registry, noopLimit)
@@ -251,9 +247,7 @@ describe('buildPushJobs — pipeline orchestration', () => {
     mockGetChannels.mockResolvedValueOnce([makeChannel({ id: 'ch-1', user_id: 'u1' })])
 
     const registry: Record<string, NotificationChannel> = {
-      telegram: {
-        send: vi.fn().mockResolvedValue({ success: false, shouldRetry: false, error: 'blocked' }),
-      },
+      telegram: vi.fn().mockResolvedValue({ success: false, shouldRetry: false, error: 'blocked' }),
     }
 
     const stats = await buildPushJobs(db, registry, noopLimit)

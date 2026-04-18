@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import {
@@ -7,6 +8,7 @@ import {
   sendLineMessage,
   sendEmailMessage,
   selectProblemForUser,
+  resetChannelFailures as bulkResetChannelFailures,
   type PushMessage,
   type SendResult,
   type LearningMode,
@@ -110,7 +112,6 @@ export async function deleteUser(userId: string) {
     throw new Error('Failed to delete user')
   }
 
-  const { revalidatePath } = await import('next/cache')
   revalidatePath('/admin/users')
 }
 
@@ -201,6 +202,7 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
   const results: NotifyUserResult[] = []
   const historyEntries: Array<{ user_id: string; problem_id: number }> = []
   const deliveredUserIds: string[] = []
+  const successfulChannelIds: string[] = []
   const listPositionUpdates: Array<{ user_id: string; list_id: number; sequence_number: number }> = []
 
   // First pass: parallel problem selection with p-limit(10)
@@ -272,6 +274,7 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
       })
       if (result.success) {
         anySent = true
+        successfulChannelIds.push(ch.id)
       } else if (!result.success && !result.shouldRetry) {
         const { error: rpcErr } = await db.rpc('increment_channel_failures', { p_channel_id: ch.id })
         if (rpcErr) logger.warn({ channelId: ch.id, error: rpcErr.message }, 'Failed to increment channel failures')
@@ -319,9 +322,16 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
       // Throwing here would hide per-user results from the admin UI.
       logger.error({ errors: writeErrors }, 'forceNotifyAll: post-dispatch writes partially failed')
     }
+
+    // Match the cron-path per-channel reset: only channels that actually
+    // delivered get their consecutive_send_failures counter zeroed. Not
+    // part of the Promise.all above because this helper throws/logs on
+    // its own and returns void (no `{ error }` to collate).
+    if (successfulChannelIds.length > 0) {
+      await bulkResetChannelFailures(db, successfulChannelIds)
+    }
   }
 
-  const { revalidatePath } = await import('next/cache')
   revalidatePath('/admin/push')
   const summary = {
     sent: results.filter(r => r.status === 'success').length,

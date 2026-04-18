@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { getAuthUser } from '@/lib/auth'
+import { createServiceClient } from '@/lib/supabase/server'
+import { logger } from '@/lib/logger'
 import { updateUser, getUserSettings } from '@/lib/repositories/user.repository'
 import { deactivateAllLists, upsertListProgress } from '@/lib/repositories/list.repository'
 import { toUtcHour } from '@/lib/utils/timezone'
@@ -27,7 +29,6 @@ export async function updatePushSettings(push_enabled: boolean, push_hour: numbe
   try {
     await updateUser(supabase, user.id, { push_enabled, push_hour, push_hour_utc })
   } catch (err) {
-    const { logger } = await import('@/lib/logger')
     logger.error({ error: String(err), userId: user.id }, 'updatePushSettings failed')
     throw new Error('推送設定更新失敗')
   }
@@ -52,7 +53,6 @@ export async function updateTimezone(timezone: string) {
   try {
     await updateUser(supabase, user.id, { timezone, push_hour_utc })
   } catch (err) {
-    const { logger } = await import('@/lib/logger')
     logger.error({ error: String(err), userId: user.id }, 'updateTimezone failed')
     throw new Error('時區更新失敗')
   }
@@ -79,7 +79,7 @@ const modeSchema = z.discriminatedUnion('mode', [
 export async function updateLearningMode(
   data:
     | { mode: 'list'; list_id: number }
-    | { mode: 'filter'; difficulty_min: number; difficulty_max: number; topic_filter: string[] | null }
+    | { mode: 'filter'; difficulty_min: number; difficulty_max: number; topic_filter: string[] | null },
 ) {
   const { supabase, user } = await getAuthUser()
   modeSchema.parse(data)
@@ -103,7 +103,6 @@ export async function updateLearningMode(
       })
     }
   } catch (err) {
-    const { logger } = await import('@/lib/logger')
     logger.error({ error: String(err), userId: user.id }, 'updateLearningMode failed')
     throw new Error('學習模式更新失敗')
   }
@@ -145,7 +144,6 @@ export async function subscribeToList(listId: number, startPosition?: number) {
 
     await upsertListProgress(supabase, progressData)
   } catch (err) {
-    const { logger } = await import('@/lib/logger')
     logger.error({ error: String(err), userId: user.id }, 'subscribeToList failed')
     throw new Error('列表訂閱失敗')
   }
@@ -158,10 +156,6 @@ export async function subscribeToList(listId: number, startPosition?: number) {
 
 export async function deleteAccount() {
   const { supabase, user } = await getAuthUser()
-
-  const { createServiceClient } = await import('@/lib/supabase/server')
-  const { logger } = await import('@/lib/logger')
-
   const adminDb = createServiceClient()
 
   // Delete auth user first — if this fails, DB data is still intact.
@@ -204,7 +198,6 @@ export async function exportData() {
 
     const errors = [historyRes.error, feedbackRes.error, progressRes.error].filter(Boolean)
     if (errors.length > 0) {
-      const { logger } = await import('@/lib/logger')
       for (const err of errors) logger.error({ error: err }, 'exportData: query failed')
       throw errors[0]
     }
@@ -216,7 +209,6 @@ export async function exportData() {
       list_progress: progressRes.data ?? [],
     }
   } catch (err) {
-    const { logger } = await import('@/lib/logger')
     logger.error({ error: String(err), userId: user.id }, 'exportData failed')
     throw new Error('資料匯出失敗')
   }

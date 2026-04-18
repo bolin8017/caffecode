@@ -64,7 +64,15 @@ export async function POST(request: Request) {
       resendFromEmail: process.env.RESEND_FROM_EMAIL,
     })
 
-    const dispatchLimit = pLimit(5)
+    // PUSH_DISPATCH_CONCURRENCY (int 1-50, default 5) caps parallel
+    // outbound notification sends across all channels.
+    const rawDispatch = process.env.PUSH_DISPATCH_CONCURRENCY
+    const parsedDispatch = rawDispatch ? Number.parseInt(rawDispatch, 10) : NaN
+    const dispatchConcurrency =
+      Number.isInteger(parsedDispatch) && parsedDispatch >= 1 && parsedDispatch <= 50
+        ? parsedDispatch
+        : 5
+    const dispatchLimit = pLimit(dispatchConcurrency)
     const stats = await buildPushJobs(supabase, channelRegistry, dispatchLimit)
     succeeded = stats.succeeded
     failed = stats.failed

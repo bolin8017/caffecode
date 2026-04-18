@@ -15,7 +15,7 @@ import {
   upsertHistoryBatch,
   advanceListPositions,
   incrementChannelFailures,
-  resetChannelFailuresForUsers,
+  resetChannelFailures,
   type PushCandidate,
   type VerifiedChannel,
 } from './push.repository.js'
@@ -197,18 +197,24 @@ export async function buildPushJobs(
     succeeded += results.filter(r => r.status === 'fulfilled' && r.value?.success).length
     failed += results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value && !r.value.success)).length
 
-    // Determine which users had at least one successful send
+    // Determine which users had at least one successful send AND
+    // which specific channel IDs delivered successfully (for per-channel reset)
     const successfulUserIds = new Set<string>()
+    const successfulChannelIds = new Set<string>()
     for (let j = 0; j < batchJobs.length; j++) {
       const r = results[j]
       if (r.status === 'fulfilled' && r.value?.success) {
         successfulUserIds.add(batchJobs[j].userId)
+        successfulChannelIds.add(batchJobs[j].channelId)
       }
     }
 
-    // Stamp only users with at least one successful delivery
+    // Stamp only users with at least one successful delivery.
+    // Reset failure counter only for channels that actually succeeded — avoids
+    // "flapping" where one channel's success would unpause a different failed channel.
     if (successfulUserIds.size > 0) {
       const deliveredUserIds = [...successfulUserIds]
+      const deliveredChannelIds = [...successfulChannelIds]
       const historyEntries = deliveredUserIds
         .map(uid => {
           const info = userProblemMap.get(uid)
@@ -228,7 +234,7 @@ export async function buildPushJobs(
         upsertHistoryBatch(db, historyEntries),
         stampLastPushDate(db, deliveredUserIds),
         advanceListPositions(db, listPositionUpdates),
-        resetChannelFailuresForUsers(db, deliveredUserIds),
+        resetChannelFailures(db, deliveredChannelIds),
       ])
       const writeErrors = writeResults
         .filter((r): r is PromiseRejectedResult => r.status === 'rejected')

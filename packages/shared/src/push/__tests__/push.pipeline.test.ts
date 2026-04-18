@@ -13,7 +13,7 @@ import {
   upsertHistoryBatch,
   stampLastPushDate,
   advanceListPositions,
-  resetChannelFailuresForUsers,
+  resetChannelFailures,
   type PushCandidate,
   type VerifiedChannel,
 } from '../push.repository.js'
@@ -27,7 +27,7 @@ const mockGetChannels = vi.mocked(getVerifiedChannelsBulk)
 const mockUpsertHistory = vi.mocked(upsertHistoryBatch)
 const mockStamp = vi.mocked(stampLastPushDate)
 const mockAdvance = vi.mocked(advanceListPositions)
-const mockResetFailures = vi.mocked(resetChannelFailuresForUsers)
+const mockResetChannelFailures = vi.mocked(resetChannelFailures)
 const mockSelectProblem = vi.mocked(selectProblemForUser)
 
 const db = {} as SupabaseClient
@@ -84,7 +84,7 @@ describe('buildPushJobs — pipeline orchestration', () => {
     mockUpsertHistory.mockResolvedValue(undefined)
     mockStamp.mockResolvedValue(undefined)
     mockAdvance.mockResolvedValue(undefined)
-    mockResetFailures.mockResolvedValue(undefined)
+    mockResetChannelFailures.mockResolvedValue(undefined)
   })
 
   it('returns zero stats when no candidates exist', async () => {
@@ -241,7 +241,8 @@ describe('buildPushJobs — pipeline orchestration', () => {
     expect(stats.failed).toBe(1)
     expect(mockStamp).toHaveBeenCalledWith(db, ['u1'])
     expect(mockUpsertHistory).toHaveBeenCalledWith(db, [{ userId: 'u1', problemId: 10 }])
-    expect(mockResetFailures).toHaveBeenCalledWith(db, ['u1'])
+    // Per-channel reset: only ch-1 delivered successfully (u2's ch-2 permanently failed)
+    expect(mockResetChannelFailures).toHaveBeenCalledWith(db, ['ch-1'])
   })
 
   it('does not stamp any users when all sends fail', async () => {
@@ -261,7 +262,7 @@ describe('buildPushJobs — pipeline orchestration', () => {
     expect(stats.failed).toBe(1)
     expect(mockStamp).not.toHaveBeenCalled()
     expect(mockUpsertHistory).not.toHaveBeenCalled()
-    expect(mockResetFailures).not.toHaveBeenCalled()
+    expect(mockResetChannelFailures).not.toHaveBeenCalled()
   })
 
   it('handles selectProblemForUser throwing for one user without affecting others', async () => {

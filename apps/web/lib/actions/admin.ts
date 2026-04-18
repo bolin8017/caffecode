@@ -1,7 +1,5 @@
 'use server'
 
-import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import {
@@ -13,99 +11,79 @@ import {
   type SendResult,
   type LearningMode,
 } from '@caffecode/shared'
-
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) throw new Error('Unauthenticated')
-
-  const { data: profile, error: profileError } = await supabase
-    .from('users')
-    .select('is_admin')
-    .eq('id', user.id)
-    .single()
-
-  if (profileError) {
-    logger.error({ error: profileError, userId: user.id }, 'requireAdmin: profile query failed')
-    throw new Error('Forbidden')
-  }
-  if (!profile?.is_admin) throw new Error('Forbidden')
-  return { user, adminDb: await createServiceClient() }
-}
+import { requireAdmin, runAdminAction } from './_admin-helpers'
 
 // ── Problems ───────────────────────────────────────────────────
 
 export async function deleteProblem(id: number) {
   z.number().int().positive().parse(id)
-  const { adminDb: db } = await requireAdmin()
-  try {
-    const { error } = await db.from('problems').delete().eq('id', id)
-    if (error) throw error
-    revalidatePath('/admin/problems')
-  } catch (err) {
-    logger.error({ error: String(err), problemId: id }, 'deleteProblem failed')
-    throw new Error('Failed to delete problem')
-  }
+  return runAdminAction(
+    'deleteProblem',
+    async ({ db }) => {
+      const { error } = await db.from('problems').delete().eq('id', id)
+      if (error) throw error
+    },
+    { revalidate: '/admin/problems', errorMessage: 'Failed to delete problem', logContext: { problemId: id } },
+  )
 }
 
 // ── Content ────────────────────────────────────────────────────
 
 export async function flagForRegeneration(problemId: number) {
   z.number().int().positive().parse(problemId)
-  const { adminDb: db } = await requireAdmin()
-  try {
-    const { error } = await db
-      .from('problem_content')
-      .update({ needs_regeneration: true })
-      .eq('problem_id', problemId)
-    if (error) throw error
-    revalidatePath('/admin/content')
-  } catch (err) {
-    logger.error({ error: String(err), problemId }, 'flagForRegeneration failed')
-    throw new Error('Failed to flag for regeneration')
-  }
+  return runAdminAction(
+    'flagForRegeneration',
+    async ({ db }) => {
+      const { error } = await db
+        .from('problem_content')
+        .update({ needs_regeneration: true })
+        .eq('problem_id', problemId)
+      if (error) throw error
+    },
+    { revalidate: '/admin/content', errorMessage: 'Failed to flag for regeneration', logContext: { problemId } },
+  )
 }
 
 export async function unflagRegeneration(problemId: number) {
   z.number().int().positive().parse(problemId)
-  const { adminDb: db } = await requireAdmin()
-  try {
-    const { error } = await db
-      .from('problem_content')
-      .update({ needs_regeneration: false })
-      .eq('problem_id', problemId)
-    if (error) throw error
-    revalidatePath('/admin/content')
-  } catch (err) {
-    logger.error({ error: String(err), problemId }, 'unflagRegeneration failed')
-    throw new Error('Failed to unflag regeneration')
-  }
+  return runAdminAction(
+    'unflagRegeneration',
+    async ({ db }) => {
+      const { error } = await db
+        .from('problem_content')
+        .update({ needs_regeneration: false })
+        .eq('problem_id', problemId)
+      if (error) throw error
+    },
+    { revalidate: '/admin/content', errorMessage: 'Failed to unflag regeneration', logContext: { problemId } },
+  )
 }
 
 export async function setLinePushAllowed(userId: string, allowed: boolean) {
   z.string().uuid().parse(userId)
   z.boolean().parse(allowed)
-  const { adminDb: db } = await requireAdmin()
-  try {
-    const { error } = await db.from('users').update({ line_push_allowed: allowed }).eq('id', userId)
-    if (error) throw error
-    revalidatePath('/admin/users')
-  } catch (err) {
-    logger.error({ error: String(err), userId }, 'setLinePushAllowed failed')
-    throw new Error('Failed to update LINE push allowed')
-  }
+  return runAdminAction(
+    'setLinePushAllowed',
+    async ({ db }) => {
+      const { error } = await db.from('users').update({ line_push_allowed: allowed }).eq('id', userId)
+      if (error) throw error
+    },
+    { revalidate: '/admin/users', errorMessage: 'Failed to update LINE push allowed', logContext: { userId } },
+  )
 }
 
+// deleteUser has specific business-rule error messages that should surface to
+// the caller (self-delete guard, admin-target guard, target-lookup failure).
+// runAdminAction's blanket error masking would obscure those, so we use
+// requireAdmin directly and handle errors per branch.
 export async function deleteUser(userId: string) {
   z.string().uuid().parse(userId)
-  const { user, adminDb: db } = await requireAdmin()
+  const { userId: adminId, db } = await requireAdmin()
 
-  // Guard: prevent self-deletion
-  if (userId === user.id) {
+  if (userId === adminId) {
     throw new Error('Cannot delete your own admin account')
   }
 
-  // Guard: prevent deleting other admin accounts
   const { data: targetProfile, error: targetError } = await db
     .from('users')
     .select('is_admin')
@@ -131,6 +109,8 @@ export async function deleteUser(userId: string) {
     logger.error({ userId, error: dbError }, 'deleteUser: DB deletion failed')
     throw new Error('Failed to delete user')
   }
+
+  const { revalidatePath } = await import('next/cache')
   revalidatePath('/admin/users')
 }
 
@@ -144,7 +124,7 @@ const APP_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://caffecode.net').tr
 async function dispatchToChannel(
   channelType: string,
   channelIdentifier: string,
-  msg: PushMessage
+  msg: PushMessage,
 ): Promise<SendResult> {
   if (channelType === 'telegram') {
     const token = process.env.TELEGRAM_BOT_TOKEN
@@ -186,7 +166,7 @@ export interface ForceNotifyResult {
 }
 
 export async function forceNotifyAll(): Promise<ForceNotifyResult> {
-  const { adminDb: db } = await requireAdmin()
+  const { db } = await requireAdmin()
 
   const { data: users, error: usersError } = await db
     .from('users')
@@ -231,7 +211,7 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
     users.map(user => limit(async () => {
       const displayName = user.display_name ?? user.email ?? '—'
       const channels = (channelsByUser.get(user.id) ?? []).filter(
-        ch => ch.channel_type !== 'line' || user.line_push_allowed
+        ch => ch.channel_type !== 'line' || user.line_push_allowed,
       )
 
       if (!channels.length) {
@@ -246,10 +226,10 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
           difficulty_max: user.difficulty_max,
           topic_filter: user.topic_filter ?? null,
         },
-        db
+        db,
       )
       return { user, displayName, channels, problem }
-    }))
+    })),
   )
   const userProblems = settled.map((r, idx) => {
     if (r.status === 'fulfilled') return r.value
@@ -341,6 +321,7 @@ export async function forceNotifyAll(): Promise<ForceNotifyResult> {
     }
   }
 
+  const { revalidatePath } = await import('next/cache')
   revalidatePath('/admin/push')
   const summary = {
     sent: results.filter(r => r.status === 'success').length,
@@ -356,16 +337,17 @@ const channelIdSchema = z.string().uuid()
 
 export async function resetChannelFailures(channelId: string) {
   const parsed = channelIdSchema.parse(channelId)
-  const { adminDb: db } = await requireAdmin()
-  const { error } = await db
-    .from('notification_channels')
-    .update({ consecutive_send_failures: 0 })
-    .eq('id', parsed)
-  if (error) {
-    logger.error({ error, channelId }, 'resetChannelFailures: DB update failed')
-    throw new Error('Failed to reset channel failures')
-  }
-  revalidatePath('/admin/channels')
+  return runAdminAction(
+    'resetChannelFailures',
+    async ({ db }) => {
+      const { error } = await db
+        .from('notification_channels')
+        .update({ consecutive_send_failures: 0 })
+        .eq('id', parsed)
+      if (error) throw error
+    },
+    { revalidate: '/admin/channels', errorMessage: 'Failed to reset channel failures', logContext: { channelId } },
+  )
 }
 
 export interface TestNotifyResult {
@@ -376,7 +358,7 @@ export interface TestNotifyResult {
 
 export async function testNotifyChannel(channelId: string): Promise<TestNotifyResult> {
   const parsed = channelIdSchema.parse(channelId)
-  const { adminDb: db } = await requireAdmin()
+  const { db } = await requireAdmin()
 
   const { data: channel, error: chErr } = await db
     .from('notification_channels')
@@ -414,7 +396,7 @@ export async function testNotifyChannel(channelId: string): Promise<TestNotifyRe
         difficulty_max: user.difficulty_max,
         topic_filter: user.topic_filter ?? null,
       },
-      db
+      db,
     )
   } catch (err) {
     logger.error({ userId: user.id, error: String(err) }, 'testNotifyChannel: problem selection failed')
@@ -441,7 +423,7 @@ export async function testNotifyChannel(channelId: string): Promise<TestNotifyRe
   if (!result.success) {
     logger.warn(
       { channelType: channel.channel_type, error: result.error?.slice(0, 200) },
-      'testNotifyChannel: send failed'
+      'testNotifyChannel: send failed',
     )
   }
 

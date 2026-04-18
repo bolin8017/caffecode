@@ -95,27 +95,28 @@ export async function incrementChannelFailures(
 }
 
 /**
- * Bulk-reset consecutive_send_failures for ALL channels belonging to the
- * given user IDs. Used for auto-recovery: when any channel for a user
- * succeeds, all that user's paused channels get a fresh retry.
+ * Bulk-reset consecutive_send_failures for the given channel IDs. Used for
+ * auto-recovery: only channels that actually delivered successfully in the
+ * current batch are reset. This avoids the "flapping" bug where a user's
+ * Telegram failure counter would be reset by an unrelated LINE success.
  *
  * Intentionally non-throwing: failure here only delays auto-recovery and
  * must not block critical writes (history, stamp, list positions) that
  * run in the same Promise.all.
  */
-export async function resetChannelFailuresForUsers(
+export async function resetChannelFailures(
   db: SupabaseClient,
-  userIds: string[],
+  channelIds: string[],
 ): Promise<void> {
-  if (userIds.length === 0) return
+  if (channelIds.length === 0) return
   const { error } = await db
     .from('notification_channels')
     .update({ consecutive_send_failures: 0 })
-    .in('user_id', userIds)
+    .in('id', channelIds)
     .gt('consecutive_send_failures', 0)
 
   if (error) {
-    logger.error({ err: error, userIds: userIds.slice(0, 5) }, 'resetChannelFailuresForUsers: update failed')
+    logger.error({ err: error, channelIds: channelIds.slice(0, 5) }, 'resetChannelFailures: update failed')
   }
 }
 

@@ -47,7 +47,7 @@ function makeSupabaseMock(candidates: ReturnType<typeof makeCandidate>[]) {
       return Promise.resolve({ data: null, error: null })
     })
 
-  // getVerifiedChannelsBulk chain + upsertHistoryBatch + resetChannelFailuresForUsers
+  // getVerifiedChannelsBulk chain + upsertHistoryBatch + resetChannelFailures
   const fromMock = vi.fn().mockImplementation((table: string) => {
     if (table === 'notification_channels') {
       // For getVerifiedChannelsBulk: return channels for each user
@@ -67,7 +67,7 @@ function makeSupabaseMock(candidates: ReturnType<typeof makeCandidate>[]) {
             }),
           }),
         }),
-        // For resetChannelFailuresForUsers
+        // For resetChannelFailures
         update: vi.fn().mockReturnValue({
           in: vi.fn().mockReturnValue({
             gt: vi.fn().mockResolvedValue({ error: null }),

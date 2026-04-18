@@ -1,4 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 import { ForceNotifyButton } from './force-notify-button'
 
 function getLastNUtcDates(n: number): string[] {
@@ -16,7 +18,16 @@ function toUtcDate(utcTimestamp: string): string {
   return new Date(utcTimestamp).toISOString().slice(0, 10)
 }
 
-export default async function AdminPushPage() {
+export default function AdminPushPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminPushPageBody />
+    </Suspense>
+  )
+}
+
+async function AdminPushPageBody() {
+  await connection()
   const supabase = createServiceClient()
   // eslint-disable-next-line react-hooks/purity -- async Server Component renders once per request
   const now = Date.now()

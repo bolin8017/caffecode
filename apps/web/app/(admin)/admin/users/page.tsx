@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { Suspense } from 'react'
 import { LineToggle } from './line-toggle'
 import { DeleteButton } from './delete-button'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
@@ -25,7 +26,19 @@ interface UserWithChannels {
   notification_channels: Array<{ channel_type: string; is_verified: boolean }>
 }
 
-export default async function AdminUsersPage({
+export default function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  return (
+    <Suspense fallback={null}>
+      <AdminUsersPageBody searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function AdminUsersPageBody({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>

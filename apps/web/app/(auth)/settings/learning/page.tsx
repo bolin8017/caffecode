@@ -1,12 +1,21 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { LearningForm } from './learning-form'
 import { getSuggestedRange } from '@/lib/repositories/user.repository'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: '學習模式 — CaffeCode' }
 
-export default async function LearningPage() {
+export default function LearningPage() {
+  return (
+    <Suspense fallback={null}>
+      <LearningPageBody />
+    </Suspense>
+  )
+}
+
+async function LearningPageBody() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

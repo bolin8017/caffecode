@@ -30,7 +30,7 @@ vi.mock('@caffecode/shared', () => ({
   resetChannelFailures: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }))
 vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }))

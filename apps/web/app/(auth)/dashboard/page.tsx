@@ -4,7 +4,9 @@ import { getActiveListProgress } from '@/lib/repositories/list.repository'
 import { getRecentHistory, getStreakHistory } from '@/lib/repositories/history.repository'
 import { calculateStreak } from '@/lib/services/streak.service'
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { CircleCheck } from 'lucide-react'
 import type { Metadata } from 'next'
 import { UnsolvedQueue } from './unsolved-queue'
@@ -42,7 +44,16 @@ function ProgressRing({ pct }: { pct: number }) {
   )
 }
 
-export default async function DashboardPage() {
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <DashboardPageBody />
+    </Suspense>
+  )
+}
+
+async function DashboardPageBody() {
+  await connection()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

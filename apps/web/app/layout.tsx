@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import { Noto_Sans_TC, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
@@ -41,12 +42,29 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // Read user profile from proxy header (set in updateSession)
+  return (
+    <html lang="zh-Hant">
+      <body className={`${notoSansTC.variable} ${geistMono.variable} antialiased font-sans`}>
+        <JsonLd data={organizationSchema()} />
+        <JsonLd data={webSiteSchema()} />
+        <PostHogProvider>
+          <Suspense fallback={<NavFallback />}>
+            <NavWithProfile />
+          </Suspense>
+          {children}
+        </PostHogProvider>
+        <Toaster position="bottom-center" duration={3000} />
+      </body>
+    </html>
+  )
+}
+
+async function NavWithProfile() {
   const headerStore = await headers()
   const profileHeader = headerStore.get('x-user-profile')
   const userProfile = profileHeader ? JSON.parse(decodeURIComponent(profileHeader)) as {
@@ -54,18 +72,16 @@ export default async function RootLayout({
     avatar_url: string | null
     is_admin: boolean
   } : null
+  return <Nav userProfile={userProfile} />
+}
 
+function NavFallback() {
   return (
-    <html lang="zh-Hant">
-      <body className={`${notoSansTC.variable} ${geistMono.variable} antialiased font-sans`}>
-        <JsonLd data={organizationSchema()} />
-        <JsonLd data={webSiteSchema()} />
-        <PostHogProvider>
-          <Nav userProfile={userProfile} />
-          {children}
-        </PostHogProvider>
-        <Toaster position="bottom-center" duration={3000} />
-      </body>
-    </html>
+    <nav className="border-b bg-background sticky top-0 z-40">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+        <div className="h-7 w-28 rounded bg-muted/50" />
+        <div className="h-7 w-24 rounded bg-muted/50" />
+      </div>
+    </nav>
   )
 }

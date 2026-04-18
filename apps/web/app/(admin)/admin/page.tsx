@@ -1,7 +1,18 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { connection } from 'next/server'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default async function AdminDashboardPage() {
+export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminDashboardPageBody />
+    </Suspense>
+  )
+}
+
+async function AdminDashboardPageBody() {
+  await connection()
   const supabase = createServiceClient()
 
   const [

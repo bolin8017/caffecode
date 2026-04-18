@@ -2,12 +2,12 @@ import { createServiceClient, createClient } from '@/lib/supabase/server'
 import { getSolvedProblemIds } from '@/lib/repositories/history.repository'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { cacheLife, cacheTag } from 'next/cache'
 import type { Metadata } from 'next'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
 import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 import { SearchInput, FilterChips, Pagination } from '@/components/data-table'
-
-export const revalidate = 3600
 
 export const metadata: Metadata = {
   title: '題庫',
@@ -35,7 +35,39 @@ interface SearchParams {
   page?: string
 }
 
-export default async function ProblemsPage({
+async function getFilteredProblems(
+  difficulty: string,
+  q: string,
+  offset: number,
+  limit: number,
+) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('problems')
+  const supabase = createServiceClient()
+  let query = supabase
+    .from('problems')
+    .select('id, leetcode_id, title, slug, difficulty, rating, topics, problem_content!inner(id)', { count: 'exact' })
+    .order('leetcode_id')
+  if (difficulty) query = query.eq('difficulty', difficulty)
+  if (q) query = query.ilike('title', `%${sanitizeSearch(q)}%`)
+  const { data, count } = await query.range(offset, offset + limit - 1)
+  return { problems: data ?? [], count: count ?? 0 }
+}
+
+export default function ProblemsPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  return (
+    <Suspense fallback={null}>
+      <ProblemsPageBody searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function ProblemsPageBody({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>
@@ -43,29 +75,23 @@ export default async function ProblemsPage({
   const params = await searchParams
   const currentPage = Math.max(1, Number(params.page ?? '1'))
   const offset = (currentPage - 1) * PAGE_SIZE
-
-  const supabase = createServiceClient()
-  let query = supabase
-    .from('problems')
-    .select('id, leetcode_id, title, slug, difficulty, rating, topics, problem_content!inner(id)', { count: 'exact' })
-    .order('leetcode_id')
-
-  if (params.difficulty) query = query.eq('difficulty', params.difficulty)
-  if (params.q) query = query.ilike('title', `%${sanitizeSearch(params.q)}%`)
-
-  const { data: problems, count } = await query.range(offset, offset + PAGE_SIZE - 1)
+  const { problems, count: totalCount } = await getFilteredProblems(
+    params.difficulty ?? '',
+    params.q ?? '',
+    offset,
+    PAGE_SIZE,
+  )
 
   // Conditionally fetch solved status for logged-in users
   let solvedIds: Set<number> = new Set()
   const userClient = await createClient()
   const { data: { user } } = await userClient.auth.getUser()
-  if (user && problems?.length) {
+  if (user && problems.length) {
     solvedIds = await getSolvedProblemIds(
       userClient, user.id, problems.map(p => p.id)
     )
   }
 
-  const totalCount = count ?? 0
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   return (
@@ -103,7 +129,7 @@ export default async function ProblemsPage({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {problems?.map((p) => (
+            {problems.map((p) => (
               <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                 {user && (
                   <td className="px-2 py-3 text-center">

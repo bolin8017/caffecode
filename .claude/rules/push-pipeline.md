@@ -23,7 +23,8 @@ The push pipeline lives in `packages/shared/src/push/`. It is invoked by `apps/w
 
 ## Cron Entry (apps/web/app/api/cron/push/route.ts)
 
-- `export const dynamic = 'force-dynamic'` + `export const maxDuration = 300`
+- `export const maxDuration = 300` (Vercel function timeout)
+- No `dynamic = 'force-dynamic'` — incompatible with `cacheComponents: true`; route handlers default to dynamic.
 - Auth: `Authorization: Bearer ${CRON_SECRET}` verified with `timingSafeEqual` (see `isValidCronSecret`)
 - 10-minute overlap guard: skips if another run completed in the last 10 minutes
 - Calls `buildPushJobs(supabase, channelRegistry, dispatchLimit)` and `recordPushRun`

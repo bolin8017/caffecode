@@ -5,12 +5,10 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ListSubscribeBar, StartFromHereButton } from './list-subscribe-bar'
 
-import { cache } from 'react'
+import { Suspense } from 'react'
+import { cacheLife, cacheTag } from 'next/cache'
 import { JsonLd } from '@/components/seo/json-ld'
 import { breadcrumbSchema, itemListSchema } from '@/lib/seo/schemas'
-
-export const revalidate = 3600
-export const dynamicParams = true
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   Easy: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
@@ -18,8 +16,10 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   Hard: 'bg-rose-50 text-rose-900 dark:bg-rose-950 dark:text-rose-200',
 }
 
-// Deduplicate the list query between generateMetadata and page render
-const getListBySlug = cache(async (slug: string) => {
+async function getListBySlug(slug: string) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('lists', `list:${slug}`)
   const supabase = createServiceClient()
   const { data } = await supabase
     .from('curated_lists')
@@ -27,7 +27,25 @@ const getListBySlug = cache(async (slug: string) => {
     .eq('slug', slug)
     .single()
   return data
-})
+}
+
+async function getListProblems(listId: number) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('lists', 'problems', `list:${listId}:problems`)
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('list_problems')
+    .select(`
+      sequence_number,
+      problems (
+        id, leetcode_id, title, slug, difficulty, rating
+      )
+    `)
+    .eq('list_id', listId)
+    .order('sequence_number')
+  return data ?? []
+}
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -46,24 +64,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default async function ListDetailPage({ params }: PageProps) {
+export default function ListDetailPage({ params }: PageProps) {
+  return (
+    <Suspense fallback={null}>
+      <ListDetailPageBody params={params} />
+    </Suspense>
+  )
+}
+
+async function ListDetailPageBody({ params }: PageProps) {
   const { slug } = await params
   const list = await getListBySlug(slug)
 
   if (!list) notFound()
 
-  // Fetch problems in sequence order
-  const serviceClient = createServiceClient()
-  const { data: listProblems } = await serviceClient
-    .from('list_problems')
-    .select(`
-      sequence_number,
-      problems (
-        id, leetcode_id, title, slug, difficulty, rating
-      )
-    `)
-    .eq('list_id', list.id)
-    .order('sequence_number')
+  const listProblems = await getListProblems(list.id)
 
   // Check if user is authenticated and fetch their progress
   const supabase = await createClient()
@@ -72,7 +87,7 @@ export default async function ListDetailPage({ params }: PageProps) {
   let userProgress: { current_position: number; is_active: boolean } | null = null
   let solvedIds: Set<number> = new Set()
   if (user) {
-    const problemIds = (listProblems ?? [])
+    const problemIds = listProblems
       .map(lp => (lp.problems as unknown as { id: number } | null)?.id)
       .filter((id): id is number => id != null)
 
@@ -99,7 +114,7 @@ export default async function ListDetailPage({ params }: PageProps) {
     <main className="mx-auto max-w-4xl px-6 py-10">
       <JsonLd data={itemListSchema(
         list.name,
-        (listProblems ?? [])
+        listProblems
           .map(lp => lp.problems as unknown as { title: string; slug: string } | null)
           .filter((p): p is { title: string; slug: string } => p != null)
       )} />
@@ -160,7 +175,7 @@ export default async function ListDetailPage({ params }: PageProps) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {listProblems?.map((lp, idx) => {
+            {listProblems.map((lp, idx) => {
               const p = lp.problems as unknown as {
                 id: number; leetcode_id: number; title: string
                 slug: string; difficulty: string; rating: number | null

@@ -17,6 +17,16 @@ paths:
 - **x-user-profile header**: `proxy.ts` queries user profile once -> sets header -> `layout.tsx` reads it -> passes to `<Nav>`. Value is `encodeURIComponent(JSON.stringify({...}))` for ASCII-safe CJK names. Both `nav.tsx` and `admin/layout.tsx` consume this header.
 - **revalidatePath caution**: Do NOT call from Server Actions that return data the caller displays (e.g. link tokens) — it wipes `useState` immediately.
 
+## Cache Components (Next.js 16)
+
+- **`cacheComponents: true`** enabled in `next.config.ts`. Every runtime data access (`cookies()`, `headers()`, `await params`, `await searchParams`, `supabase.auth.getUser()`) MUST sit inside a `<Suspense>` boundary or it fails build.
+- **Page pattern**: default export is a sync shell that wraps the async body in `<Suspense>`; body lives in a sibling `PageBody` async function. Applies to every page that accesses auth or searchParams.
+- **Layouts**: extract dynamic portions (`headers()` reads, auth checks) into Suspense-wrapped child components; keep static chrome (sidebar, nav links) as the synchronous outer shell.
+- **`use cache` helpers**: shared/static data fetches (`getProblemBySlug`, `getListBySlug`, `getFilteredProblems`, `getFilteredLists`, sitemap data) use the `'use cache'` directive + `cacheLife('hours')` + `cacheTag(...)`. Cannot read `cookies()`/`headers()` inside these.
+- **`cacheTag` vocabulary**: `'problems'` (any problem data), `'problem:<slug>'` (single problem), `'lists'` (any list data), `'list:<slug>'` / `'list:<id>:problems'` (scoped). Use these tags in `runAdminAction({ tags: [...] })` to invalidate on mutation.
+- **`await connection()`**: add at the top of any Server Component that reads `new Date()` / `Date.now()` for query construction — tells Next.js the component is request-scoped (otherwise it errors during prerender).
+- **No `force-dynamic` / `revalidate` exports**: incompatible with `cacheComponents`. Route handlers default to dynamic; pages become Partial Prerender automatically.
+
 ## UI Patterns
 
 - **Sticky bottom bar**: `ProblemActions` uses `IntersectionObserver` on sentinel div; when header action bar scrolls out, `fixed bottom-0` bar slides in via CSS `transition-all duration-200`. iOS safe area: `@utility pb-safe` in globals.css + `generateViewport({ viewportFit: 'cover' })`.
@@ -32,7 +42,7 @@ paths:
 
 **Routes**:
 - `app/page.tsx` — Landing page
-- `app/(public)/` — /problems, /problems/[slug], /lists, /lists/[slug] (ISR `revalidate = 3600`)
+- `app/(public)/` — /problems, /problems/[slug], /lists, /lists/[slug] (Partial Prerender; shared data cached via `'use cache'` + `cacheTag`)
 - `app/robots.ts` — Dynamic robots.txt
 - `app/(auth)/` — /dashboard, /settings, /settings/learning, /settings/account, /settings/notifications, /onboarding, /garden
 - `app/(admin)/admin/` — Health dashboard, problems, content, lists, users, push monitor, channels

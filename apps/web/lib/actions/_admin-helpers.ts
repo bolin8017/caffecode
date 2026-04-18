@@ -7,7 +7,7 @@
  * input validation and DB mutations.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
 
@@ -40,6 +40,8 @@ export interface RunAdminActionOptions {
   errorMessage: string
   /** Path to revalidate after a successful mutation. */
   revalidate?: string
+  /** Cache tags to invalidate after a successful mutation (for use-cache helpers). */
+  tags?: string[]
   /** Additional log fields attached to the error log. */
   logContext?: Record<string, unknown>
 }
@@ -59,6 +61,7 @@ export async function runAdminAction<T>(
   try {
     const result = await handler(ctx)
     if (options.revalidate) revalidatePath(options.revalidate)
+    if (options.tags) options.tags.forEach(tag => revalidateTag(tag, 'max'))
     return result
   } catch (err) {
     logger.error(

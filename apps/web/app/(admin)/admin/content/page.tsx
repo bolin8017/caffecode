@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Suspense } from 'react'
 import { createServiceClient } from '@/lib/supabase/server'
 import { flagForRegeneration, unflagRegeneration } from '@/lib/actions/admin'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
@@ -17,7 +18,19 @@ const FILTER_OPTIONS = [
   { value: 'low_score', label: 'Low Score (<3★)' },
 ]
 
-export default async function AdminContentPage({
+export default function AdminContentPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  return (
+    <Suspense fallback={null}>
+      <AdminContentPageBody searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function AdminContentPageBody({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>

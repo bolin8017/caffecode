@@ -1,4 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 import { ChannelActions } from './channel-actions'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
 import { FilterChips, SortableHeader, Pagination } from '@/components/data-table'
@@ -15,11 +17,24 @@ interface SearchParams {
   page?: string
 }
 
-export default async function AdminChannelsPage({
+export default function AdminChannelsPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>
 }) {
+  return (
+    <Suspense fallback={null}>
+      <AdminChannelsPageBody searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function AdminChannelsPageBody({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  await connection()
   const params = await searchParams
   const statusFilter = params.status ?? 'all'
   const typeFilter = params.type ?? 'all'

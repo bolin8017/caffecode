@@ -1,10 +1,9 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
 import type { Metadata } from 'next'
-
-export const revalidate = 3600
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
@@ -33,10 +32,7 @@ const features = [
   },
 ]
 
-export default async function HomePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
+export default function HomePage() {
   return (
     <main>
       {/* Hero */}
@@ -54,16 +50,9 @@ export default async function HomePage() {
           <p className="mt-2 text-sm text-muted-foreground/70 italic">
             久了之後，有些答案，只是比較有邏輯的咖啡話
           </p>
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <Button asChild size="lg">
-              <Link href={user ? '/dashboard' : '/login'}>
-                {user ? '前往主頁' : '免費開始'}
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/problems">瀏覽題庫</Link>
-            </Button>
-          </div>
+          <Suspense fallback={<HeroCtaFallback />}>
+            <HeroCta />
+          </Suspense>
         </div>
       </section>
 
@@ -87,18 +76,56 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* CTA — 未登入才顯示 */}
-      {!user && (
-        <section className="border-t py-20 px-6 text-center">
-          <div className="mx-auto max-w-lg">
-            <h2 className="text-2xl font-bold">準備好了嗎？</h2>
-            <p className="mt-2 text-muted-foreground">立即加入，今天就建立你的刷題習慣。</p>
-            <Button asChild size="lg" className="mt-6">
-              <Link href="/login">用 Google 或 GitHub 登入</Link>
-            </Button>
-          </div>
-        </section>
-      )}
+      <Suspense fallback={null}>
+        <SignInCta />
+      </Suspense>
     </main>
+  )
+}
+
+async function HeroCta() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return (
+    <div className="mt-8 flex items-center justify-center gap-4">
+      <Button asChild size="lg">
+        <Link href={user ? '/dashboard' : '/login'}>
+          {user ? '前往主頁' : '免費開始'}
+        </Link>
+      </Button>
+      <Button asChild variant="outline" size="lg">
+        <Link href="/problems">瀏覽題庫</Link>
+      </Button>
+    </div>
+  )
+}
+
+function HeroCtaFallback() {
+  return (
+    <div className="mt-8 flex items-center justify-center gap-4">
+      <Button asChild size="lg">
+        <Link href="/login">免費開始</Link>
+      </Button>
+      <Button asChild variant="outline" size="lg">
+        <Link href="/problems">瀏覽題庫</Link>
+      </Button>
+    </div>
+  )
+}
+
+async function SignInCta() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) return null
+  return (
+    <section className="border-t py-20 px-6 text-center">
+      <div className="mx-auto max-w-lg">
+        <h2 className="text-2xl font-bold">準備好了嗎？</h2>
+        <p className="mt-2 text-muted-foreground">立即加入，今天就建立你的刷題習慣。</p>
+        <Button asChild size="lg" className="mt-6">
+          <Link href="/login">用 Google 或 GitHub 登入</Link>
+        </Button>
+      </div>
+    </section>
   )
 }

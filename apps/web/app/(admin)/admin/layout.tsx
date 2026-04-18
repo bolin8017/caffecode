@@ -1,6 +1,7 @@
 import { verifyAdminAccess } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import {
@@ -36,24 +37,13 @@ const NAV_GROUPS = [
   },
 ]
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const result = await verifyAdminAccess()
-  if (!result.authorized) redirect(result.redirectTo)
-  const user = result.user
-
-  // Header is display-only (name/avatar in sidebar) — safe to use for UI
-  const encoded = (await headers()).get('x-user-profile')
-  const profile = encoded
-    ? JSON.parse(decodeURIComponent(encoded)) as { display_name: string | null }
-    : null
-
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <aside className="w-56 shrink-0 border-r bg-muted/30 flex flex-col">
-        <div className="px-4 py-5 border-b">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Admin</p>
-          <p className="text-sm font-medium mt-0.5 truncate">{profile?.display_name ?? user.email}</p>
-        </div>
+        <Suspense fallback={<AdminHeaderFallback />}>
+          <AdminHeader />
+        </Suspense>
         <nav className="flex-1 py-3 px-2">
           {NAV_GROUPS.map((group, gi) => (
             <div key={group.label} className={gi > 0 ? 'mt-4' : ''}>
@@ -82,6 +72,30 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </aside>
       <main className="flex-1 min-w-0 p-8">{children}</main>
+    </div>
+  )
+}
+
+async function AdminHeader() {
+  const result = await verifyAdminAccess()
+  if (!result.authorized) redirect(result.redirectTo)
+  const encoded = (await headers()).get('x-user-profile')
+  const profile = encoded
+    ? JSON.parse(decodeURIComponent(encoded)) as { display_name: string | null }
+    : null
+  return (
+    <div className="px-4 py-5 border-b">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Admin</p>
+      <p className="text-sm font-medium mt-0.5 truncate">{profile?.display_name ?? result.user.email}</p>
+    </div>
+  )
+}
+
+function AdminHeaderFallback() {
+  return (
+    <div className="px-4 py-5 border-b">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Admin</p>
+      <div className="h-4 w-28 rounded bg-muted/50 mt-1.5" />
     </div>
   )
 }

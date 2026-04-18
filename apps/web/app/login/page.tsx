@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { LoginForm } from './login-form'
 import type { Metadata } from 'next'
 
@@ -9,7 +10,19 @@ export const metadata: Metadata = {
   alternates: { canonical: '/login' },
 }
 
-export default async function LoginPage({
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; redirect?: string }>
+}) {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageBody searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+export async function LoginPageBody({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; redirect?: string }>

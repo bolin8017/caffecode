@@ -1,15 +1,23 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { cacheLife, cacheTag } from 'next/cache'
+import { connection } from 'next/server'
 import type { MetadataRoute } from 'next'
 
-export const revalidate = 3600
-
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+async function getSitemapData() {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('problems', 'lists')
   const supabase = createServiceClient()
-
   const [problemsRes, listsRes] = await Promise.all([
     supabase.from('problems').select('slug').not('slug', 'is', null).limit(5000),
     supabase.from('curated_lists').select('slug').limit(1000),
   ])
+  return { problemsRes, listsRes }
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  await connection()
+  const { problemsRes, listsRes } = await getSitemapData()
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://caffecode.net'
   const now = new Date()

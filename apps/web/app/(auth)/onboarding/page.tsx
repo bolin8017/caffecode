@@ -1,11 +1,20 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { OnboardingWizard } from './onboarding-wizard'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: '開始設定 — CaffeCode' }
 
-export default async function OnboardingPage() {
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingPageBody />
+    </Suspense>
+  )
+}
+
+async function OnboardingPageBody() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

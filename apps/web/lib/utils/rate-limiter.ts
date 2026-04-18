@@ -3,16 +3,21 @@
  *
  * Two modes, auto-selected at module load:
  *
- * 1. **Upstash Redis** (preferred, production) — when both
- *    `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set.
- *    Sliding-window limit shared across every Vercel function instance
- *    and region. Set these via the Upstash marketplace integration in
- *    Vercel or `vercel env add`.
+ * 1. **Upstash Redis** (preferred, production) — sliding-window limit
+ *    shared across every Vercel function instance and region. Two env-var
+ *    schemes are accepted so either Vercel Marketplace integration works
+ *    without config:
  *
- * 2. **In-memory Map fallback** — when Upstash env vars are absent
- *    (local dev, preview deploys without the integration, or incident
- *    recovery). Per-instance state; resets on cold start. The HMAC
- *    signature check remains the real auth, so this is defense-in-depth.
+ *    - `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`
+ *      (installed via the "Upstash for Redis" marketplace integration)
+ *    - `KV_REST_API_URL` + `KV_REST_API_TOKEN`
+ *      (installed via the "Upstash KV" marketplace integration, a rename
+ *      of the legacy Vercel KV product)
+ *
+ * 2. **In-memory Map fallback** — when neither scheme is set (local dev,
+ *    preview deploys without the integration, or incident recovery).
+ *    Per-instance state; resets on cold start. The HMAC signature check
+ *    remains the real auth, so this is defense-in-depth.
  *
  * The public API is `checkRateLimit(ip, limitPerMinute)` returning
  * `Promise<boolean>`. Callers `await` it identically in both modes.
@@ -26,23 +31,32 @@ const WINDOW_MS = 60_000
 
 // ── Upstash branch (only wired up when env vars are present) ──────────────
 
-const hasUpstashEnv =
-  typeof process.env.UPSTASH_REDIS_REST_URL === 'string'
-  && process.env.UPSTASH_REDIS_REST_URL.length > 0
-  && typeof process.env.UPSTASH_REDIS_REST_TOKEN === 'string'
-  && process.env.UPSTASH_REDIS_REST_TOKEN.length > 0
+function resolveUpstashCreds(): { url: string; token: string } | null {
+  // Prefer the Upstash-native names when both are present.
+  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL
+  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (upstashUrl && upstashToken) return { url: upstashUrl, token: upstashToken }
 
-// `Redis.fromEnv()` throws on malformed values (e.g. a typo when running
-// `vercel env add`). Catch at module load so the route keeps working on the
-// in-memory fallback instead of crashing every cold start.
+  // Fall back to the KV-flavoured names from the "Upstash KV" integration.
+  const kvUrl = process.env.KV_REST_API_URL
+  const kvToken = process.env.KV_REST_API_TOKEN
+  if (kvUrl && kvToken) return { url: kvUrl, token: kvToken }
+
+  return null
+}
+
+// `new Redis({ url, token })` validates the URL synchronously and will throw
+// on a typo (e.g. after `vercel env add`). Catch at module load so the route
+// keeps working on the in-memory fallback instead of crashing every cold start.
 let upstashRedis: Redis | null = null
-if (hasUpstashEnv) {
+const upstashCreds = resolveUpstashCreds()
+if (upstashCreds) {
   try {
-    upstashRedis = Redis.fromEnv()
+    upstashRedis = new Redis({ url: upstashCreds.url, token: upstashCreds.token })
   } catch (err) {
     logger.error(
       { err },
-      'rate-limiter: Upstash env vars are set but Redis.fromEnv() failed; falling back to in-memory',
+      'rate-limiter: Upstash env vars are set but Redis constructor failed; falling back to in-memory',
     )
     upstashRedis = null
   }

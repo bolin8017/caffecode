@@ -187,14 +187,35 @@ async def fetch_all_problems(client: httpx.AsyncClient) -> list[dict]:
                     timeout=30,
                 )
                 resp.raise_for_status()
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except json.JSONDecodeError as e:
+                    log.error(
+                        f"  Invalid JSON from LeetCode (status={resp.status_code}): "
+                        f"{resp.text[:200]}"
+                    )
+                    raise RuntimeError(f"LeetCode returned non-JSON response: {e}") from e
                 break
+            except httpx.TimeoutException as e:
+                if attempt == MAX_RETRIES - 1:
+                    log.error(f"  Timeout after {MAX_RETRIES} attempts: {e}")
+                    raise
+                delay = RETRY_BASE_DELAY * (2 ** attempt)
+                log.warning(f"  Timeout, retry {attempt + 1}/{MAX_RETRIES} after {delay}s")
+                await asyncio.sleep(delay)
             except (httpx.HTTPStatusError, httpx.RequestError) as e:
                 if attempt == MAX_RETRIES - 1:
                     raise
                 delay = RETRY_BASE_DELAY * (2 ** attempt)
                 log.warning(f"  Retry {attempt + 1}/{MAX_RETRIES} after {delay}s: {e}")
                 await asyncio.sleep(delay)
+
+        if "errors" in data:
+            log.error(f"  GraphQL errors: {data['errors']}")
+            raise RuntimeError(f"LeetCode GraphQL query failed: {data['errors']}")
+        if "data" not in data or not data["data"].get("problemsetQuestionListV2"):
+            log.error(f"  Unexpected GraphQL payload shape: {list(data.keys())}")
+            raise RuntimeError("LeetCode GraphQL response missing expected 'data.problemsetQuestionListV2'")
 
         result = data["data"]["problemsetQuestionListV2"]
         questions = result["questions"]

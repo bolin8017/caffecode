@@ -74,6 +74,32 @@ docs: add CONTRIBUTING.md
 | `supabase/migrations/` | Database migration files |
 | `scripts/` | Utility scripts |
 
+## Running the Python content scripts
+
+Content generation and LeetCode metadata sync run through Python scripts in `scripts/`. Dependencies are pinned in `scripts/requirements.txt`.
+
+```bash
+# First-time setup
+pip install -r scripts/requirements.txt
+
+# Sync LeetCode metadata into data/problems/
+python3 scripts/sync_leetcode.py
+python3 scripts/sync_leetcode.py --dry-run         # preview without writing
+python3 scripts/sync_leetcode.py --ids 1,42,200    # sync specific problems
+
+# Assign orphan problems (with content but not in a list) to topic-based lists
+python3 scripts/generate_topic_lists.py
+
+# Import a curated list (and its problem content) into Supabase
+python3 scripts/build_database.py --list blind75
+python3 scripts/build_database.py --list all
+
+# Run Python tests
+cd scripts && python3 -m pytest tests/ -v
+```
+
+Requires Python 3.11+.
+
 ## Reporting Issues
 
 Use the [issue templates](.github/ISSUE_TEMPLATE/) for bug reports and feature requests.

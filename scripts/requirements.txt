@@ -1,0 +1,12 @@
+# Pinned dependencies for content-pipeline scripts.
+# Install: pip install -r scripts/requirements.txt
+#
+# Versions chosen against the 2026-Q1 stable releases; bump via
+# `pip install -U <pkg>` then update this file and the test suite.
+
+httpx==0.28.1
+python-dotenv==1.0.1
+supabase==2.10.0
+# Test deps
+pytest==8.3.4
+pytest-asyncio==0.25.0

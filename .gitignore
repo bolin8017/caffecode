@@ -9,8 +9,9 @@ CLAUDE.local.md
 # Problem data (imported via scripts/build_database.py)
 data/
 
-# Claude Code implementation plans (session artifacts)
+# Claude Code implementation plans / specs (session artifacts)
 docs/plans/
+docs/superpowers/
 
 # Python
 __pycache__/

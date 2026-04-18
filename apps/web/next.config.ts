@@ -30,7 +30,12 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // unsafe-inline required by Next.js inline scripts; migrate to nonce-based CSP when supported
+              // `'unsafe-inline'` is currently required for the Next.js hydration
+              // bootstrap script. Plan to migrate to nonce-based CSP once the
+              // official Next.js proxy helper for per-request nonces lands
+              // (tracked at vercel/next.js#60641). When switching, generate a
+              // nonce in `proxy.ts`, expose it via a request header, and inject
+              // it here via `template-literal` + the nonce placeholder.
               "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",

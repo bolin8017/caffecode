@@ -27,6 +27,7 @@ vi.mock('@caffecode/shared', () => ({
   sendTelegramMessage: vi.fn(),
   sendLineMessage: vi.fn(),
   sendEmailMessage: vi.fn(),
+  resetChannelFailures: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))

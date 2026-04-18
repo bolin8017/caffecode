@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   getVerifiedChannelsBulk,
   incrementChannelFailures,
-  resetChannelFailuresForUsers,
+  resetChannelFailures,
   recordPushRun,
   upsertHistoryBatch,
   stampLastPushDate,
@@ -40,7 +40,7 @@ describe('incrementChannelFailures — error handling', () => {
   })
 })
 
-describe('resetChannelFailuresForUsers — error handling', () => {
+describe('resetChannelFailures — error handling', () => {
   it('does not throw on DB error (logs only)', async () => {
     const gtMock = vi.fn().mockResolvedValue({
       error: { message: 'timeout' },
@@ -52,7 +52,7 @@ describe('resetChannelFailuresForUsers — error handling', () => {
 
     // Should not throw — logs error internally
     await expect(
-      resetChannelFailuresForUsers(db, ['user-1']),
+      resetChannelFailures(db, ['ch-1']),
     ).resolves.toBeUndefined()
   })
 })

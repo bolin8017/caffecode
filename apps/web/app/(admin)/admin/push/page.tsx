@@ -23,7 +23,11 @@ export default async function AdminPushPage() {
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString()
 
   const [runsRes, usersRes] = await Promise.all([
-    supabase.from('push_runs').select('*').order('ran_at', { ascending: false }).limit(10),
+    supabase
+      .from('push_runs')
+      .select('id, ran_at, candidates, succeeded, failed, duration_ms, error_msg')
+      .order('ran_at', { ascending: false })
+      .limit(10),
     supabase.from('users').select('id, display_name, email, timezone, push_hour, push_hour_utc').eq('push_enabled', true),
   ])
 

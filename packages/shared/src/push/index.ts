@@ -8,7 +8,7 @@ export {
   upsertHistoryBatch,
   advanceListPositions,
   incrementChannelFailures,
-  resetChannelFailuresForUsers,
+  resetChannelFailures,
   recordPushRun,
 } from './push.repository.js'
 export type { PushCandidate, VerifiedChannel } from './push.repository.js'

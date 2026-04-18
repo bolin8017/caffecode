@@ -118,7 +118,7 @@ describe('dispatchJob', () => {
 
     await dispatchJob(makeJob(), channel, mock)
 
-    // dispatchJob no longer resets per-channel — bulk resetChannelFailuresForUsers in buildPushJobs handles it
+    // dispatchJob no longer resets per-channel — bulk resetChannelFailures in buildPushJobs handles it
     expect(fromMock).not.toHaveBeenCalled()
     expect(rpcMock).not.toHaveBeenCalled()
   })
@@ -158,7 +158,7 @@ describe('dispatchJob', () => {
     const { mock, fromMock, rpcMock } = makeSupabaseMock()
     const job = makeJob()
 
-    // Simulate successful send — per-channel reset removed; bulk resetChannelFailuresForUsers in buildPushJobs handles it
+    // Simulate successful send — per-channel reset removed; bulk resetChannelFailures in buildPushJobs handles it
     const channel: NotificationChannel = {
       send: vi.fn().mockResolvedValue({ success: true }),
     }

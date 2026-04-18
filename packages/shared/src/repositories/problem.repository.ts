@@ -1,10 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Difficulty, SelectedProblem } from '../types/push.js'
+import { logger } from '../push/push.logger.js'
 
 // Shape returned when a problem row is joined with problem_content via
 // Supabase's relational select. Narrowed from `unknown` by `toProblemRow`
-// so schema drift surfaces at the repository boundary, not deep in
-// problem-selector logic.
+// so any schema drift is logged and skipped at the repository boundary
+// instead of propagating as a runtime crash inside the push pipeline.
 interface JoinedProblemRow {
   slug: string
   title: string
@@ -17,18 +18,44 @@ function isDifficulty(value: unknown): value is Difficulty {
   return value === 'Easy' || value === 'Medium' || value === 'Hard'
 }
 
-function toProblemRow(value: unknown): JoinedProblemRow | null {
-  if (typeof value !== 'object' || value === null) return null
+/**
+ * Narrows a Supabase join payload to `JoinedProblemRow`. Returns `null` both
+ * when the caller passed `null`/`undefined` (no row found) AND when the
+ * payload's shape doesn't match — but in the latter case we log a warning so
+ * schema drift is visible in production logs instead of silently skipping
+ * problems.
+ */
+function toProblemRow(value: unknown, context: string): JoinedProblemRow | null {
+  if (value == null) return null
+  if (typeof value !== 'object') {
+    logger.warn({ context, type: typeof value }, 'toProblemRow: expected object, got non-object')
+    return null
+  }
   const v = value as Record<string, unknown>
-  if (typeof v.slug !== 'string' || typeof v.title !== 'string') return null
-  if (typeof v.leetcode_id !== 'number' || !isDifficulty(v.difficulty)) return null
+  if (typeof v.slug !== 'string' || typeof v.title !== 'string') {
+    logger.warn({ context, keys: Object.keys(v) }, 'toProblemRow: missing slug/title')
+    return null
+  }
+  if (typeof v.leetcode_id !== 'number' || !isDifficulty(v.difficulty)) {
+    logger.warn(
+      { context, leetcode_id: v.leetcode_id, difficulty: v.difficulty },
+      'toProblemRow: invalid leetcode_id or difficulty',
+    )
+    return null
+  }
 
   // problem_content is either null (no content row) or { explanation: string }
   let content: JoinedProblemRow['problem_content'] = null
   if (v.problem_content != null) {
-    if (typeof v.problem_content !== 'object') return null
+    if (typeof v.problem_content !== 'object') {
+      logger.warn({ context }, 'toProblemRow: problem_content is not an object')
+      return null
+    }
     const c = v.problem_content as Record<string, unknown>
-    if (typeof c.explanation !== 'string') return null
+    if (typeof c.explanation !== 'string') {
+      logger.warn({ context }, 'toProblemRow: problem_content.explanation missing or not a string')
+      return null
+    }
     content = { explanation: c.explanation }
   }
 
@@ -81,7 +108,7 @@ export async function getProblemAtListPosition(
   }
   if (!listProblem) return null
 
-  const problem = toProblemRow(listProblem.problems)
+  const problem = toProblemRow(listProblem.problems, `list=${listId} seq=${nextSeq}`)
   if (!problem || !problem.problem_content) return null
 
   return {
@@ -132,16 +159,19 @@ export async function getProblemById(
   }
   if (!row) return null
 
-  // Reuse toProblemRow but `problems.id` is the primary key, so the joined
-  // shape differs slightly — inline a minimal check here.
-  if (!isDifficulty(row.difficulty)) return null
-  const content = toProblemRow({
-    slug: row.slug,
-    title: row.title,
-    difficulty: row.difficulty,
-    leetcode_id: row.leetcode_id,
-    problem_content: row.problem_content,
-  })
+  // Reuse toProblemRow but `problems.id` is the primary key (not part of the
+  // narrowed shape). Pass the other joined fields through the type guard so
+  // the same drift-logging applies here.
+  const content = toProblemRow(
+    {
+      slug: row.slug,
+      title: row.title,
+      difficulty: row.difficulty,
+      leetcode_id: row.leetcode_id,
+      problem_content: row.problem_content,
+    },
+    `problemId=${problemId}`,
+  )
   if (!content || !content.problem_content) return null
 
   return {

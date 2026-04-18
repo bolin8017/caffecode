@@ -1,10 +1,10 @@
 {
   "name": "caffe-code",
   "private": true,
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@10.33.0",
   "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=9.15.0"
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
   },
   "scripts": {
     "dev": "turbo dev",

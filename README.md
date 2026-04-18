@@ -85,7 +85,7 @@ One Next.js deployment on Vercel hosts both the site and the hourly cron endpoin
 | Monorepo | pnpm workspaces + Turborepo |
 | Observability | Sentry (errors), PostHog (analytics), Pino (structured logging) |
 | Security | CSP headers, Zod validation, webhook HMAC verification, `timingSafeEqual` auth |
-| Testing | Vitest (751 TS) + Playwright E2E (57) + pytest (54 Python) |
+| Testing | Vitest (757 TS) + Playwright E2E (57) + pytest (54 Python) |
 | CI/CD | GitHub Actions, Vercel |
 
 ## Project Structure
@@ -113,8 +113,8 @@ scripts/
 
 ### Prerequisites
 
-- Node.js 22+
-- pnpm 9+ (repo uses `packageManager: "pnpm@9.15.0"`)
+- Node.js 22+ (CI and Vercel use Node 24 LTS; `.nvmrc` is pinned to 24)
+- pnpm 10+ (repo uses `packageManager: "pnpm@10.33.0"`; enable via `corepack enable`)
 - A [Supabase](https://supabase.com) project
 
 ### Installation
@@ -169,8 +169,8 @@ pnpm dev            # start web dev server on localhost:3000
 pnpm test
 
 # Individually
-cd packages/shared && pnpm exec vitest run   # 185 tests
-cd apps/web && pnpm exec vitest run          # 566 tests
+cd packages/shared && pnpm exec vitest run   # 186 tests
+cd apps/web && pnpm exec vitest run          # 571 tests
 
 # E2E tests (requires dev server running)
 cd apps/web && pnpm exec playwright test     # 57 tests

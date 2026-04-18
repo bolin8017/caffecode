@@ -2,7 +2,7 @@
 
 ## Overview
 
-Staging mirrors production with isolated data. Both components (web + worker cron) deploy to Vercel; database needs a separate Supabase project.
+Staging mirrors production with isolated data. The Next.js app (including the `/api/cron/push` route) deploys to Vercel; database needs a separate Supabase project.
 
 ## 1. Database (Supabase)
 
@@ -14,9 +14,9 @@ Staging mirrors production with isolated data. Both components (web + worker cro
 6. Schedule cron: same SQL as production but with staging `APP_URL`
 7. Note the staging URL and keys
 
-## 2. Web + Worker (Vercel)
+## 2. Web (Vercel)
 
-Vercel creates Preview Deployments automatically for non-main branches. The push worker runs as `/api/cron/push` within the same deployment.
+Vercel creates Preview Deployments automatically for non-main branches. The hourly push pipeline runs as `/api/cron/push` within the same deployment.
 
 For a fixed staging URL:
 1. Create a `staging` branch: `git checkout -b staging && git push -u origin staging`
@@ -43,7 +43,7 @@ feature branch --> PR --> staging branch (manual merge) --> test --> main (produ
 
 | Component | Production | Staging |
 |-----------|-----------|---------|
-| Web + Worker URL | caffecode.net | staging.caffecode.net |
+| Web URL (includes cron route) | caffecode.net | staging.caffecode.net |
 | DB | (production project) | (to be created) |
 | Cron trigger | pg_cron → production URL | pg_cron → staging URL |
 | Telegram | @CaffeCodeBot | @CaffeCodeDevBot |

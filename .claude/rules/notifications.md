@@ -3,7 +3,6 @@ paths:
   - "apps/web/app/api/telegram/**"
   - "apps/web/app/api/line/**"
   - "packages/shared/src/channels/**"
-  - "apps/worker/src/channels/**"
   - "apps/web/lib/actions/telegram.ts"
   - "apps/web/lib/actions/line.ts"
   - "apps/web/lib/actions/email.ts"
@@ -28,4 +27,4 @@ paths:
 
 - Resend domain: `caffecode.net` (Cloudflare DNS, verified SPF/DKIM/DMARC)
 - From: `CaffeCode <noreply@caffecode.net>`
-- Worker renders React Email HTML; admin sends plain text
+- Cron route renders React Email HTML via `packages/shared/src/push/channels/email-template.tsx`; admin sends plain text

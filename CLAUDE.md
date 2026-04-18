@@ -15,8 +15,10 @@ pnpm monorepo + Turborepo. Single Next.js app + shared library share a Supabase 
 
 | Component | Location | Runtime | Role |
 |-----------|----------|---------|------|
-| Web | `apps/web/` | Next.js 16 on Vercel | Public pages (SEO), OAuth, dashboard, settings, admin, cron push route |
+| Web | `apps/web/` | Next.js 16 on Vercel | Public pages (SEO), OAuth, dashboard, settings, admin, `/api/cron/push` entry |
 | Shared | `packages/shared/` | TypeScript library | Types, channel senders, problem selection, formatters, push pipeline |
+
+Historically there was also `apps/worker/` running a separate Node process; it was merged into the web app's `/api/cron/push` route in PR #33 and the package deleted.
 
 **Push cron**: `apps/web/app/api/cron/push/route.ts` is the live cron entry. Supabase `pg_cron` + `pg_net` POST hourly with `Authorization: Bearer <CRON_SECRET>`.
 
@@ -30,7 +32,7 @@ Follows Conventional Commits 1.0.0 (Google/Angular style). Full format in `.clau
 
 - Branch: `<type>/<short-kebab-description>`
 - Commit: `<type>(<scope>): <subject>` — imperative, lowercase, no period, max 50 chars
-- Scopes: `web`, `worker`, `shared`, `db`, `ci`
+- Scopes: `web`, `shared`, `db`, `ci`
 - PR → squash merge → delete branch. Never push to `main`.
 - Update `CLAUDE.md` and `README.md` before every PR if the change affects them.
 
@@ -59,11 +61,11 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 | Target | Platform | Deploy method |
 |--------|----------|---------------|
-| Web + Worker | Vercel | `git push origin main` (auto-deploy) |
+| Web (includes cron API route) | Vercel | `git push origin main` (auto-deploy) |
 
 - DB migrations via Supabase MCP `apply_migration` BEFORE deploying code that depends on them
 - Never `vercel --prod` — deploy web via git push only
-- Worker cron: Supabase `pg_cron` fires `pg_net` HTTP POST to `/api/cron/push` every hour
+- Cron entry: Supabase `pg_cron` fires `pg_net` HTTP POST to `/api/cron/push` every hour
 - Auth: `CRON_SECRET` Bearer token (Supabase Vault + Vercel env var)
 - Catch-up model: missed cron triggers recovered on the next successful run
 - Full checklist and cloud services in `.claude/rules/deployment.md`
@@ -84,11 +86,13 @@ Schema in `docs/supabase-schema.sql`. All tables have RLS enabled.
 
 ## Development Notes
 
-**Tests**: 751 TypeScript vitest (shared 185, web 566) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
+**Toolchain**: Node 24 LTS, pnpm 10.33.0 (set via `packageManager` — corepack auto-switches). `engines.node >=22.0.0` so contributors on Node 22 can still develop; CI and Vercel use 24.
+
+**Tests**: 757 TypeScript vitest (shared 186, web 571) + 57 Playwright E2E + 54 Python. Vitest: `pnpm exec vitest run` per package. E2E: `pnpm exec playwright test` in `apps/web/` (requires dev server running). Python: `cd scripts && python3 -m pytest tests/ -v`.
 
 **Coverage**: `pnpm test:coverage` runs all packages with `@vitest/coverage-v8`. CI enforces thresholds (shared 95/90/95/95, web 90/85/90/90 for stmts/branch/funcs/lines). Coverage scope: business logic only (`lib/`, `src/`, API routes); excludes components, pages, and infra singletons.
 
-**Next.js 16**: `proxy.ts` (not `middleware.ts`); export must be named `proxy`.
+**Next.js 16 + Cache Components**: `cacheComponents: true` enabled. Every runtime data read (`cookies()`, `headers()`, awaited params/searchParams, Supabase auth) sits inside a `<Suspense>` boundary; shared fetches use `'use cache'` + `cacheTag(...)`; admin mutations invalidate via `revalidateTag(..., 'max')`. `proxy.ts` (not `middleware.ts`); export must be named `proxy`. Full pattern in `.claude/rules/web-patterns.md`.
 
 **No git worktrees**: `.env.local` not shared across worktrees. Use `git checkout <branch>`.
 

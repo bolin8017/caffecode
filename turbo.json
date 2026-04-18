@@ -3,7 +3,20 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**"],
+      "inputs": [
+        "src/**",
+        "app/**",
+        "lib/**",
+        "components/**",
+        "public/**",
+        "package.json",
+        "tsconfig.json",
+        "next.config.ts",
+        "postcss.config.mjs",
+        "instrumentation.ts",
+        "proxy.ts"
+      ],
+      "outputs": [".next/**", "dist/**", "!.next/cache/**"],
       "env": [
         "NEXT_PUBLIC_SUPABASE_URL",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",
@@ -28,12 +41,16 @@
       "persistent": true
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "lib/**", "app/**", "__tests__/**", "e2e/**", "vitest.config.ts", "package.json", "tsconfig.json"]
     },
     "test:coverage": {
       "dependsOn": ["^build"],
+      "inputs": ["src/**", "lib/**", "app/**", "__tests__/**", "vitest.config.ts", "package.json", "tsconfig.json"],
       "outputs": ["coverage/**"]
     },
-    "lint": {}
+    "lint": {
+      "inputs": ["src/**", "lib/**", "app/**", "eslint.config.mjs", "package.json", "tsconfig.json"]
+    }
   }
 }

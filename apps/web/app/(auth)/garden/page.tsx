@@ -3,6 +3,7 @@ import { getTopicProficiency, getGardenSummary } from '@/lib/repositories/garden
 import { getUserBadges } from '@/lib/repositories/badge.repository'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { CoffeeTree } from './coffee-tree'
 import { GardenTracker } from './garden-tracker'
 import { BadgeShowcase } from './badge-showcase'
@@ -10,7 +11,15 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: '咖啡莊園 — CaffeCode' }
 
-export default async function GardenPage() {
+export default function GardenPage() {
+  return (
+    <Suspense fallback={null}>
+      <GardenPageBody />
+    </Suspense>
+  )
+}
+
+async function GardenPageBody() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

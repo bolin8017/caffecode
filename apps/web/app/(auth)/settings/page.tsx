@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserSettings } from '@/lib/repositories/user.repository'
 import { getChannelsForUser } from '@/lib/repositories/channel.repository'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { PushSettingsForm } from './push-settings-form'
 import { ChannelConnectButton } from './notifications/channel-connect-button'
 import { connectTelegram } from '@/lib/actions/telegram'
@@ -19,7 +20,15 @@ const CHANNEL_LABELS: Record<string, string> = {
   email: 'Email',
 }
 
-export default async function PushNotificationsPage() {
+export default function PushNotificationsPage() {
+  return (
+    <Suspense fallback={null}>
+      <PushNotificationsPageBody />
+    </Suspense>
+  )
+}
+
+async function PushNotificationsPageBody() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

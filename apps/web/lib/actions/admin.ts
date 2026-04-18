@@ -25,7 +25,12 @@ export async function deleteProblem(id: number) {
       const { error } = await db.from('problems').delete().eq('id', id)
       if (error) throw error
     },
-    { revalidate: '/admin/problems', errorMessage: 'Failed to delete problem', logContext: { problemId: id } },
+    {
+      revalidate: '/admin/problems',
+      tags: ['problems', 'lists'],
+      errorMessage: 'Failed to delete problem',
+      logContext: { problemId: id },
+    },
   )
 }
 
@@ -42,7 +47,12 @@ export async function flagForRegeneration(problemId: number) {
         .eq('problem_id', problemId)
       if (error) throw error
     },
-    { revalidate: '/admin/content', errorMessage: 'Failed to flag for regeneration', logContext: { problemId } },
+    {
+      revalidate: '/admin/content',
+      tags: ['problems'],
+      errorMessage: 'Failed to flag for regeneration',
+      logContext: { problemId },
+    },
   )
 }
 
@@ -57,7 +67,12 @@ export async function unflagRegeneration(problemId: number) {
         .eq('problem_id', problemId)
       if (error) throw error
     },
-    { revalidate: '/admin/content', errorMessage: 'Failed to unflag regeneration', logContext: { problemId } },
+    {
+      revalidate: '/admin/content',
+      tags: ['problems'],
+      errorMessage: 'Failed to unflag regeneration',
+      logContext: { problemId },
+    },
   )
 }
 

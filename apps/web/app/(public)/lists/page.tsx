@@ -1,11 +1,11 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { cacheLife, cacheTag } from 'next/cache'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Metadata } from 'next'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
 import { FilterChips, Pagination } from '@/components/data-table'
-
-export const revalidate = 3600
 
 export const metadata: Metadata = {
   title: '學習清單',
@@ -34,7 +34,36 @@ interface SearchParams {
   page?: string
 }
 
-export default async function ListsPage({
+async function getFilteredLists(category: string, offset: number, limit: number) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('lists')
+  const supabase = createServiceClient()
+  let query = supabase
+    .from('curated_lists')
+    .select('id, slug, name, description, problem_count, type', { count: 'exact' })
+    .order('id')
+    .range(offset, offset + limit - 1)
+  if (category && CATEGORY_DB_TYPES[category]) {
+    query = query.in('type', CATEGORY_DB_TYPES[category])
+  }
+  const { data, count } = await query
+  return { lists: data ?? [], count: count ?? 0 }
+}
+
+export default function ListsPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  return (
+    <Suspense fallback={null}>
+      <ListsPageBody searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function ListsPageBody({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>
@@ -42,21 +71,8 @@ export default async function ListsPage({
   const params = await searchParams
   const currentPage = Math.max(1, Number(params.page ?? '1'))
   const offset = (currentPage - 1) * PAGE_SIZE
-
-  const supabase = createServiceClient()
-  let query = supabase
-    .from('curated_lists')
-    .select('id, slug, name, description, problem_count, type', { count: 'exact' })
-    .order('id')
-    .range(offset, offset + PAGE_SIZE - 1)
-
   const category = params.category ?? ''
-  if (category && CATEGORY_DB_TYPES[category]) {
-    query = query.in('type', CATEGORY_DB_TYPES[category])
-  }
-
-  const { data: lists, count } = await query
-  const totalCount = count ?? 0
+  const { lists, count: totalCount } = await getFilteredLists(category, offset, PAGE_SIZE)
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   return (
@@ -76,7 +92,7 @@ export default async function ListsPage({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {lists?.map((list) => (
+        {lists.map((list) => (
           <Link key={list.id} href={`/lists/${list.slug}`} className="group">
             <Card className="h-full transition-shadow group-hover:shadow-md">
               <CardHeader className="pb-2">

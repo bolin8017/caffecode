@@ -8,7 +8,6 @@ import {
   createChannelRegistry,
 } from '@caffecode/shared'
 
-export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 function isValidCronSecret(authHeader: string | null, cronSecret: string | undefined): boolean {

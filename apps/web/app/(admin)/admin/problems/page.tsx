@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { Suspense } from 'react'
 import { DeleteProblemButton } from './delete-button'
 import { PAGE_SIZE } from '@/lib/utils/filter-url'
 import { sanitizeSearch } from '@/lib/utils/sanitize-search'
@@ -10,7 +11,19 @@ interface SearchParams {
   page?: string
 }
 
-export default async function AdminProblemsPage({
+export default function AdminProblemsPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  return (
+    <Suspense fallback={null}>
+      <AdminProblemsPageBody searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function AdminProblemsPageBody({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>

@@ -39,7 +39,7 @@ describe('LoginPage', () => {
   it('redirects to /dashboard when user already authenticated', async () => {
     setupUser({ id: 'u1' })
 
-    const { default: LoginPage } = await import('../app/login/page')
+    const { LoginPageBody: LoginPage } = await import('../app/login/page')
 
     await expect(
       LoginPage({ searchParams: Promise.resolve({}) })
@@ -52,7 +52,7 @@ describe('LoginPage', () => {
   it('does not redirect when user is null (unauthenticated)', async () => {
     setupUser(null)
 
-    const { default: LoginPage } = await import('../app/login/page')
+    const { LoginPageBody: LoginPage } = await import('../app/login/page')
     // Should not throw (no redirect)
     const result = await LoginPage({ searchParams: Promise.resolve({}) })
     expect(result).toBeDefined()
@@ -61,7 +61,7 @@ describe('LoginPage', () => {
   it('passes error search param to LoginForm component', async () => {
     setupUser(null)
 
-    const { default: LoginPage } = await import('../app/login/page')
+    const { LoginPageBody: LoginPage } = await import('../app/login/page')
     const result = await LoginPage({
       searchParams: Promise.resolve({ error: 'auth_failed' }),
     }) as unknown as { props: { error?: string } }
@@ -72,7 +72,7 @@ describe('LoginPage', () => {
   it('passes redirect search param to LoginForm component', async () => {
     setupUser(null)
 
-    const { default: LoginPage } = await import('../app/login/page')
+    const { LoginPageBody: LoginPage } = await import('../app/login/page')
     const result = await LoginPage({
       searchParams: Promise.resolve({ redirect: '/settings' }),
     }) as unknown as { props: { redirectTo?: string } }
@@ -83,7 +83,7 @@ describe('LoginPage', () => {
   it('handles missing search params gracefully', async () => {
     setupUser(null)
 
-    const { default: LoginPage } = await import('../app/login/page')
+    const { LoginPageBody: LoginPage } = await import('../app/login/page')
     const result = await LoginPage({
       searchParams: Promise.resolve({}),
     }) as unknown as { props: { error?: string; redirectTo?: string } }

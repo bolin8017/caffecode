@@ -1,6 +1,15 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { Suspense } from 'react'
 
-export default async function AdminListsPage() {
+export default function AdminListsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminListsPageBody />
+    </Suspense>
+  )
+}
+
+async function AdminListsPageBody() {
   const supabase = createServiceClient()
 
   const { data: lists } = await supabase

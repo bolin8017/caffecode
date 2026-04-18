@@ -11,12 +11,10 @@ import { createClient } from '@/lib/supabase/server'
 import { FeedbackWidget } from './feedback-widget'
 import { ProblemActions } from './problem-actions'
 import { cn } from '@/lib/utils'
-import { cache } from 'react'
+import { Suspense } from 'react'
+import { cacheLife, cacheTag } from 'next/cache'
 import { JsonLd } from '@/components/seo/json-ld'
 import { breadcrumbSchema, learningResourceSchema } from '@/lib/seo/schemas'
-
-export const revalidate = 3600
-export const dynamicParams = true
 
 const ReactMarkdown = dynamic(() => import('react-markdown'))
 
@@ -26,8 +24,10 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   Hard: 'bg-rose-50 text-rose-900 dark:bg-rose-950 dark:text-rose-200',
 }
 
-// Deduplicate the problem query between generateMetadata and page render
-const getProblemBySlug = cache(async (slug: string) => {
+async function getProblemBySlug(slug: string) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('problems', `problem:${slug}`)
   const supabase = createServiceClient()
   const { data } = await supabase
     .from('problems')
@@ -41,7 +41,7 @@ const getProblemBySlug = cache(async (slug: string) => {
     .eq('slug', slug)
     .single()
   return data
-})
+}
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -65,7 +65,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default async function ProblemPage({ params }: PageProps) {
+export default function ProblemPage({ params }: PageProps) {
+  return (
+    <Suspense fallback={null}>
+      <ProblemPageBody params={params} />
+    </Suspense>
+  )
+}
+
+async function ProblemPageBody({ params }: PageProps) {
   const { slug } = await params
   const problem = await getProblemBySlug(slug)
 
